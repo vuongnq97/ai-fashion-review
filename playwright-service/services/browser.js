@@ -70,7 +70,7 @@ async function getBrowserPage(baseDir) {
   if (!globalContext) {
     console.log('[Browser] Launching persistent context...');
     globalContext = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
+      headless: true,
       args: ['--disable-blink-features=AutomationControlled']
     });
 
@@ -94,7 +94,7 @@ async function getBrowserPage(baseDir) {
       try { await globalContext.close(); } catch (_) { }
       globalContext = null;
       globalContext = await chromium.launchPersistentContext(userDataDir, {
-        headless: false,
+        headless: true,
         args: ['--disable-blink-features=AutomationControlled']
       });
       if (fs.existsSync(cookieFile)) {

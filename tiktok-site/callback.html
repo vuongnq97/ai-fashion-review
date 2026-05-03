@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fashion — TikTok Authorization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 48px 40px;
+            max-width: 480px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+        }
+
+        .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        p {
+            font-size: 14px;
+            color: #9ca3af;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .code-box {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #4ade80;
+            word-break: break-all;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .status.success {
+            color: #4ade80;
+        }
+
+        .status.error {
+            color: #f87171;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #e91e63;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card" id="card">
+        <div class="spinner" id="spinner"></div>
+        <h1 id="title">Đang xử lý...</h1>
+        <p id="message">Đang kết nối với TikTok, vui lòng chờ.</p>
+        <div class="code-box" id="codeBox" style="display:none;"></div>
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // Parse URL params from TikTok redirect
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const state = params.get('state');
+        const error = params.get('error');
+
+        const titleEl = document.getElementById('title');
+        const messageEl = document.getElementById('message');
+        const codeBoxEl = document.getElementById('codeBox');
+        const statusEl = document.getElementById('status');
+        const spinnerEl = document.getElementById('spinner');
+
+        if (error) {
+            // OAuth error
+            spinnerEl.style.display = 'none';
+            titleEl.textContent = '❌ Lỗi xác thực';
+            messageEl.textContent = `TikTok trả về lỗi: ${error}`;
+            statusEl.textContent = params.get('error_description') || '';
+            statusEl.classList.add('error');
+        } else if (code) {
+            // Got auth code — exchange for token
+            titleEl.textContent = '✅ Đã nhận mã xác thực!';
+            messageEl.textContent = 'Đang đổi mã lấy access token...';
+            codeBoxEl.style.display = 'block';
+            codeBoxEl.textContent = `code: ${code}`;
+
+            // Send code to server via ngrok (works from phone & desktop)
+            const NGROK_URL = 'https://raspiest-unprophetically-wan.ngrok-free.dev';
+
+            fetch(`${NGROK_URL}/webhook/tiktok-callback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, state: state }),
+            })
+                .then(res => res.json())
+                .then(data => {
+                    spinnerEl.style.display = 'none';
+                    if (data.success) {
+                        titleEl.textContent = '🎉 Kết nối TikTok thành công!';
+                        messageEl.textContent = ''
+                        statusEl.textContent = '';
+                        codeBoxEl.textContent = '';
+                        statusEl.classList.add('success');
+
+                        // Notify Telegram via n8n webhook
+                        if (state && !state.startsWith('state_')) {
+                            const NGROK_URL = 'https://raspiest-unprophetically-wan.ngrok-free.dev';
+                            fetch(`${NGROK_URL}/webhook/tiktok-login-success`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chat_id: state, open_id: data.open_id }),
+                            }).catch(() => { });
+                        }
+                    } else {
+                        titleEl.textContent = '❌ Lỗi đổi token';
+                        messageEl.textContent = data.error || 'Unknown error';
+                        statusEl.classList.add('error');
+                    }
+                })
+                .catch(err => {
+                    spinnerEl.style.display = 'none';
+                    titleEl.textContent = '⚠️ Không kết nối được server';
+                    messageEl.textContent = 'Server không chạy hoặc không truy cập được.';
+                    statusEl.textContent = `Lưu code này để dùng thủ công: ${code}`;
+                    statusEl.classList.add('error');
+                    codeBoxEl.style.display = 'block';
+                    codeBoxEl.textContent = `code: ${code}\nstate: ${state}`;
+                });
+        } else {
+            // No code, no error — direct visit
+            spinnerEl.style.display = 'none';
+            titleEl.textContent = '🔐 TikTok OAuth Callback';
+            messageEl.textContent = 'Trang này nhận redirect từ TikTok OAuth. Hãy bắt đầu từ nút "Login with TikTok" trên trang chính.';
+            statusEl.innerHTML = '<a href="index.html" style="color:#e91e63;">← Về trang chính</a>';
+        }
+    </script>
+</body>
+
+</html>

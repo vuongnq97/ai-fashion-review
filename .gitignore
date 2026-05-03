@@ -1,0 +1,46 @@
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+
+# n8n data (sensitive!)
+database.sqlite
+database.sqlite-shm
+database.sqlite-wal
+crash.journal
+n8nEventLog*.log
+storage/
+
+# n8n-as-code state
+workflows/**/.*
+n8nac-config.json
+
+# Node.js
+node_modules/
+playwright-service/node_modules/
+
+# Sensitive files
+playwright-service/.env
+playwright-service/tokens.json
+playwright-service/cookies/
+config
+
+# Uploads & temp
+playwright-service/uploads/*.mp4
+playwright-service/uploads/*.png
+playwright-service/uploads/input-*
+playwright-service/uploads/output-*
+
+# Binary / large files
+*.sqlite
+*.journal
+*.log
+ngrok
+
+# Images (keep tiktok-site assets)
+image_1.jpg
+model.jpeg
+Untitled-1777099574829.n8n
+docs.md
+playwright-service/chrome-data/

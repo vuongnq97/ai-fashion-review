@@ -5,7 +5,7 @@ const ffmpegPath = require('ffmpeg-static');
 
 // ═══════════════════════════════════════════════════════════════
 // Video post-processing with ffmpeg
-// Crops borders (60px each side) and scales to target resolution
+// Crops borders and scales to target resolution
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -13,7 +13,8 @@ const ffmpegPath = require('ffmpeg-static');
  *
  * @param {Buffer} inputBuffer  - Raw MP4 video buffer
  * @param {object} options
- * @param {number} [options.cropPx=60]       - Pixels to crop from each edge
+ * @param {number} [options.cropPx=46]       - Pixels to crop from each edge
+ * @param {number} [options.cropPercent]     - Fraction to crop from each edge, e.g. 0.03 = 3%
  * @param {number} [options.width=1080]      - Target width
  * @param {number} [options.height=1920]     - Target height
  * @param {string} [options.aspectRatio]     - '9:16' | '16:9' | '1:1' — auto-sets width/height
@@ -22,6 +23,7 @@ const ffmpegPath = require('ffmpeg-static');
 async function processVideo(inputBuffer, options = {}) {
     const {
         cropPx = 46,
+        cropPercent = null,
         aspectRatio = '9:16',
     } = options;
 
@@ -51,11 +53,23 @@ async function processVideo(inputBuffer, options = {}) {
         fs.writeFileSync(inputPath, inputBuffer);
         console.log(`[VideoResize] Input written: ${inputPath} (${(inputBuffer.length / 1024 / 1024).toFixed(1)} MB)`);
 
-        // Build ffmpeg filter: crop borders then scale
-        // crop=in_w-120:in_h-120:60:60 removes 60px from each edge
-        const cropW = cropPx * 2;
-        const cropH = cropPx * 2;
-        const vf = `crop=in_w-${cropW}:in_h-${cropH}:${cropPx}:${cropPx},scale=${width}:${height}:force_original_aspect_ratio=disable`;
+        // Build ffmpeg filter: crop borders then scale.
+        // cropPercent preserves the source aspect ratio because x/y crops are
+        // calculated from their own dimensions instead of using one fixed px value.
+        let vf;
+        let cropLog;
+        if (Number.isFinite(Number(cropPercent)) && Number(cropPercent) > 0) {
+            const pct = Math.min(Number(cropPercent), 0.45);
+            const cropX = `trunc(iw*${pct}/2)*2`;
+            const cropY = `trunc(ih*${pct}/2)*2`;
+            vf = `crop=iw-2*${cropX}:ih-2*${cropY}:${cropX}:${cropY},scale=${width}:${height}:force_original_aspect_ratio=disable`;
+            cropLog = `${(pct * 100).toFixed(2)}% each side`;
+        } else {
+            const cropW = cropPx * 2;
+            const cropH = cropPx * 2;
+            vf = `crop=in_w-${cropW}:in_h-${cropH}:${cropPx}:${cropPx},scale=${width}:${height}:force_original_aspect_ratio=disable`;
+            cropLog = `${cropPx}px each side`;
+        }
 
         // Compute SAR/DAR string for -aspect flag (e.g. '9:16', '16:9', '1:1')
         const aspectFlag = `${width}:${height}`;
@@ -74,7 +88,7 @@ async function processVideo(inputBuffer, options = {}) {
             outputPath
         ];
 
-        console.log(`[VideoResize] Running ffmpeg: crop=${cropPx}px each side, scale=${width}x${height}`);
+        console.log(`[VideoResize] Running ffmpeg: crop=${cropLog}, scale=${width}x${height}`);
         console.log(`[VideoResize] ffmpeg path: ${ffmpegPath}`);
 
         // Execute ffmpeg

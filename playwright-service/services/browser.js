@@ -1,19 +1,23 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const { getExtensionArgs } = require('../utils/extension-loader');
 
-const PROJECT_URL = 'https://labs.google/fx/vi/tools/flow/project/5830fe20-8fd3-4e85-8847-1c7a1cc76527';
-const PROJECT_ID = '5830fe20-8fd3-4e85-8847-1c7a1cc76527';
+const PROJECT_URL = 'https://labs.google/fx/vi/tools/flow/project/ac6ad605-baee-425f-a98d-b56dbce19391';
+const PROJECT_ID = 'ac6ad605-baee-425f-a98d-b56dbce19391';
 const SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
 
 let globalContext = null;
 let globalPage = null;
+const tokenInterceptedPages = new WeakSet();
 
 // ── Bearer token management ──────────────────────────────────
 let cachedBearerToken = null;
 let tokenCapturedAt = 0;
 
 function setupTokenInterceptor(page) {
+  if (tokenInterceptedPages.has(page)) return;
+  tokenInterceptedPages.add(page);
   page.on('request', request => {
     const url = request.url();
     if (url.includes('aisandbox-pa.googleapis.com')) {
@@ -24,6 +28,14 @@ function setupTokenInterceptor(page) {
       }
     }
   });
+}
+
+async function adoptBrowserPage(context, page) {
+  globalContext = context;
+  globalPage = page;
+  setupTokenInterceptor(globalPage);
+  await handleAuthRedirect(globalPage, globalContext);
+  return globalPage;
 }
 
 async function ensureBearerToken(page) {
@@ -52,6 +64,40 @@ async function getRecaptchaToken(page, action = 'IMAGE_GENERATION') {
   return token;
 }
 
+// ── Auth redirect recovery ───────────────────────────────────
+async function handleAuthRedirect(page, context) {
+  const currentUrl = page.url();
+  const isAuthError = currentUrl.includes('error=Callback') || currentUrl.includes('signin?error');
+  const isUnsupported = currentUrl.includes('unsupported-country');
+
+  if (isAuthError || isUnsupported) {
+    console.log(`[Browser] ⚠️ Auth redirect detected: ${currentUrl}`);
+    console.log('[Browser] Fixing callback-url cookie and retrying...');
+
+    // Fix the callback-url cookie
+    await context.addCookies([{
+      name: '__Secure-next-auth.callback-url',
+      value: 'https%3A%2F%2Flabs.google%2Ffx%2Ftools%2Fimage-fx',
+      domain: 'labs.google',
+      path: '/',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax'
+    }]);
+
+    // Clear bad state and retry
+    await page.goto(PROJECT_URL);
+    await page.waitForTimeout(6000);
+
+    const retryUrl = page.url();
+    if (retryUrl.includes('error=Callback') || retryUrl.includes('signin?error')) {
+      console.error('[Browser] ❌ Auth still failing after cookie fix. Session token may be expired — re-export cookies manually.');
+      throw new Error('Google Labs authentication failed. Please re-login and export fresh cookies.');
+    }
+    console.log('[Browser] ✅ Auth recovery successful');
+  }
+}
+
 // ── Browser page management ──────────────────────────────────
 async function getBrowserPage(baseDir) {
   const userDataDir = path.join(baseDir, 'chrome-data');
@@ -70,8 +116,11 @@ async function getBrowserPage(baseDir) {
   if (!globalContext) {
     console.log('[Browser] Launching persistent context...');
     globalContext = await chromium.launchPersistentContext(userDataDir, {
-      headless: true,
-      args: ['--disable-blink-features=AutomationControlled']
+      headless: false,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        ...getExtensionArgs(baseDir),
+      ]
     });
 
     if (fs.existsSync(cookieFile)) {
@@ -94,8 +143,11 @@ async function getBrowserPage(baseDir) {
       try { await globalContext.close(); } catch (_) { }
       globalContext = null;
       globalContext = await chromium.launchPersistentContext(userDataDir, {
-        headless: true,
-        args: ['--disable-blink-features=AutomationControlled']
+        headless: false,
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          ...getExtensionArgs(baseDir),
+        ]
       });
       if (fs.existsSync(cookieFile)) {
         try {
@@ -109,10 +161,12 @@ async function getBrowserPage(baseDir) {
     setupTokenInterceptor(globalPage);
     await globalPage.goto(PROJECT_URL);
     await globalPage.waitForTimeout(6000);
+    await handleAuthRedirect(globalPage, globalContext);
   } else {
     if (!globalPage.url().includes(PROJECT_URL)) {
       await globalPage.goto(PROJECT_URL);
       await globalPage.waitForTimeout(5000);
+      await handleAuthRedirect(globalPage, globalContext);
     } else {
       await globalPage.keyboard.press('Escape');
       await globalPage.waitForTimeout(500);
@@ -127,6 +181,7 @@ function getContext() {
 
 module.exports = {
   getBrowserPage,
+  adoptBrowserPage,
   getContext,
   ensureBearerToken,
   getRecaptchaToken,

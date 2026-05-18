@@ -3,6 +3,12 @@
 
 # IDE
 .vscode/
+.idea/
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
 
 # n8n data (sensitive!)
 database.sqlite
@@ -11,36 +17,79 @@ database.sqlite-wal
 crash.journal
 n8nEventLog*.log
 storage/
+uploads/
 
 # n8n-as-code state
 workflows/**/.*
 n8nac-config.json
+n8nac-config.*.json
+.n8nac/
 
 # Node.js
 node_modules/
 playwright-service/node_modules/
+gemini-image-service/node_modules/
+nodes/node_modules/
 
 # Sensitive files
 playwright-service/.env
+playwright-service/.env.*
+!playwright-service/.env.example
 playwright-service/tokens.json
 playwright-service/cookies/
+playwright-service/labs.google.cookies.json
+playwright-service/labs.google.cookies.backup-*.json
 config
 
-# Uploads & temp
-playwright-service/uploads/*.mp4
-playwright-service/uploads/*.png
-playwright-service/uploads/input-*
-playwright-service/uploads/output-*
+# Browser profiles / sessions
+playwright-service/chrome-data/
+playwright-service/google_labs_profile/
+gemini-image-service/chrome-data/
+
+# Uploads, generated media, debug output
+playwright-service/uploads/
+playwright-service/debug-output/
+playwright-service/test-output/
+playwright-service/*.png
+playwright-service/*.mov
+playwright-service/*.mp4
+playwright-service/*.webm
+playwright-service/screen_recording.mov
+playwright-service/Screen Recording*.mov
+playwright-service/test.mp4
 
 # Binary / large files
 *.sqlite
 *.journal
 *.log
+*.mov
+*.mp4
+*.webm
 ngrok
 
-# Images (keep tiktok-site assets)
+# Local scratch files / dumps
 image_1.jpg
 model.jpeg
 Untitled-1777099574829.n8n
 docs.md
-playwright-service/chrome-data/
+playwright-service/a.html
+playwright-service/debug-*.js
+!playwright-service/debug-flow-extension.js
+playwright-service/get-site-key.js
+playwright-service/inspect-*.js
+playwright-service/modal-dump.html
+playwright-service/poc-*.js
+playwright-service/probe-*.js
+playwright-service/prompt-area-dump.html
+playwright-service/prompt-bar-full.html
+playwright-service/privacy-policy.html
+playwright-service/services/hi.md
+playwright-service/services/hi copy.md
+playwright-service/services/test.js
+playwright-service/test-*.js
+!playwright-service/test-video-crop.js
+playwright-service/test-*.sh
+
+# Old/generated workflow exports
+workflows/local_*/
+workflows/n8n_*/

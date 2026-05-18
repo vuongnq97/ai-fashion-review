@@ -204,6 +204,89 @@ async function pollVideoStatus(page, context, mediaName) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Poll for video completion (standalone — no browser page needed)
+// Uses cached bearerToken + context.request.fetch
+// ═══════════════════════════════════════════════════════════════
+async function pollVideoStatusStandalone(context, bearerToken, mediaName, options = {}) {
+  console.log(`[VideoGen] Polling video status (standalone) for: ${mediaName}...`);
+
+  const statusUrl = 'https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus';
+  const maxPolls = 120;
+  const requireVideoUrl = options.requireVideoUrl !== false;
+  const debugPrefix = options.debugPrefix || '[VideoGen]';
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  for (let i = 0; i < maxPolls; i++) {
+    await delay(5000);
+
+    const statusBody = {
+      media: [{ name: mediaName, projectId: PROJECT_ID }]
+    };
+
+    try {
+      const response = await context.request.fetch(statusUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Authorization': `Bearer ${bearerToken}`,
+          'Origin': 'https://labs.google',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-copyright': 'Copyright 2026 Google LLC. All Rights Reserved.',
+          'x-browser-year': '2026'
+        },
+        data: JSON.stringify(statusBody),
+        timeout: 30000
+      });
+
+      const status = response.status();
+      const body = await response.text();
+
+      if (status !== 200) {
+        console.log(`[VideoGen] Status check HTTP ${status}, retrying...`);
+        continue;
+      }
+
+      const result = JSON.parse(body);
+      const media = result.media?.[0];
+      if (!media) {
+        if ((i + 1) % 6 === 0) {
+          console.log(`${debugPrefix} Status poll ${(i + 1) * 5}s: no media in response. topKeys=${Object.keys(result || {}).join(',')}`);
+        }
+        continue;
+      }
+
+      const genStatus = media.mediaMetadata?.mediaStatus?.mediaGenerationStatus;
+
+      if (genStatus === 'MEDIA_GENERATION_STATUS_SUCCESSFUL') {
+        const videoUrl = findFifeUrl(media) || findFifeUrl(result);
+        if (requireVideoUrl && !videoUrl) {
+          if ((i + 1) % 3 === 0) {
+            console.log(`${debugPrefix} Status successful but video URL not ready yet... ${(i + 1) * 5}s elapsed.`);
+            console.log(`${debugPrefix} Status snapshot: ${summarizeVideoStatusResponse(result, media)}`);
+          }
+          continue;
+        }
+        console.log(`[VideoGen] ✅ Video completed after ${(i + 1) * 5}s`);
+        console.log(`${debugPrefix} Resolved video URL: ${sanitizeUrlForLog(videoUrl)}`);
+        return videoUrl && !findFifeUrl(media) ? result : media;
+      }
+      if (genStatus === 'MEDIA_GENERATION_STATUS_FAILED') {
+        console.log(`${debugPrefix} Failed status snapshot: ${summarizeVideoStatusResponse(result, media)}`);
+        throw new Error(`[VideoGen] ❌ Video generation failed on server`);
+      }
+      if ((i + 1) % 12 === 0) {
+        console.log(`[VideoGen] Still generating... ${(i + 1) * 5}s elapsed. Status: ${genStatus || 'unknown'}`);
+      }
+    } catch (e) {
+      if (e.message.includes('failed on server')) throw e;
+      console.log(`[VideoGen] Status check error: ${e.message}, retrying...`);
+    }
+  }
+  throw new Error('[VideoGen] ❌ Timeout after 10 minutes.');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Extend video via API (batchAsyncGenerateVideoExtendVideo)
 // ═══════════════════════════════════════════════════════════════
 
@@ -307,14 +390,69 @@ async function extendVideo(page, context, {
 // ═══════════════════════════════════════════════════════════════
 // Concatenate Videos API
 // ═══════════════════════════════════════════════════════════════
-function findFifeUrl(obj) {
-  if (!obj || typeof obj !== 'object') return null;
-  for (let key in obj) {
-    if (key === 'fifeUrl' && typeof obj[key] === 'string') return obj[key];
-    const res = findFifeUrl(obj[key]);
-    if (res) return res;
+function collectVideoUrlCandidates(obj) {
+  const seen = new Set();
+  const candidates = [];
+
+  const visit = (value, keyPath = '') => {
+    if (!value) return;
+
+    if (typeof value === 'string') {
+      const str = value.trim();
+      if (!/^https?:\/\//i.test(str)) return;
+
+      const key = keyPath.toLowerCase();
+      let score = 0;
+      if (key.endsWith('fifeurl') || key.includes('.fifeurl')) score += 100;
+      if (/video|movie|mp4|download|playback|source|generated/.test(key)) score += 40;
+      if (/\.mp4(\?|$)/i.test(str)) score += 30;
+      if (/videoplayback|fife|googleusercontent|googlevideo/i.test(str)) score += 20;
+      if (/thumbnail|thumb|image|poster/i.test(key)) score -= 50;
+      if (score > 0) candidates.push({ url: str, score });
+      return;
+    }
+
+    if (typeof value !== 'object') return;
+    if (seen.has(value)) return;
+    seen.add(value);
+
+    for (const [key, child] of Object.entries(value)) {
+      visit(child, keyPath ? `${keyPath}.${key}` : key);
+    }
+  };
+
+  visit(obj);
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+}
+
+function sanitizeUrlForLog(url) {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname.substring(0, 120)}${parsed.search ? '?…' : ''}`;
+  } catch (_) {
+    return String(url).substring(0, 160);
   }
-  return null;
+}
+
+function summarizeVideoStatusResponse(result, media) {
+  const candidates = collectVideoUrlCandidates(result)
+    .slice(0, 5)
+    .map(item => `${item.score}:${sanitizeUrlForLog(item.url)}`);
+  return JSON.stringify({
+    topKeys: Object.keys(result || {}),
+    mediaKeys: Object.keys(media || {}),
+    metadataKeys: Object.keys(media?.mediaMetadata || {}),
+    statusKeys: Object.keys(media?.mediaMetadata?.mediaStatus || {}),
+    status: media?.mediaMetadata?.mediaStatus?.mediaGenerationStatus || null,
+    candidates
+  }).substring(0, 1500);
+}
+
+function findFifeUrl(obj) {
+  const candidates = collectVideoUrlCandidates(obj);
+  return candidates[0]?.url || null;
 }
 
 async function concatenateVideos(page, context, mediaId1, mediaId2) {
@@ -322,7 +460,7 @@ async function concatenateVideos(page, context, mediaId1, mediaId2) {
   const uuid2 = mediaId2.split('/').pop();
   console.log(`[VideoGen] Concatenating videos: ${uuid1} + ${uuid2}...`);
   const bearerToken = await ensureBearerToken(page);
-  
+
   const concatUrl = 'https://aisandbox-pa.googleapis.com/v1:runVideoFxConcatenation';
   const concatBody = {
     inputVideos: [
@@ -344,18 +482,18 @@ async function concatenateVideos(page, context, mediaId1, mediaId2) {
     },
     data: JSON.stringify(concatBody)
   });
-  
+
   let json = await res.json();
   const operationName = json.name || json.operation?.name || (json.operation && json.operation.operation ? json.operation.operation.name : null);
   if (!operationName) throw new Error("[VideoGen] Could not find operation name for concatenation: " + JSON.stringify(json));
-  
+
   console.log(`[VideoGen] Concatenation started: ${operationName}`);
-  
+
   const statusUrl = 'https://aisandbox-pa.googleapis.com/v1:runVideoFxCheckConcatenationStatus';
   for (let i = 0; i < 60; i++) {
     await page.waitForTimeout(5000);
     const token = await ensureBearerToken(page);
-    
+
     res = await context.request.fetch(statusUrl, {
       method: 'POST',
       headers: {
@@ -369,208 +507,135 @@ async function concatenateVideos(page, context, mediaId1, mediaId2) {
       },
       data: JSON.stringify({ operation: { operation: { name: operationName } } })
     });
-    
+
     json = await res.json();
-    
+
     if (json.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL' && json.encodedVideo) {
       console.log(`[VideoGen] ✅ Concatenation complete!`);
       return { base64: json.encodedVideo };
     } else if (json.status === 'MEDIA_GENERATION_STATUS_FAILED' || json.error) {
       throw new Error("[VideoGen] Concatenation failed: " + JSON.stringify(json));
     }
-    
+
     console.log(`[VideoGen] Concatenation status: ${json.status || 'PENDING'}...`);
   }
   throw new Error("[VideoGen] Concatenation timed out");
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN: automateVideoGeneration
+// PHASE 1: Setup + Start API (needs browser page lock)
 // ═══════════════════════════════════════════════════════════════
-async function automateVideoGeneration(page, prompt, extendPrompt, filePayloads, config, baseDir) {
+async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, config, baseDir) {
   const { imageSelection } = config;
   const context = getContext();
   if (!context) throw new Error('[VideoGen] Browser context not available');
 
   let tempFilePaths = [];
-  let resultBase64 = null;
 
-  try {
-    // ── Step 1: Navigate to project page ──
-    // Images from previous gen node already exist in the project gallery
-    // No upload or mode switch needed — API calls don’t depend on UI mode
-    console.log('[VideoGen] Navigating to Google Labs project...');
-    await page.goto(PROJECT_URL);
-    await page.waitForTimeout(6000);
+  // Navigate + switch to video mode
+  console.log('[VideoGen] Navigating to Google Labs project...');
+  await page.goto(PROJECT_URL);
+  await page.waitForTimeout(6000);
+  console.log('[VideoGen] Switching to Video mode...');
+  await switchToMode(page, 'video');
 
-    // ── Step 2: Resolve start image UUID ──
-    // Image already exists from previous generation node
-    console.log('[VideoGen] Switching to Video mode for picker...');
-    await switchToMode(page, 'video');
+  // Upload images if needed
+  if (filePayloads && filePayloads.length > 0) {
+    console.log(`[VideoGen] Uploading ${filePayloads.length} image(s)...`);
+    tempFilePaths = await uploadImages(page, filePayloads, baseDir);
+  }
 
-    // ── Step 1b: Upload images if needed ──
-    if (filePayloads && filePayloads.length > 0) {
-      console.log(`[VideoGen] Uploading ${filePayloads.length} image(s)...`);
-      tempFilePaths = await uploadImages(page, filePayloads, baseDir);
+  // Resolve start image UUID
+  let startImageMediaId = null;
+  const selections = imageSelection || tempFilePaths.map(p => `name:${path.basename(p)}`);
+  if (selections && selections.length > 0) {
+    const sel = selections[0];
+    console.log(`[VideoGen] Resolving start image: "${sel}"...`);
+    if (sel.startsWith('name:')) {
+      startImageMediaId = await findImageUUID(page, sel.split('name:')[1], 'video');
+    } else if (sel.startsWith('uuid:')) {
+      startImageMediaId = sel.split('uuid:')[1];
     }
+  }
+  if (!startImageMediaId) throw new Error('[VideoGen] Could not resolve start image UUID');
 
-    let startImageMediaId = null;
-    const selections = imageSelection || tempFilePaths.map(p => `name:${path.basename(p)}`);
+  // Start video generation API (with retry)
+  const MAX_RETRIES = 3;
+  let mediaName = null;
+  let bearerToken = null;
 
-    if (selections && selections.length > 0) {
-      const sel = selections[0]; // Video uses first image as start frame
-      console.log(`[VideoGen] Resolving start image: "${sel}"...`);
-      if (sel.startsWith('name:')) {
-        const name = sel.split('name:')[1];
-        startImageMediaId = await findImageUUID(page, name, 'video');
-      } else if (sel.startsWith('uuid:')) {
-        startImageMediaId = sel.split('uuid:')[1];
-      }
-    }
-
-    if (!startImageMediaId) {
-      throw new Error('[VideoGen] Could not resolve start image UUID');
-    }
-
-    // ── Step 4 & 5: Start generation + Poll status (with retry) ──
-    const MAX_GEN_RETRIES = 5;
-    let completedMedia = null;
-    let mediaName = null;
-
-    for (let attempt = 1; attempt <= MAX_GEN_RETRIES; attempt++) {
-      try {
-        console.log(`[VideoGen] Generation attempt ${attempt}/${MAX_GEN_RETRIES}...`);
-
-        const apiResult = await startVideoGeneration(page, context, {
-          prompt,
-          startImageMediaId,
-          aspectRatio: config.aspectRatio || '9:16',
-          videoModelKey: config.videoModelKey || null
-        });
-
-        // Extract media name from API response for polling
-        mediaName = apiResult.media?.[0]?.name;
-        if (!mediaName) {
-          console.log(`[VideoGen] API response: ${JSON.stringify(apiResult).substring(0, 500)}`);
-          throw new Error('[VideoGen] Could not extract media name from API response');
-        }
-        console.log(`[VideoGen] Media name for polling: ${mediaName}`);
-
-        // Poll for video completion via API
-        completedMedia = await pollVideoStatus(page, context, mediaName);
-        console.log(`[VideoGen] ✅ Generation succeeded on attempt ${attempt}.`);
-        break; // Success — exit retry loop
-
-      } catch (err) {
-        console.log(`[VideoGen] ❌ Attempt ${attempt}/${MAX_GEN_RETRIES} failed: ${err.message}`);
-        if (attempt >= MAX_GEN_RETRIES) {
-          throw new Error(`[VideoGen] ❌ All ${MAX_GEN_RETRIES} generation attempts failed. Last error: ${err.message}`);
-        }
-        console.log(`[VideoGen] Waiting 5s before retry...`);
-        await page.waitForTimeout(5000);
-      }
-    }
-
-    // ── Step 6: Extend video (if requested) ──
-    let finalMediaName = mediaName;
-    let extendMediaName = null;
-
-    if (extendPrompt) {
-      const workflowId = completedMedia.mediaMetadata?.requestData?.videoGenerationRequestData?.videoModelControlInput
-        ? completedMedia.workflowId
-        : null;
-      // Try multiple paths for workflowId
-      const wfId = workflowId
-        || completedMedia.workflowId
-        || completedMedia.mediaMetadata?.requestData?.clientPlatform; // fallback
-
-      console.log(`[VideoGen] workflowId: ${wfId}`);
-
-      const MAX_EXTEND_RETRIES = 5;
-
-      for (let attempt = 1; attempt <= MAX_EXTEND_RETRIES; attempt++) {
-        try {
-          console.log(`[VideoGen] Extend attempt ${attempt}/${MAX_EXTEND_RETRIES}...`);
-          extendMediaName = await extendVideo(page, context, {
-            extendPrompt,
-            videoMediaId: mediaName,
-            workflowId: wfId || '',
-            aspectRatio: VIDEO_ASPECT_MAP[config.aspectRatio || '9:16'] || 'VIDEO_ASPECT_RATIO_PORTRAIT'
-          });
-
-          // Poll for extend completion
-          const extendedMedia = await pollVideoStatus(page, context, extendMediaName);
-          finalMediaName = extendMediaName;
-          console.log(`[VideoGen] ✅ Extend succeeded on attempt ${attempt}.`);
-          break;
-
-        } catch (err) {
-          console.log(`[VideoGen] ❌ Extend attempt ${attempt}/${MAX_EXTEND_RETRIES} failed: ${err.message}`);
-          if (attempt >= MAX_EXTEND_RETRIES) {
-            console.log(`[VideoGen] ⚠️ All extend attempts failed. Using original video.`);
-          } else {
-            await page.waitForTimeout(5000);
-          }
-        }
-      }
-    }
-
-    // ── Step 7: Fetch video as base64 ──
-    let finalVideoUrl = null;
-    let finalBase64 = null;
-    
-    if (extendMediaName) {
-      console.log('[VideoGen] Calling Concatenation API for 16s video...');
-      const concatResult = await concatenateVideos(page, context, mediaName, extendMediaName);
-      if (concatResult && concatResult.base64) {
-        finalBase64 = concatResult.base64;
-      } else {
-        finalVideoUrl = concatResult;
-      }
-    } else {
-      console.log('[VideoGen] Fetching fifeUrl from initial generation...');
-      // Re-poll the first video to get its fifeUrl
-      const media = await pollVideoStatus(page, context, mediaName);
-      finalVideoUrl = findFifeUrl(media);
-    }
-
-    if (finalBase64) {
-      resultBase64 = finalBase64;
-      console.log(`[VideoGen] ✅ Video concatenated (base64 length: ${resultBase64.length}).`);
-    } else {
-      if (!finalVideoUrl) {
-        throw new Error('[VideoGen] Could not resolve final video URL');
-      }
-      console.log(`[VideoGen] Fetching video as base64 from API URL...`);
-      const vidResponse = await context.request.fetch(finalVideoUrl);
-      const vidBuffer = await vidResponse.body();
-      resultBase64 = vidBuffer.toString('base64');
-      console.log(`[VideoGen] ✅ Video fetched (base64 length: ${resultBase64.length}).`);
-    }
-
-    // ── Step 8: Post-process video (crop borders + scale) ──
-    console.log('[VideoGen] Post-processing video with ffmpeg (crop + scale)...');
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      resultBase64 = await processVideoBase64(resultBase64, {
-        cropPx: 60,
-        aspectRatio: config.aspectRatio || '9:16'
+      console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES}...`);
+      bearerToken = await ensureBearerToken(page);
+      const apiResult = await startVideoGeneration(page, context, {
+        prompt, startImageMediaId,
+        aspectRatio: config.aspectRatio || '9:16',
+        videoModelKey: config.videoModelKey || null
       });
-      console.log(`[VideoGen] ✅ Video post-processed (base64 length: ${resultBase64.length}).`);
-    } catch (resizeErr) {
-      console.error(`[VideoGen] ⚠️ Post-processing failed, using original video: ${resizeErr.message}`);
-      // Continue with unprocessed video rather than failing entirely
+      mediaName = apiResult.media?.[0]?.name;
+      if (!mediaName) throw new Error('[VideoGen] No media name in API response');
+      console.log(`[VideoGen] ✅ Started! Media: ${mediaName}`);
+      break;
+    } catch (err) {
+      console.log(`[VideoGen] ❌ Attempt ${attempt} failed: ${err.message}`);
+      if (attempt >= MAX_RETRIES) throw err;
+      await page.waitForTimeout(5000);
     }
+  }
 
-  } catch (err) {
-    console.error('[VideoGen] Playwright execution error:', err);
-    throw err;
-  } finally {
-    tempFilePaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+  tempFilePaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+  console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
+
+  return { context, bearerToken, mediaName, prompt, extendPrompt, config };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 2: Poll + Fetch (NO browser page needed, parallel OK)
+// ═══════════════════════════════════════════════════════════════
+async function executeVideoGeneration({ context, bearerToken, mediaName, config }) {
+  // Poll for completion (standalone — no page needed)
+  const completedMedia = await pollVideoStatusStandalone(context, bearerToken, mediaName);
+
+  // Extract video URL
+  const fifeUrl = findFifeUrl(completedMedia);
+  if (!fifeUrl) {
+    console.log('[VideoGen] ⚠️ completedMedia:', JSON.stringify(completedMedia).substring(0, 1000));
+    throw new Error('[VideoGen] Could not resolve final video URL');
+  }
+
+  // Fetch video as base64
+  console.log(`[VideoGen] Fetching video from ${fifeUrl.substring(0, 60)}...`);
+  const vidResponse = await context.request.fetch(fifeUrl);
+  const vidBuffer = await vidResponse.body();
+  let resultBase64 = vidBuffer.toString('base64');
+  console.log(`[VideoGen] ✅ Video fetched (base64 length: ${resultBase64.length}).`);
+
+  // Post-process (crop borders + scale)
+  try {
+    resultBase64 = await processVideoBase64(resultBase64, {
+      cropPercent: 0.04, aspectRatio: config.aspectRatio || '9:16'
+    });
+    console.log(`[VideoGen] ✅ Post-processed (base64 length: ${resultBase64.length}).`);
+  } catch (resizeErr) {
+    console.error(`[VideoGen] ⚠️ Post-processing failed, using original: ${resizeErr.message}`);
   }
 
   return resultBase64;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Legacy wrapper (backward compat)
+// ═══════════════════════════════════════════════════════════════
+async function automateVideoGeneration(page, prompt, extendPrompt, filePayloads, config, baseDir) {
+  const prepared = await prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, config, baseDir);
+  return await executeVideoGeneration(prepared);
+}
+
 module.exports = {
-  automateVideoGeneration
+  automateVideoGeneration,
+  prepareVideoGeneration,
+  executeVideoGeneration,
+  pollVideoStatusStandalone,
+  findFifeUrl
 };

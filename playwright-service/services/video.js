@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { writeTempFiles } = require('../utils/helpers');
 const { getContext, ensureBearerToken, getRecaptchaToken, PROJECT_URL, PROJECT_ID } = require('./browser');
-const { findImageUUID, uploadImages, switchToMode } = require('./image');
+const { findImageUUID, uploadImages, switchToMode, uploadImageDirect } = require('./image');
 const { processVideoBase64 } = require('./video-resize');
 
 // ═══════════════════════════════════════════════════════════════
@@ -14,13 +15,47 @@ const VIDEO_MODEL_MAP = {
   'square': 'veo_3_1_i2v_s_square',
 };
 
+const RAW_VIDEO_MODEL_ALIASES = {
+  'veo-3.1-lite-lower': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-lite-low-priority': 'veo_3_1_i2v_lite_low_priority',
+  'veo_3_1_i2v_lite_low_priority': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-fast-lower': 'veo_3_1_i2v_fast_low_priority',
+  'veo-3.1-fast-low-priority': 'veo_3_1_i2v_fast_low_priority',
+  'veo_3_1_i2v_fast_low_priority': 'veo_3_1_i2v_fast_low_priority',
+  'veo-3.1-lite': 'veo_3_1_i2v_lite',
+  'veo_3_1_i2v_lite': 'veo_3_1_i2v_lite',
+  'veo-3.1-fast': 'veo_3_1_i2v_fast',
+  'veo_3_1_i2v_fast': 'veo_3_1_i2v_fast',
+};
+
 const VIDEO_ASPECT_MAP = {
   '9:16': 'VIDEO_ASPECT_RATIO_PORTRAIT',
   '16:9': 'VIDEO_ASPECT_RATIO_LANDSCAPE',
   '1:1': 'VIDEO_ASPECT_RATIO_SQUARE',
 };
 
+function getDefaultVideoModelKey(aspectRatio = '9:16') {
+  if (aspectRatio === '16:9') return VIDEO_MODEL_MAP.landscape;
+  if (aspectRatio === '1:1') return VIDEO_MODEL_MAP.square;
+  return VIDEO_MODEL_MAP.portrait;
+}
 
+function normalizeVideoModelKey(videoModelKey, aspectRatio = '9:16') {
+  const raw = String(videoModelKey || '').trim();
+  if (!raw) return getDefaultVideoModelKey(aspectRatio);
+
+  if (/^veo_/.test(raw)) return raw;
+
+  const normalized = raw.toLowerCase();
+  if (RAW_VIDEO_MODEL_ALIASES[normalized]) return RAW_VIDEO_MODEL_ALIASES[normalized];
+
+  if (normalized.includes('lite') && normalized.includes('lower')) return RAW_VIDEO_MODEL_ALIASES['veo-3.1-lite-lower'];
+  if (normalized.includes('fast') && normalized.includes('lower')) return RAW_VIDEO_MODEL_ALIASES['veo-3.1-fast-lower'];
+  if (normalized.includes('lite')) return RAW_VIDEO_MODEL_ALIASES['veo-3.1-lite'];
+  if (normalized.includes('fast')) return RAW_VIDEO_MODEL_ALIASES['veo-3.1-fast'];
+
+  return getDefaultVideoModelKey(aspectRatio);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Start video generation via API
@@ -43,16 +78,11 @@ async function startVideoGeneration(page, context, {
 
   const apiAspect = VIDEO_ASPECT_MAP[aspectRatio] || 'VIDEO_ASPECT_RATIO_PORTRAIT';
 
-  // Auto-select model based on aspect ratio
-  if (!videoModelKey) {
-    if (aspectRatio === '16:9') videoModelKey = 'veo_3_1_i2v_s_landscape';
-    else if (aspectRatio === '1:1') videoModelKey = 'veo_3_1_i2v_s_square';
-    else videoModelKey = 'veo_3_1_i2v_s_portrait';
-  }
+  videoModelKey = normalizeVideoModelKey(videoModelKey, aspectRatio);
 
   const seed = Math.floor(Math.random() * 100000);
   const sessionId = `;${Date.now()}`;
-  const batchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const batchId = crypto.randomUUID();
 
   const requestBody = {
     mediaGenerationContext: {
@@ -268,7 +298,11 @@ async function pollVideoStatusStandalone(context, bearerToken, mediaName, option
           continue;
         }
         console.log(`[VideoGen] ✅ Video completed after ${(i + 1) * 5}s`);
-        console.log(`${debugPrefix} Resolved video URL: ${sanitizeUrlForLog(videoUrl)}`);
+        if (videoUrl) {
+          console.log(`${debugPrefix} Resolved video URL: ${sanitizeUrlForLog(videoUrl)}`);
+        } else {
+          console.log(`${debugPrefix} Status successful; resolving media URL via Flow redirect endpoint.`);
+        }
         return videoUrl && !findFifeUrl(media) ? result : media;
       }
       if (genStatus === 'MEDIA_GENERATION_STATUS_FAILED') {
@@ -441,11 +475,9 @@ function summarizeVideoStatusResponse(result, media) {
     .slice(0, 5)
     .map(item => `${item.score}:${sanitizeUrlForLog(item.url)}`);
   return JSON.stringify({
-    topKeys: Object.keys(result || {}),
-    mediaKeys: Object.keys(media || {}),
-    metadataKeys: Object.keys(media?.mediaMetadata || {}),
-    statusKeys: Object.keys(media?.mediaMetadata?.mediaStatus || {}),
     status: media?.mediaMetadata?.mediaStatus?.mediaGenerationStatus || null,
+    error: media?.mediaMetadata?.mediaStatus?.error || null,
+    failureReasons: media?.mediaMetadata?.mediaStatus?.failureReasons || null,
     candidates
   }).substring(0, 1500);
 }
@@ -453,6 +485,29 @@ function summarizeVideoStatusResponse(result, media) {
 function findFifeUrl(obj) {
   const candidates = collectVideoUrlCandidates(obj);
   return candidates[0]?.url || null;
+}
+
+async function resolveFlowMediaUrl(context, mediaName, mediaUrlType = '') {
+  const url = new URL('https://labs.google/fx/api/trpc/media.getMediaUrlRedirect');
+  url.searchParams.set('name', mediaName);
+  if (mediaUrlType) url.searchParams.set('mediaUrlType', mediaUrlType);
+
+  const response = await context.request.fetch(url.toString(), {
+    method: 'GET',
+    maxRedirects: 0,
+    headers: {
+      'Referer': 'https://labs.google/fx/',
+      'Origin': 'https://labs.google',
+    },
+    timeout: 30000,
+  });
+
+  const status = response.status();
+  const location = response.headers().location;
+  if (status >= 300 && status < 400 && location) return location;
+
+  const body = await response.text().catch(() => '');
+  throw new Error(`[VideoGen] Could not resolve Flow media URL for ${mediaName}. HTTP ${status}: ${body.substring(0, 300)}`);
 }
 
 async function concatenateVideos(page, context, mediaId1, mediaId2) {
@@ -530,31 +585,25 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
   const context = getContext();
   if (!context) throw new Error('[VideoGen] Browser context not available');
 
-  let tempFilePaths = [];
-
-  // Navigate + switch to video mode
-  console.log('[VideoGen] Navigating to Google Labs project...');
-  await page.goto(PROJECT_URL);
-  await page.waitForTimeout(6000);
-  console.log('[VideoGen] Switching to Video mode...');
-  await switchToMode(page, 'video');
-
-  // Upload images if needed
-  if (filePayloads && filePayloads.length > 0) {
-    console.log(`[VideoGen] Uploading ${filePayloads.length} image(s)...`);
-    tempFilePaths = await uploadImages(page, filePayloads, baseDir);
-  }
+  console.log('[VideoGen] Step 1: Getting Bearer token...');
+  const bearerToken = await ensureBearerToken(page);
 
   // Resolve start image UUID
   let startImageMediaId = null;
-  const selections = imageSelection || tempFilePaths.map(p => `name:${path.basename(p)}`);
-  if (selections && selections.length > 0) {
-    const sel = selections[0];
-    console.log(`[VideoGen] Resolving start image: "${sel}"...`);
-    if (sel.startsWith('name:')) {
-      startImageMediaId = await findImageUUID(page, sel.split('name:')[1], 'video');
-    } else if (sel.startsWith('uuid:')) {
-      startImageMediaId = sel.split('uuid:')[1];
+  if (filePayloads && filePayloads.length > 0) {
+    console.log(`[VideoGen] Step 2: Direct uploading start image: ${filePayloads[0].name}...`);
+    startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer);
+    console.log(`[VideoGen] ✅ Direct upload success: ${startImageMediaId}`);
+  } else {
+    const selections = imageSelection;
+    if (selections && selections.length > 0) {
+      const sel = selections[0];
+      console.log(`[VideoGen] Resolving start image: "${sel}"...`);
+      if (sel.startsWith('name:')) {
+        startImageMediaId = await findImageUUID(page, sel.split('name:')[1], 'video');
+      } else if (sel.startsWith('uuid:')) {
+        startImageMediaId = sel.split('uuid:')[1];
+      }
     }
   }
   if (!startImageMediaId) throw new Error('[VideoGen] Could not resolve start image UUID');
@@ -562,12 +611,10 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
   // Start video generation API (with retry)
   const MAX_RETRIES = 3;
   let mediaName = null;
-  let bearerToken = null;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES}...`);
-      bearerToken = await ensureBearerToken(page);
       const apiResult = await startVideoGeneration(page, context, {
         prompt, startImageMediaId,
         aspectRatio: config.aspectRatio || '9:16',
@@ -584,7 +631,6 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
     }
   }
 
-  tempFilePaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
   console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
 
   return { context, bearerToken, mediaName, prompt, extendPrompt, config };
@@ -595,10 +641,12 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
 // ═══════════════════════════════════════════════════════════════
 async function executeVideoGeneration({ context, bearerToken, mediaName, config }) {
   // Poll for completion (standalone — no page needed)
-  const completedMedia = await pollVideoStatusStandalone(context, bearerToken, mediaName);
+  const completedMedia = await pollVideoStatusStandalone(context, bearerToken, mediaName, {
+    requireVideoUrl: false,
+  });
 
   // Extract video URL
-  const fifeUrl = findFifeUrl(completedMedia);
+  const fifeUrl = findFifeUrl(completedMedia) || await resolveFlowMediaUrl(context, mediaName);
   if (!fifeUrl) {
     console.log('[VideoGen] ⚠️ completedMedia:', JSON.stringify(completedMedia).substring(0, 1000));
     throw new Error('[VideoGen] Could not resolve final video URL');
@@ -637,5 +685,7 @@ module.exports = {
   prepareVideoGeneration,
   executeVideoGeneration,
   pollVideoStatusStandalone,
-  findFifeUrl
+  findFifeUrl,
+  resolveFlowMediaUrl,
+  normalizeVideoModelKey
 };

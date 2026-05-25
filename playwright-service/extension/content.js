@@ -376,9 +376,18 @@ function queryAllElementsDeep(selector, root = document) {
 }
 
 async function activatePromptComposer() {
-    const composerXPath = '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div';
-    const composer = getElementByXPath(composerXPath);
-    if (!composer || !isElementVisible(composer)) {
+    // Try multiple XPath candidates for the composer area
+    const composerXPaths = [
+        '/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]',
+        '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div',
+        '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]',
+    ];
+    let composer = null;
+    for (const xpath of composerXPaths) {
+        const el = getElementByXPath(xpath);
+        if (el && isElementVisible(el)) { composer = el; break; }
+    }
+    if (!composer) {
         console.info('-> Không tìm thấy khung composer theo XPath yêu cầu, tiếp tục tìm editor trực tiếp.');
         return false;
     }
@@ -411,6 +420,99 @@ function isElementVisible(element) {
     const rect = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
     return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+}
+
+function normalizeFlowStatusText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function hasFlowRunningStatusText(value) {
+    const text = normalizeFlowStatusText(value);
+    if (!text) return false;
+
+    return /\d{1,3}\s*%/.test(text)
+        || /\b(render|rendering|processing|pending|queued|preparing|loading|waiting|generating)\b/.test(text)
+        || text.includes('dang render')
+        || text.includes('dang xu ly')
+        || text.includes('dang chuan bi')
+        || text.includes('dang tao')
+        || text.includes('dang trong hang doi')
+        || text.includes('trong hang doi')
+        || text.includes('hang doi')
+        || text.includes('xep hang')
+        || text.includes('cho xu ly')
+        || text.includes('cho den luot');
+}
+
+function hasFlowErrorStatusText(value) {
+    const text = normalizeFlowStatusText(value);
+    if (!text) return false;
+
+    return text.includes('khong thanh cong')
+        || text.includes('da xay ra loi')
+        || text.includes('khong the tao')
+        || text.includes('tao that bai')
+        || /\b(failed|failure|error)\b/.test(text);
+}
+
+function getVisibleFloatingRoots() {
+    return Array.from(document.body.children)
+        .filter(el => isElementVisible(el))
+        .filter(el => {
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            const position = style.position;
+            const looksOverlay = position === 'fixed'
+                || position === 'absolute'
+                || rect.width < window.innerWidth * 0.96
+                || rect.height < window.innerHeight * 0.96;
+            return looksOverlay && rect.width > 80 && rect.height > 40;
+        })
+        .slice(-8);
+}
+
+function findDynamicAssetDropdownButton() {
+    const roots = getVisibleFloatingRoots();
+    const searchRoots = roots.length > 0 ? roots : [document.body];
+    const buttons = Array.from(new Set(searchRoots.flatMap(root =>
+        Array.from(root.querySelectorAll('button, [role="button"], div[tabindex]'))
+    ))).filter(el => isElementVisible(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true');
+
+    const scored = buttons.map(el => {
+        const text = (el.textContent || '').trim().toLowerCase();
+        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+        const title = (el.getAttribute('title') || '').toLowerCase();
+        const iconText = Array.from(el.querySelectorAll('.google-symbols, .material-symbols-outlined, i'))
+            .map(icon => (icon.textContent || '').trim().toLowerCase())
+            .join(' ');
+        const haystack = `${text} ${aria} ${title} ${iconText}`;
+        const rect = el.getBoundingClientRect();
+        let score = 0;
+
+        if (haystack.includes('newest') || haystack.includes('recent')) score += 60;
+        if (haystack.includes('asset') || haystack.includes('library')) score += 45;
+        if (haystack.includes('image') || haystack.includes('photo') || haystack.includes('media')) score += 35;
+        if (haystack.includes('expand_more') || haystack.includes('keyboard_arrow_down') || haystack.includes('arrow_drop_down')) score += 55;
+        if (haystack.includes('add') || haystack.includes('upload')) score += 20;
+        if (rect.top < window.innerHeight * 0.75) score += 8;
+        if (rect.width <= 220 && rect.height <= 80) score += 6;
+
+        return { el, score, label: haystack.replace(/\s+/g, ' ').trim() };
+    })
+        .filter(item => item.score >= 40)
+        .sort((a, b) => b.score - a.score);
+
+    if (scored[0]) {
+        console.log(`[frame-to-video] Dynamic asset dropdown candidate: "${scored[0].label}" score=${scored[0].score}`);
+        return scored[0].el;
+    }
+
+    return null;
 }
 
 function forceUserLikeClick(element) {
@@ -454,41 +556,53 @@ function forceUserLikeClick(element) {
 }
 
 function clickSubmitButtonSafely(button) {
-    if (!button || !isElementVisible(button)) return false;
-    if (button.disabled || button.getAttribute('aria-disabled') === 'true') return false;
-
-    const now = Date.now();
-    const key = button;
-    const lockMap = clickSubmitButtonSafely._lockMap || (clickSubmitButtonSafely._lockMap = new WeakMap());
-    const lastAt = lockMap.get(key) || 0;
-
-    // Chặn click trùng quá sát nhau trên cùng nút submit.
-    if (now - lastAt < 1200) {
+    if (!button || !isElementVisible(button)) {
+        console.log('[clickSubmitButtonSafely] Button not found or not visible');
         return false;
     }
-    lockMap.set(key, now);
+    if (button.disabled || button.getAttribute('aria-disabled') === 'true') {
+        console.log('[clickSubmitButtonSafely] Button is disabled');
+        return false;
+    }
+    const now = Date.now();
+    const lockMap = clickSubmitButtonSafely._lockMap || (clickSubmitButtonSafely._lockMap = new WeakMap());
+    const lastAt = lockMap.get(button) || 0;
+    if (now - lastAt < 1200) {
+        console.log('[clickSubmitButtonSafely] Click throttled');
+        return false;
+    }
+    lockMap.set(button, now);
 
+    const btnText = (button.textContent || '').trim().substring(0, 30);
+    console.log('[clickSubmitButtonSafely] Clicking submit: "' + btnText + '" disabled=' + button.disabled + ' aria-disabled=' + button.getAttribute('aria-disabled'));
+
+    // Use ONLY button.click() — this generates a TRUSTED event (isTrusted=true)
+    // forceUserLikeClick dispatches synthetic events (isTrusted=false) which React ignores
     try {
         button.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } catch (e) { }
-
+    } catch (_) {}
+    
     try {
         button.focus();
-    } catch (e) { }
-
-    try {
         button.click();
+        console.log('[clickSubmitButtonSafely] ✅ button.click() executed (trusted event)');
         return true;
     } catch (e) {
+        console.log('[clickSubmitButtonSafely] button.click() failed: ' + e.message);
+        // Fallback: dispatch trusted-like MouseEvent
         try {
+            const rect = button.getBoundingClientRect();
             button.dispatchEvent(new MouseEvent('click', {
                 bubbles: true,
                 cancelable: true,
                 view: window,
-                buttons: 1
+                clientX: rect.left + rect.width / 2,
+                clientY: rect.top + rect.height / 2
             }));
+            console.log('[clickSubmitButtonSafely] ✅ MouseEvent dispatched');
             return true;
-        } catch (err) {
+        } catch (e2) {
+            console.log('[clickSubmitButtonSafely] ❌ All click methods failed');
             return false;
         }
     }
@@ -678,10 +792,6 @@ async function waitForSubmitAcceptance(editor, promptText, beforeErrorCount, bef
 
         if (promptRequiredError) {
             return { accepted: false, promptRequiredError: true, reason: 'prompt-required' };
-        }
-
-        if (!submitReady) {
-            return { accepted: true, promptRequiredError: false, reason: 'submit-locked' };
         }
 
         if (activePercent !== null) {
@@ -1107,20 +1217,37 @@ async function fillPromptToWeb(promptText, mode) {
     // 6. Ghost text check
     let currentText = getEditorText(editor).toLowerCase();
     if (!committed || currentText.includes("tạo gì") || currentText.includes("create") || !currentText.includes(promptText.substring(0, 3).toLowerCase())) {
-        console.log("-> ⚠️ Ghost Text! Cưỡng chế...");
+        console.log("-> ⚠️ Ghost Text! Cưỡng chế bằng execCommand...");
         try {
-            committed = insertPromptIntoEditor(editor, promptText);
-        } catch (e) { committed = false; }
+            // Use Selection API + execCommand for React/Slate compatibility
+            editor.focus();
+            const sel = window.getSelection();
+            sel.selectAllChildren(editor);
+            // Clear existing content
+            document.execCommand('delete', false);
+            await new Promise(r => setTimeout(r, 100));
+            // Insert new text via execCommand — triggers React/Slate internal handlers
+            document.execCommand('insertText', false, promptText);
+            committed = isPromptCommitted(editor, promptText);
+            console.log(`-> execCommand insertText result: committed=${committed}`);
+        } catch (e) {
+            console.log(`-> execCommand failed: ${e.message}, falling back`);
+            try { committed = insertPromptIntoEditor(editor, promptText); } catch (_) { committed = false; }
+        }
         await new Promise(r => setTimeout(r, 220));
     }
 
-    // 7. Space ảo để bật nút Gửi
+    // 7. Trigger React state update to enable submit button
     editor.focus();
     if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
         const currentValue = editor.value || '';
         setNativeInputValue(editor, `${currentValue} `);
         editor.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
+        // Fire execCommand space to trigger Slate's onChange
+        try {
+            document.execCommand('insertText', false, ' ');
+        } catch (_) {}
         try {
             editor.dispatchEvent(new InputEvent('beforeinput', {
                 bubbles: true, cancelable: true,
@@ -1130,11 +1257,23 @@ async function fillPromptToWeb(promptText, mode) {
         editor.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 300));
 
     if (!isPromptCommitted(editor, promptText)) {
-        const secondTry = hardSetPromptIntoEditor(editor, promptText);
-        if (!secondTry) return null;
+        // Last resort: execCommand full text
+        try {
+            editor.focus();
+            const sel = window.getSelection();
+            sel.selectAllChildren(editor);
+            document.execCommand('delete', false);
+            await new Promise(r => setTimeout(r, 50));
+            document.execCommand('insertText', false, promptText);
+            await new Promise(r => setTimeout(r, 200));
+        } catch (_) {}
+        if (!isPromptCommitted(editor, promptText)) {
+            const secondTry = hardSetPromptIntoEditor(editor, promptText);
+            if (!secondTry) return null;
+        }
     }
 
     if (!isPromptCommitted(editor, promptText)) return null;
@@ -1151,34 +1290,38 @@ function createOrUpdateProgressBar(percent) {
     }
 }
 
-async function isSubmitButtonReadyForNextPrompt(editorRef = null, selectedModeRef = '', groupIdRef = undefined, indexRef = undefined) {
+async function isSubmitButtonReadyForNextPrompt(editorRef = null, selectedModeRef = '', groupIdRef = undefined, indexRef = undefined, options = {}) {
+    const silent = !!options.silent;
+    const noWake = !!options.noWake;
     const editor = editorRef || getBestPromptEditor() || getBottomComposerEditor() || null;
     const selectedMode = String(selectedModeRef || '');
     let submitButton = getSubmitButtonNearEditor(editor, selectedMode) || findSubmitButton(editor) || getPrimarySubmitButton();
 
     // --- ĐÁNH THỨC NÚT SUBMIT NẾU NÓ BỊ KHÓA (MỜ) ---
     if (submitButton && (submitButton.disabled || submitButton.getAttribute('aria-disabled') === 'true')) {
-        if (groupIdRef !== undefined && indexRef !== undefined) {
+        if (!silent && groupIdRef !== undefined && indexRef !== undefined) {
             safeSendQueueStatus({ groupId: groupIdRef, index: indexRef, status: 'Đang đánh thức nút Gửi... 🔄', percent: 0 });
         }
-        try {
-            if (editor) {
-                editor.focus();
-                const currentValue = getEditorText(editor);
-                if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
-                    setNativeInputValue(editor, currentValue + ' ');
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
-                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!noWake) {
+            try {
+                if (editor) {
+                    editor.focus();
+                    const currentValue = getEditorText(editor);
+                    if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
+                        setNativeInputValue(editor, currentValue + ' ');
+                        editor.dispatchEvent(new Event('input', { bubbles: true }));
+                        editor.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 }
-            }
-            await new Promise(r => setTimeout(r, 600));
-            // Quét tìm lại nút submit sau khi đã đánh thức
-            submitButton = getSubmitButtonNearEditor(editor, selectedMode) || findSubmitButton(editor) || getPrimarySubmitButton();
-        } catch (e) { }
+                await new Promise(r => setTimeout(r, 600));
+                // Quét tìm lại nút submit sau khi đã đánh thức
+                submitButton = getSubmitButtonNearEditor(editor, selectedMode) || findSubmitButton(editor) || getPrimarySubmitButton();
+            } catch (e) { }
+        }
     }
 
     if (!submitButton || submitButton.disabled || submitButton.getAttribute('aria-disabled') === 'true') {
-        if (groupIdRef !== undefined && indexRef !== undefined) {
+        if (!silent && groupIdRef !== undefined && indexRef !== undefined) {
             safeSendQueueStatus({ groupId: groupIdRef, index: indexRef, status: 'Không tìm thấy nút chạy (hoặc bị khóa) ❌', percent: 0 });
         }
         return false;
@@ -1282,7 +1425,7 @@ async function waitForPromptCompletionOrReady(groupId, promptIndex, maxAttempts 
 
         const myPercentValue = getActiveRenderPercent();
 
-        const submitReady = await isSubmitButtonReadyForNextPrompt(null, '', groupId, promptIndex);
+        const submitReady = await isSubmitButtonReadyForNextPrompt(null, '', undefined, undefined, { silent: true, noWake: true });
         if (!submitReady) {
             startedRunning = true;
         }
@@ -1470,25 +1613,118 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             resolve(result);
         };
 
+        const parsePercentFromText = (value) => {
+            const matches = Array.from(String(value || '').matchAll(/(?:^|[^\d])(\d{1,3})\s*%/g))
+                .map(match => parseInt(match[1], 10))
+                .filter(n => Number.isFinite(n) && n >= 0 && n <= 100);
+            if (matches.length === 0) return null;
+            return Math.max(...matches);
+        };
+
+        const parsePercentFromValue = (value) => {
+            if (value === null || value === undefined || value === '') return null;
+            const raw = String(value).trim();
+            if (raw.includes('%')) return parsePercentFromText(raw);
+
+            const n = Number.parseFloat(raw.replace(',', '.'));
+            if (!Number.isFinite(n)) return parsePercentFromText(value);
+
+            // Flow exposes unrelated fractional UI values such as 0.99 inside
+            // render cards. Do not treat bare fractions as render percentages.
+            if (n > 1 && n <= 100) return Math.round(n);
+            return null;
+        };
+
         const readPercentFromCard = (card) => {
             if (!card || !isElementVisible(card)) return null;
-            const allTexts = Array.from(card.querySelectorAll('*'));
-            const percentEl = allTexts.find(el => {
-                const text = (el.textContent || '').trim();
-                return /\d{1,3}%/.test(text) && el.children.length === 0;
-            });
-            if (!percentEl) return null;
-            const match = (percentEl.textContent || '').trim().match(/(\d{1,3})%/);
-            if (!match) return null;
-            const parsed = parseInt(match[1], 10);
-            return Number.isFinite(parsed) ? parsed : null;
+
+            const progressNodes = Array.from(card.querySelectorAll('[role="progressbar"], [aria-valuetext], progress'));
+            for (const node of progressNodes) {
+                if (!isElementVisible(node)) continue;
+                const attrValue = node.getAttribute('aria-valuetext')
+                    || node.getAttribute('aria-valuenow')
+                    || node.getAttribute('value');
+                const attrPercent = parsePercentFromValue(attrValue);
+                if (attrPercent !== null) return attrPercent;
+
+                const textPercent = parsePercentFromText(node.textContent || '');
+                if (textPercent !== null) return textPercent;
+            }
+
+            const leafTexts = Array.from(card.querySelectorAll('*'))
+                .filter(el => el.children.length === 0)
+                .map(el => el.textContent || '')
+                .join(' ');
+            const leafPercent = parsePercentFromText(leafTexts);
+            if (leafPercent !== null) return leafPercent;
+
+            return parsePercentFromText(card.textContent || '');
+        };
+
+        const isRenderCardActive = (card) => {
+            if (!card || !isElementVisible(card)) return false;
+            if (readPercentFromCard(card) !== null) return true;
+            return hasFlowRunningStatusText(card.textContent || '');
+        };
+
+        const getCardRootForNode = (node) => {
+            if (!node || !node.closest) return null;
+            const direct = node.closest('[data-index][data-item-index], [data-tile-id]');
+            if (direct && isElementVisible(direct)) return direct;
+
+            let current = node;
+            for (let depth = 0; depth < 6 && current && current !== document.body; depth++) {
+                if (!isElementVisible(current)) {
+                    current = current.parentElement;
+                    continue;
+                }
+
+                const rect = current.getBoundingClientRect();
+                const hasMedia = !!current.querySelector?.('img, video, canvas');
+                const hasAction = !!current.querySelector?.('button, [role="button"], a[href], i.google-symbols');
+                if (hasMedia && hasAction && rect.width >= 80 && rect.height >= 80 && rect.width <= window.innerWidth) {
+                    return current;
+                }
+                current = current.parentElement;
+            }
+
+            return null;
+        };
+
+        const getVisibleRenderCards = (grid = null) => {
+            const cardSet = new Set();
+            const addCard = (node) => {
+                const card = getCardRootForNode(node) || node;
+                if (card && card !== document.body && isElementVisible(card)) {
+                    cardSet.add(card);
+                }
+            };
+
+            if (grid) {
+                Array.from(grid.children || []).filter(isElementVisible).forEach(addCard);
+            }
+
+            Array.from(document.querySelectorAll('[data-index][data-item-index], [data-tile-id]'))
+                .filter(isElementVisible)
+                .forEach(addCard);
+
+            Array.from(document.querySelectorAll('[role="progressbar"], [aria-valuetext], progress, div, span'))
+                .filter(el => {
+                    if (!isElementVisible(el)) return false;
+                    if (el.matches('[role="progressbar"], [aria-valuetext], progress')) {
+                        return readPercentFromCard(el) !== null;
+                    }
+                    if (el.children.length > 1) return false;
+                    const text = el.textContent || '';
+                    return parsePercentFromText(text) !== null || hasFlowRunningStatusText(text);
+                })
+                .forEach(addCard);
+
+            return Array.from(cardSet);
         };
 
         const getLowestVisiblePercentInGrid = (grid) => {
-            if (!grid) return null;
-
-            const values = Array.from(grid.children)
-                .filter(card => isElementVisible(card))
+            const values = getVisibleRenderCards(grid)
                 .map(card => readPercentFromCard(card))
                 .filter(value => value !== null);
 
@@ -1502,8 +1738,7 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
 
             const hasMedia = !!card.querySelector('img, video, canvas');
             const hasAction = !!card.querySelector('button, [role="button"], a[href], i.google-symbols');
-            const rawText = (card.textContent || '').toLowerCase();
-            const stillRunning = /\d+%|render|processing|pending|queued|preparing|loading|dang render/.test(rawText);
+            const stillRunning = hasFlowRunningStatusText(card.textContent || '');
 
             return hasMedia && hasAction && !stillRunning;
         };
@@ -1540,8 +1775,8 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             // ============================================================
             // BƯỚC 1: LOCK CARD THEO DATA-ITEM-INDEX + FALLBACK SCAN
             // ============================================================
-            if (gridContainer) {
-                const cards = Array.from(gridContainer.children).filter(c => isElementVisible(c));
+            const cards = getVisibleRenderCards(gridContainer);
+            if (cards.length > 0) {
 
                 // 1a. Scene hint (mạnh nhất)
                 if (!foundCard && sceneNumberHint) {
@@ -1596,10 +1831,26 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
                         const owner = card.getAttribute('data-veo-owner');
                         if (owner && owner !== ownerKey) return false;
                         if (readPercentFromCard(card) !== null) return true;
-                        const txt = (card.textContent || '').toLowerCase();
-                        return /render|processing|pending|queued|preparing|loading/.test(txt);
+                        return hasFlowRunningStatusText(card.textContent || '');
                     });
                     if (anyRendering) { foundCard = anyRendering; myPercentValue = readPercentFromCard(anyRendering); }
+                }
+
+                // 1f. Nếu đã lock nhầm vào card không có %, ưu tiên card render thật đang hiện %.
+                if (myPercentValue === null) {
+                    const minPct = hasSeenPercent ? Math.max(0, lastPercentSeen - 2) : 0;
+                    const percentCard = cards
+                        .filter(card => {
+                            const owner = card.getAttribute?.('data-veo-owner');
+                            if (owner && owner !== ownerKey) return false;
+                            const pct = readPercentFromCard(card);
+                            return pct !== null && pct >= minPct;
+                        })
+                        .sort((a, b) => (readPercentFromCard(b) || 0) - (readPercentFromCard(a) || 0))[0];
+                    if (percentCard) {
+                        foundCard = percentCard;
+                        myPercentValue = readPercentFromCard(percentCard);
+                    }
                 }
             }
 
@@ -1619,7 +1870,7 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             } else if (lockedCard && document.contains(lockedCard)) {
                 // Không tìm được card mới, giữ lockedCard cũ và thử đọc lại %
                 try { lockedCard.setAttribute('data-veo-owner', ownerKey); } catch (e) { }
-                if (myPercentValue === null) {
+                if (!Number.isFinite(myPercentValue)) {
                     myPercentValue = readPercentFromCard(lockedCard);
                 }
             }
@@ -1627,17 +1878,18 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             if ((_currentOutputCount || 1) > 1) {
                 const lowestGridPercent = getLowestVisiblePercentInGrid(gridContainer);
                 if (lowestGridPercent !== null) {
-                    myPercentValue = myPercentValue === null
-                        ? lowestGridPercent
-                        : Math.min(myPercentValue, lowestGridPercent);
+                    myPercentValue = Number.isFinite(myPercentValue)
+                        ? Math.min(myPercentValue, lowestGridPercent)
+                        : lowestGridPercent;
                 }
             }
 
             // ============================================================
             // BƯỚC 3: Xử lý kết quả % và quyết định finalize
             // ============================================================
-            if (myPercentValue !== null) {
+            if (Number.isFinite(myPercentValue)) {
                 // Tìm được % → cập nhật trạng thái
+                myPercentValue = Math.max(0, Math.min(100, Math.round(myPercentValue)));
                 hasSeenPercent = true;
                 missingPercentStreak = 0;
                 if (myPercentValue > lastPercentSeen) {
@@ -1666,35 +1918,35 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             } else if (hasSeenPercent) {
                 // Đã từng thấy % nhưng giờ không thấy → kiểm tra xem xong chưa
 
-                // Chỉ tăng streak khi KHÔNG còn card nào có % trên grid
-                const anyCardShowingPercent = !!(gridContainer && Array.from(gridContainer.children).some(card => {
-                    if (!isElementVisible(card)) return false;
-                    return readPercentFromCard(card) !== null;
-                }));
+                // Chỉ tăng streak khi KHÔNG còn card nào đang render/queued trên grid.
+                const activeRenderCards = getVisibleRenderCards(gridContainer).filter(card => isRenderCardActive(card));
+                const anyCardStillRunning = activeRenderCards.length > 0;
 
-                if (anyCardShowingPercent) {
+                if (anyCardStillRunning) {
                     missingPercentStreak = 0; // Vẫn còn video đang render → không đếm streak
                 } else {
                     missingPercentStreak++;
                 }
 
-                const submitReady = await isSubmitButtonReadyForNextPrompt(null, selectedMode, groupId, promptIndex);
+                const submitReady = await isSubmitButtonReadyForNextPrompt(null, selectedMode, undefined, undefined, { silent: true, noWake: true });
                 const noProgressMs = Date.now() - lastPercentChangedAt;
                 const isParallelMonitoring = getGroupMonitorCount() > 1;
 
                 // Done signals
                 const extendBtn = getElementByXPath("/html/body/div[1]/div[1]/div[1]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/button[1]");
-                const hasStrongDoneSignal = !!(!isParallelMonitoring && submitReady && extendBtn && isElementVisible(extendBtn) && !extendBtn.disabled);
+                const hasEnoughProgressForDone = lastPercentSeen >= 90;
 
-                const hasCardDoneSignal = !!(lockedCard && isCardLikelyCompleted(lockedCard));
+                const hasStrongDoneSignal = !!(hasEnoughProgressForDone && !isParallelMonitoring && submitReady && !anyCardStillRunning && extendBtn && isElementVisible(extendBtn) && !extendBtn.disabled);
 
-                const hasSafeTimeoutDone = !!(!isParallelMonitoring && submitReady && missingPercentStreak >= 8 && noProgressMs >= 15000);
+                const hasCardDoneSignal = !!(hasEnoughProgressForDone && !anyCardStillRunning && lockedCard && isCardLikelyCompleted(lockedCard));
+
+                const hasSafeTimeoutDone = !!(hasEnoughProgressForDone && !isParallelMonitoring && submitReady && !anyCardStillRunning && missingPercentStreak >= 8 && noProgressMs >= 15000);
 
                 // Parallel: cần không có card nào render + đủ thời gian
-                const hasParallelDone = !!(isParallelMonitoring && submitReady && !anyCardShowingPercent && missingPercentStreak >= 8 && noProgressMs >= 25000);
+                const hasParallelDone = !!(hasEnoughProgressForDone && isParallelMonitoring && submitReady && !anyCardStillRunning && missingPercentStreak >= 8 && noProgressMs >= 25000);
 
                 // Hard timeout
-                const hasHardTimeout = !!(missingPercentStreak >= 15 && noProgressMs >= 40000 && !anyCardShowingPercent);
+                const hasHardTimeout = !!(hasEnoughProgressForDone && missingPercentStreak >= 15 && noProgressMs >= 40000 && !anyCardStillRunning);
 
                 if (hasStrongDoneSignal || hasCardDoneSignal || hasSafeTimeoutDone || hasParallelDone || hasHardTimeout) {
                     safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Xong ✅", percent: 100 });
@@ -1716,29 +1968,20 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
             } else {
                 // Chưa bao giờ thấy % → đang chuẩn bị hoặc chưa bắt đầu
                 const elapsedSinceStart = Date.now() - lastPercentChangedAt;
-                const submitReady = await isSubmitButtonReadyForNextPrompt(null, selectedMode, groupId, promptIndex);
+                const submitReady = await isSubmitButtonReadyForNextPrompt(null, selectedMode, undefined, undefined, { silent: true, noWake: true });
+                const activeCards = getVisibleRenderCards(gridContainer).filter(card => isRenderCardActive(card));
+                const hasActiveCards = activeCards.length > 0;
 
-                const hasNeverSeenTimeout = !!(elapsedSinceStart >= 45000 && submitReady);
-                const hasHardTimeout = !!(elapsedSinceStart >= 90000);
+                const hasNeverSeenTimeout = !!(elapsedSinceStart >= 45000 && submitReady && !hasActiveCards);
+                const hasHardTimeout = !!(elapsedSinceStart >= 90000 && !hasActiveCards);
 
                 if (hasNeverSeenTimeout || hasHardTimeout) {
-                    safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Xong ✅", percent: 100 });
-                    createOrUpdateProgressBar(100);
-                    if (!deferDownload) {
-                        // Trigger auto-download before finalizing (default behavior)
-                        await handlePromptCompletionDownload(promptIndex, groupId, selectedMode);
-                    }
-                    finalize(true);
+                    safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Timeout chờ Flow render ⏳", percent: 0 });
+                    finalize(false);
                     return;
                 }
 
                 // Hiển thị trạng thái phù hợp
-                const activeCards = gridContainer ? Array.from(gridContainer.children).filter(card => {
-                    if (!isElementVisible(card)) return false;
-                    const txt = (card.textContent || '').toLowerCase();
-                    return /\d{1,3}%|render|processing|pending|queued|preparing|loading/.test(txt);
-                }) : [];
-
                 if (activeCards.length > 0) {
                     const multiMonitor = getGroupMonitorCount() > 1;
                     safeSendMessage({
@@ -1748,14 +1991,7 @@ function monitorVideoProgress(promptIndex, promptText, groupId = undefined, sele
                         percent: 1
                     });
                 } else if (submitReady && elapsedSinceStart >= 10000) {
-                    // Không còn card render + submit ready + đã chờ 10s = xong
-                    safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Xong ✅", percent: 100 });
-                    createOrUpdateProgressBar(100);
-                    if (!deferDownload) {
-                        // Trigger auto-download before finalizing (default behavior)
-                        await handlePromptCompletionDownload(promptIndex, groupId, selectedMode);
-                    }
-                    finalize(true);
+                    safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Đang chờ Flow bắt đầu render… ⏳", percent: 1 });
                 } else {
                     safeSendMessage({ action: "UPDATE_QUEUE_STATUS", groupId, index: promptIndex, status: "Đang chuẩn bị ⚙️" });
                 }
@@ -2021,8 +2257,8 @@ async function applyInitialSettings(mode, videoModel, imageModel, aspectRatio) {
             } else if (normalizedVideoModel.includes("lite")) {
                 await forceClickXPath("/html/body/div[4]/div/div[1]/div/button", 500);
             } else {
-                // Default: Veo 3.1 - Fast
-                await forceClickXPath("/html/body/div[4]/div/div[2]/div/button", 500);
+                // Default: Veo 3.1 - Quality
+                await forceClickXPath("/html/body/div[4]/div/div[3]/div/button", 500);
             }
         }
     }
@@ -2241,13 +2477,17 @@ function normalizeIncomingFiles(uploadedFiles) {
     return uploadedFiles.map(file => normalizeIncomingFile(file)).filter(Boolean);
 }
 
-async function injectFileToNewestInput(file, attempts = 10) {
+function getImageFileInputs(scope = document) {
+    const root = scope && typeof scope.querySelectorAll === 'function' ? scope : document;
+    return Array.from(root.querySelectorAll('input[type="file"]')).filter(input => {
+        const accept = (input.getAttribute('accept') || '').toLowerCase();
+        return !accept || accept.includes('image') || accept.includes('png') || accept.includes('jpeg') || accept.includes('jpg') || accept.includes('webp');
+    });
+}
+
+async function injectFileToNewestInput(file, attempts = 10, scope = document) {
     for (let i = 0; i < attempts; i++) {
-        const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-        const imageInput = inputs.reverse().find(input => {
-            const accept = (input.getAttribute('accept') || '').toLowerCase();
-            return !accept || accept.includes('image') || accept.includes('png') || accept.includes('jpeg') || accept.includes('jpg') || accept.includes('webp');
-        });
+        const imageInput = getImageFileInputs(scope).reverse()[0];
 
         if (imageInput && setFileToInput(imageInput, file)) {
             return true;
@@ -2259,13 +2499,9 @@ async function injectFileToNewestInput(file, attempts = 10) {
     return false;
 }
 
-async function injectFilesToNewestInput(files, attempts = 12) {
+async function injectFilesToNewestInput(files, attempts = 12, scope = document) {
     for (let attempt = 0; attempt < attempts; attempt++) {
-        const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-        const imageInput = inputs.reverse().find(input => {
-            const accept = (input.getAttribute('accept') || '').toLowerCase();
-            return !accept || accept.includes('image') || accept.includes('png') || accept.includes('jpeg') || accept.includes('jpg') || accept.includes('webp');
-        });
+        const imageInput = getImageFileInputs(scope).reverse()[0];
 
         if (imageInput && setFilesToInput(imageInput, files)) {
             return true;
@@ -2349,14 +2585,9 @@ async function waitForFrameImageReady(maxAttempts = 24, intervalMs = 250) {
     return false;
 }
 
-async function waitForImageInputAvailable(maxAttempts = 20, intervalMs = 250) {
+async function waitForImageInputAvailable(maxAttempts = 20, intervalMs = 250, scope = document) {
     for (let i = 0; i < maxAttempts; i++) {
-        const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-        const hasImageInput = inputs.some(input => {
-            const accept = (input.getAttribute('accept') || '').toLowerCase();
-            return !accept || accept.includes('image') || accept.includes('png') || accept.includes('jpeg') || accept.includes('jpg') || accept.includes('webp');
-        });
-        if (hasImageInput) return true;
+        if (getImageFileInputs(scope).length > 0) return true;
         await new Promise(r => setTimeout(r, intervalMs));
     }
     return false;
@@ -2378,8 +2609,12 @@ function getRecentAssetCards() {
     const uniqueCandidates = Array.from(new Set(allCandidates));
     return uniqueCandidates.filter(card => {
         if (!isElementVisible(card)) return false;
-        const img = card.querySelector('img');
-        if (!img) return false;
+        const images = Array.from(card.querySelectorAll('img')).filter(isElementVisible);
+        if (images.length !== 1) return false;
+        const img = images[0];
+
+        const rect = card.getBoundingClientRect();
+        if (rect.width > 360 || rect.height > 360) return false;
 
         const text = (card.textContent || '').trim();
         const alt = (img.getAttribute('alt') || '').trim();
@@ -2390,17 +2625,39 @@ function getRecentAssetCards() {
     });
 }
 
+function cleanAssetFileNameCandidate(value) {
+    let text = String(value || '').trim();
+    if (!text) return '';
+
+    const panelMatch = text.match(/panel-\d+\.(png|jpe?g|webp|gif|bmp|avif)/i);
+    if (panelMatch) return panelMatch[0];
+
+    text = text
+        .replace(/^(image|photo|insert_photo|photo_library|play_circle|videocam)+/i, '')
+        .trim();
+
+    return text;
+}
+
 function getAssetNameFromCard(card) {
     if (!card) return '';
     const img = card.querySelector('img');
     const directText = (card.textContent || '').trim();
     const altText = (img?.getAttribute('alt') || '').trim();
+    const titleText = (img?.getAttribute('title') || card.getAttribute?.('title') || '').trim();
+    const ariaText = (card.getAttribute?.('aria-label') || '').trim();
 
-    const fileNameRegex = /[\w\s-]+\.(png|jpe?g|webp|gif|bmp|avif)/i;
-    const fromDirect = directText.match(fileNameRegex)?.[0] || '';
-    const fromAlt = altText.match(fileNameRegex)?.[0] || '';
+    const fileNameRegex = /[\w .()-]+\.(png|jpe?g|webp|gif|bmp|avif)/gi;
+    const sources = [titleText, altText, ariaText, directText];
+    for (const source of sources) {
+        const matches = String(source || '').match(fileNameRegex) || [];
+        for (const match of matches) {
+            const cleaned = cleanAssetFileNameCandidate(match);
+            if (cleaned) return cleaned;
+        }
+    }
 
-    return (fromDirect || fromAlt || altText || directText).trim();
+    return (cleanAssetFileNameCandidate(altText) || cleanAssetFileNameCandidate(directText)).trim();
 }
 
 function getAssetCardKey(card) {
@@ -2422,6 +2679,49 @@ function getAssetCardKey(card) {
 
     const rect = card.getBoundingClientRect();
     return `rect:${Math.round(rect.left)}:${Math.round(rect.top)}:${Math.round(rect.width)}:${Math.round(rect.height)}`;
+}
+
+function isExactAssetCardMatch(card, targetFileName) {
+    const targetKey = normalizeName(targetFileName || '');
+    if (!card || !targetKey) return false;
+    return normalizeName(getAssetNameFromCard(card)) === targetKey;
+}
+
+function countLoadedAssetNames(targetFileNames = []) {
+    const targetKeys = new Set(
+        (Array.isArray(targetFileNames) ? targetFileNames : [])
+            .map(name => normalizeName(name))
+            .filter(Boolean)
+    );
+    if (targetKeys.size === 0) return 0;
+
+    const foundKeys = new Set();
+    getRecentAssetCards().forEach(card => {
+        const nameKey = normalizeName(getAssetNameFromCard(card));
+        if (targetKeys.has(nameKey)) foundKeys.add(nameKey);
+    });
+    return foundKeys.size;
+}
+
+async function waitForUploadedAssetNames(targetFileNames = [], maxAttempts = 30, intervalMs = 500) {
+    const expectedCount = new Set(
+        (Array.isArray(targetFileNames) ? targetFileNames : [])
+            .map(name => normalizeName(name))
+            .filter(Boolean)
+    ).size;
+    if (expectedCount === 0) return true;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const loadedCount = countLoadedAssetNames(targetFileNames);
+        if (loadedCount >= expectedCount) {
+            console.log(`[waitForUploadedAssetNames] ✓ Loaded ${loadedCount}/${expectedCount} uploaded asset name(s)`);
+            return true;
+        }
+        await new Promise(r => setTimeout(r, intervalMs));
+    }
+
+    console.log(`[waitForUploadedAssetNames] ⚠️ Uploaded asset names not fully visible yet (${countLoadedAssetNames(targetFileNames)}/${expectedCount})`);
+    return false;
 }
 
 function safeElementClick(element) {
@@ -2446,6 +2746,7 @@ function clickRecentAssetCard(card) {
     if (!card) return false;
 
     const preferred = [
+        card.matches?.('[role="option"], button, [role="button"]') ? card : null,
         card.querySelector('[role="button"][aria-roledescription="draggable"]'),
         card.querySelector('[role="button"][aria-describedby^="DndDescribedBy-"]'),
         card.querySelector('button[role="option"]'),
@@ -2465,6 +2766,64 @@ function clickRecentAssetCard(card) {
     return true;
 }
 
+
+/**
+ * Find frame slot element by its label text.
+ * "Bắt đầu"/"Start" for first frame, "Kết thúc"/"End" for last frame.
+ */
+function findFrameSlotByLabel(frameType) {
+    const safeType = String(frameType || '').toLowerCase();
+    const isLast = safeType === 'last' || safeType === 'end';
+
+    // Try known XPaths FIRST — they return broader containers with attachment signals
+    const xpaths = isLast ? [
+        '/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]',
+        '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[2]',
+    ] : [
+        '/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]',
+        '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]',
+    ];
+    for (const xpath of xpaths) {
+        const el = getElementByXPath(xpath);
+        if (el && isElementVisible(el)) {
+            console.log(`[findFrameSlotByLabel] Found ${safeType} via XPath: ${xpath} (${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)})`);
+            return el;
+        }
+    }
+
+    // Fallback: search by label text
+    const labelTexts = isLast
+        ? ['kết thúc', 'end', 'last frame', 'last']
+        : ['bắt đầu', 'start', 'first frame', 'first'];
+
+    const allDivs = document.querySelectorAll('div, span');
+    for (const el of allDivs) {
+        if (!isElementVisible(el)) continue;
+        const directText = (el.textContent || '').trim().toLowerCase();
+        if (directText.length > 15) continue;
+        if (!labelTexts.some(label => directText === label)) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 20 || rect.height < 20) continue;
+        console.log(`[findFrameSlotByLabel] Found "${directText}" label for ${safeType} at ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+        // Return the parent container that holds the actual frame slot UI (images, buttons etc.)
+        // The label itself is too small (50x50) to contain attachment signals
+        let container = el.parentElement;
+        // Walk up to find a reasonably-sized container (>100px wide)
+        for (let i = 0; i < 4 && container; i++) {
+            const cr = container.getBoundingClientRect();
+            if (cr.width > 100 && cr.height > 40) {
+                console.log(`[findFrameSlotByLabel] Using parent container ${Math.round(cr.width)}x${Math.round(cr.height)} for ${safeType}`);
+                return container;
+            }
+            container = container.parentElement;
+        }
+        return el;
+    }
+
+    console.log(`[findFrameSlotByLabel] Could not find ${safeType} frame slot`);
+    return null;
+}
+
 function getFrameSlotRegion(frameType) {
     const safeFrameType = String(frameType || '').toLowerCase();
     const regionKey = safeFrameType === 'last' ? 'END' : 'START';
@@ -2473,6 +2832,16 @@ function getFrameSlotRegion(frameType) {
 
 function getFrameSlotAttachmentCount(frameType, anchorElement = null) {
     const scopeCandidates = [];
+    const safeFrameType = String(frameType || '').toLowerCase();
+
+    // Dynamic: find the frame slot by looking for "Bắt đầu"/"Start" or "Kết thúc"/"End" label text
+    const currentSlot = findFrameSlotByLabel(safeFrameType);
+
+    if (currentSlot) {
+        scopeCandidates.push({ scope: currentSlot, label: 'current-slot' });
+        if (currentSlot.parentElement) scopeCandidates.push({ scope: currentSlot.parentElement, label: 'current-slot-parent' });
+        if (currentSlot.parentElement?.parentElement) scopeCandidates.push({ scope: currentSlot.parentElement.parentElement, label: 'current-slot-grandparent' });
+    }
 
     // Priority 1: Use the region directly from data-scroll-state
     const region = getFrameSlotRegion(frameType);
@@ -2482,10 +2851,26 @@ function getFrameSlotAttachmentCount(frameType, anchorElement = null) {
     }
 
     // Priority 2: Use anchorElement's local scope
-    if (anchorElement) {
+    if (anchorElement && anchorElement.isConnected !== false) {
         scopeCandidates.push({ scope: anchorElement, label: 'anchor-element' });
         if (anchorElement.parentElement) scopeCandidates.push({ scope: anchorElement.parentElement, label: 'anchor-parent' });
         if (anchorElement.parentElement?.parentElement) scopeCandidates.push({ scope: anchorElement.parentElement.parentElement, label: 'anchor-grandparent' });
+    }
+
+    // Priority 3: Broad composer scope — attachment UI may live outside label container
+    const composerXPaths = [
+        '/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]',
+        '/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]/div[1]',
+        '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]',
+    ];
+    for (const xpath of composerXPaths) {
+        const el = getElementByXPath(xpath);
+        if (el && isElementVisible(el)) {
+            const alreadyAdded = scopeCandidates.some(c => c.scope === el);
+            if (!alreadyAdded) {
+                scopeCandidates.push({ scope: el, label: 'composer-broad' });
+            }
+        }
     }
 
     if (scopeCandidates.length === 0) {
@@ -2524,6 +2909,23 @@ function getFrameSlotAttachmentCount(frameType, anchorElement = null) {
             console.log(`[getFrameSlotAttachmentCount] ${frameType} (${label}): found ${images.length} images`);
             return images.length;
         }
+
+        const scopeText = (scope.textContent || '').trim();
+        if (/\.(png|jpe?g|webp|gif|bmp|avif)/i.test(scopeText)) {
+            console.log(`[getFrameSlotAttachmentCount] ${frameType} (${label}): found filename text`);
+            return 1;
+        }
+
+        const bgNodes = [scope, ...Array.from(scope.querySelectorAll('*'))].filter(node => {
+            if (!isElementVisible(node)) return false;
+            const bg = window.getComputedStyle(node).backgroundImage || '';
+            return bg && bg !== 'none' && /url\(/i.test(bg);
+        });
+
+        if (bgNodes.length > 0) {
+            console.log(`[getFrameSlotAttachmentCount] ${frameType} (${label}): found ${bgNodes.length} background images`);
+            return bgNodes.length;
+        }
     }
 
     console.log(`[getFrameSlotAttachmentCount] ${frameType}: no attachment signals found in any scope`);
@@ -2561,8 +2963,10 @@ async function clickAssetConfirmButton() {
 
 function hasAnyAttachedMediaInComposer() {
     const composerRoots = [
+        getElementByXPath('/html/body/div[1]/div[1]/div[5]/div[1]/div[1]/div[1]/div[1]'),
         getElementByXPath('/html/body/div[1]/div[1]/div[5]/div/div/div[2]/div[1]'),
-        getElementByXPath('/html/body/div[1]/div[1]/div[5]/div/div/div[3]/div[1]')
+        getElementByXPath('/html/body/div[1]/div[1]/div[5]/div/div/div[3]/div[1]'),
+        getElementByXPath('/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]'),
     ].filter(Boolean);
 
     if (composerRoots.length === 0) return false;
@@ -2735,10 +3139,31 @@ async function openFrameAssetDropdown(slotElement, frameType, assetDropdownXPath
         console.log(`[frame-to-video] Clicked ${frameType} frame input (attempt ${attempt + 1})`);
         await new Promise(r => setTimeout(r, 650 + (attempt * 150)));
 
+        const immediateCards = getRecentAssetCards();
+        if (immediateCards.length > 0) {
+            console.log(`[frame-to-video] Asset cards already visible for ${frameType} frame: ${immediateCards.length}`);
+            return true;
+        }
+
+        if (isAssetModalVisible()) {
+            console.log(`[frame-to-video] Asset modal already visible for ${frameType} frame`);
+            return true;
+        }
+
         const openedDropdown = await forceClickAnyXPath(assetDropdownXPaths, 650);
         if (openedDropdown) {
             console.log(`[frame-to-video] Opened dropdown for ${frameType} frame`);
             return true;
+        }
+
+        const dynamicDropdown = findDynamicAssetDropdownButton();
+        if (dynamicDropdown) {
+            forceUserLikeClick(dynamicDropdown);
+            await new Promise(r => setTimeout(r, 650));
+            if (isAssetModalVisible() || getRecentAssetCards().length > 0) {
+                console.log(`[frame-to-video] Opened dropdown dynamically for ${frameType} frame`);
+                return true;
+            }
         }
 
         console.warn(`[frame-to-video] Retry opening dropdown for ${frameType} frame...`);
@@ -2774,6 +3199,9 @@ function pickBestRecentAssetCard(cards, targetFileName, promptText, excludedKeys
         if (include) {
             return { card: include.card, score: 600, rawName: include.rawName, cardKey: include.cardKey };
         }
+
+        console.log(`[pickBestRecentAssetCard] No exact asset match for ${targetFileName}. Available: ${available.map(item => item.rawName || item.nameKey).filter(Boolean).slice(0, 8).join(' | ')}`);
+        return null;
     }
 
     let best = null;
@@ -2817,6 +3245,47 @@ async function waitForBestRecentAssetCard(targetFileName, promptText, excludedKe
     return null;
 }
 
+async function refreshNewestAssetList(newestOptionXPaths, waitMs = 900) {
+    let clickedNewest = false;
+
+    for (let newestRetry = 0; newestRetry < 2 && !clickedNewest; newestRetry++) {
+        clickedNewest = await forceClickAnyXPath(newestOptionXPaths, waitMs);
+        if (!clickedNewest) {
+            const dropdown = findDynamicAssetDropdownButton();
+            if (dropdown) {
+                forceUserLikeClick(dropdown);
+                await new Promise(r => setTimeout(r, 420));
+                clickedNewest = await forceClickAnyXPath(newestOptionXPaths, waitMs);
+            }
+        }
+        if (!clickedNewest) await new Promise(r => setTimeout(r, 450));
+    }
+
+    if (clickedNewest) {
+        console.log('[refreshNewestAssetList] ✓ Refreshed Newest asset list');
+        await new Promise(r => setTimeout(r, 1200));
+    } else {
+        console.log('[refreshNewestAssetList] ⚠️ Could not click Newest, waiting for assets to settle');
+        await new Promise(r => setTimeout(r, 1200));
+    }
+
+    return clickedNewest;
+}
+
+async function waitForTargetAssetCardWithRefresh(targetFileName, promptText, excludedKeys, newestOptionXPaths, maxRefreshes = 4) {
+    for (let refreshIndex = 0; refreshIndex <= maxRefreshes; refreshIndex++) {
+        const quickPick = await waitForBestRecentAssetCard(targetFileName, promptText, excludedKeys, refreshIndex === 0 ? 8 : 12, 300);
+        if (quickPick) return quickPick;
+
+        if (refreshIndex >= maxRefreshes) break;
+
+        console.log(`[waitForTargetAssetCardWithRefresh] Chưa thấy ${targetFileName}; refresh Newest (${refreshIndex + 1}/${maxRefreshes})`);
+        await refreshNewestAssetList(newestOptionXPaths, 900);
+    }
+
+    return null;
+}
+
 async function waitForRecentAssets(maxAttempts = 18, intervalMs = 220) {
     for (let i = 0; i < maxAttempts; i++) {
         const cards = getRecentAssetCards();
@@ -2855,10 +3324,20 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
             ? promptImageNames.map(name => String(name || '').trim()).filter(Boolean)
             : [];
 
-        // Chỗ này quan trọng: Truyền đúng biến maxImagesPerPrompt vào hàm pick
-        const matchedFiles = exactPlanNames.length > 0
+        // Chỗ này quan trọng: Truyền đúng biến maxImagesPerPrompt vào hàm pick.
+        // Frame-to-video từ AI Studio thường có prompt không chứa tên file panel,
+        // nên nếu match theo tên thất bại thì fallback theo thứ tự prompt -> ảnh.
+        let matchedFiles = exactPlanNames.length > 0
             ? pickExactFilesByNames(normalizedFiles, exactPlanNames, maxImagesPerPrompt)
             : pickMatchedFilesForPrompt(promptText, normalizedFiles, maxImagesPerPrompt);
+
+        if (isFrameToVideoMode && matchedFiles.length === 0 && normalizedFiles.length > 0) {
+            const fallbackFile = normalizedFiles[index] || normalizedFiles[0];
+            if (fallbackFile) {
+                matchedFiles = [fallbackFile];
+                console.log(`[autoAttachFrameImage] Frame fallback by prompt index ${index + 1}: ${fallbackFile.name}`);
+            }
+        }
 
         // Debug logging
         console.log(`[autoAttachFrameImage] Prompt ${index}:`, {
@@ -2887,28 +3366,11 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
         let frameImageMode = 'first'; // 'first' or 'first_and_last'
 
         if (isFrameToVideoMode) {
-            // Detect mode by checking if end frame input is present and enabled
+            // Detect mode dynamically by looking for "Bắt đầu"/"Start" and "Kết thúc"/"End" labels
             try {
-                const firstFrameXPath = `/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]`;
-                const endFrameXPath = `/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[2]`;
+                const firstFrameEl = findFrameSlotByLabel('first');
+                const endFrameEl = findFrameSlotByLabel('last');
 
-                const firstFrameEl = document.evaluate(
-                    firstFrameXPath,
-                    document,
-                    null,
-                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                    null
-                ).singleNodeValue;
-
-                const endFrameEl = document.evaluate(
-                    endFrameXPath,
-                    document,
-                    null,
-                    XPathResult.FIRST_ORDERED_NODE_TYPE,
-                    null
-                ).singleNodeValue;
-
-                // Check if end frame exists and is visible/enabled
                 const endFrameExists = endFrameEl && isElementVisible(endFrameEl) && !endFrameEl.hidden && endFrameEl.offsetHeight > 0;
                 const firstFrameExists = firstFrameEl && isElementVisible(firstFrameEl) && !firstFrameEl.hidden && firstFrameEl.offsetHeight > 0;
 
@@ -2919,7 +3381,7 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
                     frameImageMode = 'first';
                     console.log(`[autoAttachFrameImage] → Detected 'first' mode - only first frame input visible`);
                 } else {
-                    console.log(`[autoAttachFrameImage] ⚠️  Frame inputs not found at expected paths`);
+                    console.log(`[autoAttachFrameImage] ⚠️  Frame inputs not found by label search`);
                 }
                 console.log(`[autoAttachFrameImage] Frame mode: ${frameImageMode}, Images to process: ${matchedFiles.length}`);
             } catch (e) {
@@ -2928,8 +3390,9 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
         }
 
         const addImageXPaths = getAddImageButtonXPaths();
-        const firstFrameInputXPath = '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[1]';
-        const lastFrameInputXPath = '/html/body/div[1]/div[1]/div[5]/div/div/div[1]/div[2]';
+        // Use dynamic label-based lookup instead of hardcoded XPaths
+        const firstFrameInput = findFrameSlotByLabel('first');
+        const lastFrameInput = findFrameSlotByLabel('last');
         const assetDropdownXPaths = [
             '/html/body/div[1]/div[2]/div/div/div/div[1]/button[2]',
             '/html/body/div[1]/div[2]/div/div/div/div[1]/div/button',
@@ -2944,9 +3407,6 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
 
         // For frame-to-video mode: directly fill first/last frame inputs
         if (isFrameToVideoMode) {
-            const firstFrameInput = getElementByXPath(firstFrameInputXPath);
-            const lastFrameInput = getElementByXPath(lastFrameInputXPath);
-
             if (!firstFrameInput && !lastFrameInput) {
                 safeSendQueueStatus({ groupId, index, status: 'Không tìm thấy ô input cho first/last frame ⚠️', percent: 0 });
                 return false;
@@ -2997,6 +3457,16 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
                     const openedDropdown = await openFrameAssetDropdown(inputElement, frameType, assetDropdownXPaths, 3);
                     if (!openedDropdown) {
                         console.log(`[frame-to-video] ✗ Không click được dropdown button cho ${frameType} frame`);
+                        safeSendQueueStatus({ groupId, index, status: `Thử gắn ảnh trực tiếp…`, percent: 0 });
+                        const directInjected = await injectFileToNewestInput(matchedFile, 8);
+                        if (directInjected) {
+                            const directReady = await waitForFrameSlotAttachment(frameType, inputElement, 1, 30, 240);
+                            if (directReady) {
+                                console.log(`[frame-to-video] ✓ Đã gắn trực tiếp ảnh ${frameType}: ${matchedFile.name}`);
+                                attachedCount++;
+                                continue;
+                            }
+                        }
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                         await new Promise(r => setTimeout(r, 200));
                         continue;
@@ -3004,40 +3474,43 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
 
                     await new Promise(r => setTimeout(r, 500));
 
-                    // Step 3: Click "Newest" button
-                    safeSendQueueStatus({ groupId, index, status: `Tìm ảnh mới…`, percent: 0 });
-                    let clickedNewest = false;
-                    for (let newestRetry = 0; newestRetry < 3 && !clickedNewest; newestRetry++) {
-                        clickedNewest = await forceClickAnyXPath(newestOptionXPaths, 900);
-                        if (!clickedNewest && newestRetry < 2) {
-                            await new Promise(r => setTimeout(r, 400));
-                        }
-                    }
-                    if (!clickedNewest) {
-                        console.log(`[frame-to-video] ✗ Không click được Newest button cho ${frameType} frame`);
-                        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                        await new Promise(r => setTimeout(r, 200));
-                        continue;
-                    }
-                    console.log(`[frame-to-video] ✓ Clicked Newest button, waiting for images to load`);
-
-                    // Step 4: Chờ ảnh load
-                    await new Promise(r => setTimeout(r, 1200));
-
-                    // Step 5: Tìm và chọn ảnh từ Recent
+                    // Step 3: UI hiện tại mở sẵn panel asset sau khi click frame slot.
+                    // Chỉ bấm "Newest" nếu chưa thấy card nào.
                     safeSendQueueStatus({ groupId, index, status: `Tìm ảnh phù hợp…`, percent: 0 });
-                    const cards = await waitForRecentAssets(40, 300);
+                    let cards = getRecentAssetCards();
+                    const exactAlreadyVisible = cards.some(card => isExactAssetCardMatch(card, matchedFile.name));
+                    if (cards.length === 0 || !exactAlreadyVisible) {
+                        safeSendQueueStatus({ groupId, index, status: `Đợi Flow load ảnh mới: ${matchedFile.name}…`, percent: 0 });
+                        if (cards.length > 0) {
+                            console.log(`[frame-to-video] Asset list has ${cards.length} stale/generic cards; refreshing Newest for ${matchedFile.name}`);
+                        }
+                        await refreshNewestAssetList(newestOptionXPaths, 900);
+                        cards = await waitForRecentAssets(40, 300);
+                    } else {
+                        console.log(`[frame-to-video] ✓ Target asset already visible without Newest: ${matchedFile.name}`);
+                    }
+
                     if (cards.length === 0) {
-                        console.log(`[frame-to-video] ✗ Không thấy ảnh recent sau Newest cho ${frameType} frame`);
+                        console.log(`[frame-to-video] ✗ Không thấy ảnh recent cho ${frameType} frame`);
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                         await new Promise(r => setTimeout(r, 200));
                         continue;
                     }
                     console.log(`[frame-to-video] ✓ Tìm thấy ${cards.length} ảnh recent`);
 
-                    const picked = await waitForBestRecentAssetCard(matchedFile.name, promptText, selectedAssetKeys, 50, 300);
+                    const picked = await waitForTargetAssetCardWithRefresh(matchedFile.name, promptText, selectedAssetKeys, newestOptionXPaths, 4);
                     if (!picked) {
                         console.log(`[frame-to-video] ✗ Không tìm được ảnh ${matchedFile.name} trong Recent`);
+                        safeSendQueueStatus({ groupId, index, status: `Chưa thấy ${matchedFile.name}, thử bơm file trực tiếp…`, percent: 0 });
+                        const directInjected = await injectFileToNewestInput(matchedFile, 8, getVisibleAssetModalRoot() || document);
+                        if (directInjected) {
+                            const directReady = await waitForFrameSlotAttachment(frameType, inputElement, 1, 30, 240);
+                            if (directReady) {
+                                console.log(`[frame-to-video] ✓ Đã gắn trực tiếp ảnh ${frameType}: ${matchedFile.name}`);
+                                attachedCount++;
+                                continue;
+                            }
+                        }
                         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                         await new Promise(r => setTimeout(r, 200));
                         continue;
@@ -3052,11 +3525,17 @@ async function autoAttachFrameImage(promptText, uploadedFiles, groupId, index, s
                         continue;
                     }
 
-                    await new Promise(r => setTimeout(r, 300));
-                    await clickAssetConfirmButton();
-                    await new Promise(r => setTimeout(r, 420));
+                    await new Promise(r => setTimeout(r, 450));
 
-                    const slotReady = await waitForFrameSlotAttachment(frameType, inputElement, 1, 30, 240);
+                    // Flow hiện tại apply asset trực tiếp khi click card. Nếu bấm Escape quá sớm
+                    // thì selection có thể bị hủy trước khi frame slot nhận ảnh.
+                    let slotReady = await waitForFrameSlotAttachment(frameType, inputElement, 1, 24, 250);
+                    if (!slotReady) {
+                        console.log(`[frame-to-video] Slot ${frameType} chưa nhận ảnh sau click đầu, thử click lại card: ${matchedFile.name}`);
+                        clickRecentAssetCard(picked.card);
+                        await new Promise(r => setTimeout(r, 450));
+                        slotReady = await waitForFrameSlotAttachment(frameType, inputElement, 1, 24, 250);
+                    }
 
                     if (!slotReady) {
                         console.log(`[frame-to-video] ✗ Slot ${frameType} chưa nhận ảnh sau confirm: ${matchedFile.name}`);
@@ -3342,14 +3821,17 @@ async function preUploadImagesToFlow(uploadedFiles, groupId) {
         return false;
     }
 
-    await waitForImageInputAvailable(10, 200);
-    let uploaded = await injectFilesToNewestInput(normalizedFiles, 10);
+    await waitForAssetModalReady(20, 150);
+    const assetModalRoot = getVisibleAssetModalRoot() || document;
+    await waitForImageInputAvailable(10, 200, assetModalRoot);
+    let uploaded = await injectFilesToNewestInput(normalizedFiles, 10, assetModalRoot);
 
     if (!uploaded) {
         const openedUpload = await forceClickXPath(uploadBtnXPath, 300);
         if (openedUpload) {
-            await waitForImageInputAvailable(12, 200);
-            uploaded = await injectFilesToNewestInput(normalizedFiles, 10);
+            const uploadModalRoot = getVisibleAssetModalRoot() || document;
+            await waitForImageInputAvailable(12, 200, uploadModalRoot);
+            uploaded = await injectFilesToNewestInput(normalizedFiles, 10, uploadModalRoot);
         }
     }
 
@@ -3358,7 +3840,13 @@ async function preUploadImagesToFlow(uploadedFiles, groupId) {
         return false;
     }
 
-    await new Promise(r => setTimeout(r, 1200));
+    safeSendQueueStatus({ groupId, index: 0, status: `Đợi Flow xử lý ${normalizedFiles.length} ảnh tải lên…`, percent: 0 });
+    await new Promise(r => setTimeout(r, 2500));
+    await waitForUploadedAssetNames(normalizedFiles.map(file => file.name), 24, 500);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise(r => setTimeout(r, 300));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise(r => setTimeout(r, 300));
     safeSendQueueStatus({ groupId, index: 0, status: `Đã tải ${normalizedFiles.length} ảnh lên Flow ✅`, percent: 0 });
     return true;
 }
@@ -3373,15 +3861,55 @@ async function preUploadImagesToFlow(uploadedFiles, groupId) {
  */
 // ✅ Lock KHÔNG xóa sau khi xong — chỉ xóa khi batch mới bắt đầu
 const _downloadDone = new Set(); // Đã download rồi thì không download lại
+const _downloadInProgress = new Set(); // Chặn gọi trùng khi đang đợi card/download
 const _downloadedTileIds = new Set(); // Chống tải trùng cùng 1 tile giữa nhiều prompt
+const _downloadedCardKeys = new Set(); // Chống tải trùng khi Flow không expose tile id ổn định
+
+function getDownloadCardKey(card) {
+    if (!card) return '';
+    const tileId = card.getAttribute?.('data-tile-id') || card.closest?.('[data-tile-id]')?.getAttribute('data-tile-id') || '';
+    if (tileId) return `tile:${tileId}`;
+
+    const media = card.querySelector?.('video, img, canvas');
+    const mediaKey = (media?.currentSrc || media?.src || media?.poster || '').trim().slice(0, 180);
+    const textKey = (card.textContent || '')
+        .toLowerCase()
+        .replace(/\d{1,3}\s*%/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 180);
+    const rect = card.getBoundingClientRect?.();
+    const rectKey = rect
+        ? `${Math.round(rect.left)}:${Math.round(rect.top)}:${Math.round(rect.width)}:${Math.round(rect.height)}`
+        : '';
+
+    if (!mediaKey && !textKey && !rectKey) return '';
+    return `dom:${mediaKey}|${textKey}|${rectKey}`;
+}
+
+function isDownloadCardAlreadyHandled(card) {
+    const key = getDownloadCardKey(card);
+    return !!(key && _downloadedCardKeys.has(key));
+}
+
+function markDownloadCardHandled(card) {
+    const tileId = card?.getAttribute?.('data-tile-id') || card?.closest?.('[data-tile-id]')?.getAttribute('data-tile-id') || '';
+    if (tileId) _downloadedTileIds.add(tileId);
+    const key = getDownloadCardKey(card);
+    if (key) _downloadedCardKeys.add(key);
+}
 
 async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode = '') {
     const lockKey = `${groupId}:${promptIndex}`;
     if (_downloadDone.has(lockKey)) {
         console.log(`[handlePromptCompletion] Đã download rồi, bỏ qua: ${lockKey}`);
-        return;
+        return 0;
     }
-    _downloadDone.add(lockKey);
+    if (_downloadInProgress.has(lockKey)) {
+        console.log(`[handlePromptCompletion] Đang xử lý download, bỏ qua lượt gọi trùng: ${lockKey}`);
+        return 0;
+    }
+    _downloadInProgress.add(lockKey);
 
     try {
         const settings = await getDownloadSettings();
@@ -3391,25 +3919,25 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
         const isImgMode = safeMode.includes('image') && !safeMode.includes('video');
         const selectedQuality = isImgMode ? imageQuality : videoQuality;
 
-        if (selectedQuality === 'none') return 0;
+        if (selectedQuality === 'none') {
+            _downloadDone.add(lockKey);
+            return 0;
+        }
 
         const outputCount = _currentOutputCount;
 
         console.log(`[handlePromptCompletion] Đợi 7 giây để các video khác kịp render xong...`);
-        safeSendQueueStatus({ groupId, index: promptIndex, status: "Đợi đồng bộ video... ⏳", percent: 100 });
+        safeSendQueueStatus({ groupId, index: promptIndex, status: "Đợi đồng bộ video... ⏳", percent: 99 });
         await new Promise(r => setTimeout(r, 7000));
 
         const isCardError = (el) => {
-            const txt = (el.textContent || '').toLowerCase();
-            return txt.includes('không thành công') || txt.includes('đã xảy ra lỗi')
-                || txt.includes('failed') || txt.includes('error');
+            if (isCardStillRunning(el)) return false;
+            return hasFlowErrorStatusText(el.textContent || '');
         };
 
         const isCardStillRunning = (el) => {
             if (!el || !isElementVisible(el)) return false;
-            const rawText = (el.textContent || '').toLowerCase();
-            if (/\d{1,3}%/.test(rawText)) return true;
-            return /render|processing|pending|queued|preparing|loading|dang render/.test(rawText);
+            return hasFlowRunningStatusText(el.textContent || '');
         };
 
         const isCardClickable = (el) => {
@@ -3467,7 +3995,7 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
 
         const isCardFromCurrentPrompt = (card) => {
             const id = card?.getAttribute?.('data-tile-id') || '';
-            if (!id) return true;
+            if (!id) return card?.getAttribute?.('data-veo-owner') === ownerKey;
             return !beforeSnapshot.has(id);
         };
 
@@ -3547,8 +4075,7 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
                 if (unresolved) continue;
 
                 const hasFreshTile = rowCards.some(card => {
-                    const id = card.getAttribute('data-tile-id') || '';
-                    return id && !_downloadedTileIds.has(id);
+                    return !isDownloadCardAlreadyHandled(card);
                 });
 
                 if (hasFreshTile) return rowCards;
@@ -3574,8 +4101,7 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
             const ownerCardsForPrompt = ownerRowCards.filter(card => isCardFromCurrentPrompt(card));
 
             const ownerFreshCount = ownerCardsForPrompt.filter(card => {
-                const tileId = card.getAttribute('data-tile-id') || '';
-                return !tileId || !_downloadedTileIds.has(tileId);
+                return !isDownloadCardAlreadyHandled(card);
             }).length;
 
             if (ownerCardsForPrompt.length > 0 && ownerFreshCount > 0) {
@@ -3589,12 +4115,12 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
             const ready = sourceCards.filter(card => isCardClickable(card) || isCardError(card));
             const successful = ready.filter(card => isCardClickable(card));
             const unseenSuccessful = successful.filter(card => {
-                const tileId = card.getAttribute('data-tile-id') || '';
-                return !tileId || !_downloadedTileIds.has(tileId);
+                return !isDownloadCardAlreadyHandled(card);
             });
             const hasUnresolved = sourceCards.some(card => !isCardClickable(card) && !isCardError(card));
+            const runningCount = sourceCards.filter(isCardStillRunning).length;
 
-            console.log(`[handlePromptCompletion] Poll: source=${sourceCards.length}, ready=${ready.length}, success=${successful.length}, fresh=${unseenSuccessful.length}, elapsed=${elapsed}ms`);
+            console.log(`[handlePromptCompletion] Poll: source=${sourceCards.length}, ready=${ready.length}, success=${successful.length}, fresh=${unseenSuccessful.length}, running=${runningCount}, elapsed=${elapsed}ms`);
 
             const hasTerminalFailure = ready.some(card => isCardError(card));
             const allTerminalAreErrors = ready.length > 0 && ready.every(card => isCardError(card));
@@ -3603,7 +4129,7 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
             // 1) Có ít nhất 1 success mới để tải, hoặc
             // 2) Tất cả terminal đều lỗi (prompt này fail toàn bộ).
             // Tránh chốt sớm khi trạng thái terminal là "stale" (success cũ + error mới, fresh=0).
-            if (!hasUnresolved && (unseenSuccessful.length > 0 || allTerminalAreErrors)) {
+            if (!hasUnresolved && runningCount === 0 && (unseenSuccessful.length > 0 || allTerminalAreErrors)) {
                 targetCards = sortCardsOldestFirst(unseenSuccessful).slice(0, outputCount);
                 console.log(`[handlePromptCompletion] ✓ Cards đã kết luận xong sau ${Date.now() - startWaitAt}ms, tải=${targetCards.length}/${ready.length}`);
                 break;
@@ -3636,10 +4162,7 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
         const successfulCards = targetCards
             .filter(card => isCardFromCurrentPrompt(card))
             .filter(card => isCardClickable(card) && !isCardError(card))
-            .filter(card => {
-                const tileId = card.getAttribute('data-tile-id') || '';
-                return !tileId || !_downloadedTileIds.has(tileId);
-            })
+            .filter(card => !isDownloadCardAlreadyHandled(card))
             .sort((a, b) => {
                 const rowDiff = getRowOrderScore(b) - getRowOrderScore(a);
                 if (rowDiff !== 0) return rowDiff;
@@ -3654,15 +4177,12 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
         console.log(`[handlePromptCompletion] Chuẩn bị tải ${successfulCards.length} video thành công (trong tổng số ${targetCards.length} kết quả)...`);
 
         for (let i = 0; i < successfulCards.length; i++) {
-            const tileId = successfulCards[i].getAttribute('data-tile-id') || '';
             const ok = await autoDownloadResult(
                 promptIndex + 1, folderName, !isImgMode, selectedQuality, successfulCards[i]
             );
             if (ok) {
                 downloadCount++;
-                if (tileId) {
-                    _downloadedTileIds.add(tileId);
-                }
+                markDownloadCardHandled(successfulCards[i]);
             }
 
             // Đợi 1.5s để Chrome xử lý xong download trước khi trigger cái tiếp theo
@@ -3672,11 +4192,16 @@ async function handlePromptCompletionDownload(promptIndex, groupId, selectedMode
         }
 
         console.log(`[handlePromptCompletion] ✓ Đã tải xong ${downloadCount}/${successfulCards.length} video hợp lệ.`);
+        if (downloadCount > 0) {
+            _downloadDone.add(lockKey);
+        }
         return downloadCount;
 
     } catch (error) {
         console.error(`[handlePromptCompletion] Error:`, error);
         return 0;
+    } finally {
+        _downloadInProgress.delete(lockKey);
     }
 }
 
@@ -3725,16 +4250,13 @@ async function handleBatchCompletionDownload(batchIndices, groupId, selectedMode
         };
 
         const isCardError = (el) => {
-            const txt = (el.textContent || '').toLowerCase();
-            return txt.includes('không thành công') || txt.includes('đã xảy ra lỗi')
-                || txt.includes('failed') || txt.includes('error');
+            if (isCardStillRunning(el)) return false;
+            return hasFlowErrorStatusText(el.textContent || '');
         };
 
         const isCardStillRunning = (el) => {
             if (!el || !isElementVisible(el)) return false;
-            const rawText = (el.textContent || '').toLowerCase();
-            if (/\d{1,3}%/.test(rawText)) return true;
-            return /render|processing|pending|queued|preparing|loading|dang render/.test(rawText);
+            return hasFlowRunningStatusText(el.textContent || '');
         };
 
         const isCardClickable = (el) => {
@@ -3761,23 +4283,19 @@ async function handleBatchCompletionDownload(batchIndices, groupId, selectedMode
             .filter(card => isCardClickable(card) && !isCardError(card));
 
         const fallbackCards = allCurrentCards
-            .filter(card => {
-                const tileId = card.getAttribute('data-tile-id') || '';
-                return !tileId || !_downloadedTileIds.has(tileId);
-            })
+            .filter(card => !isDownloadCardAlreadyHandled(card))
             .slice(0, neededCount);
 
         console.log(`[handleBatchCompletion] Fallback cards: current=${allCurrentCards.length}, fresh=${fallbackCards.length}, needed=${neededCount}`);
 
         let downloadCount = 0;
         for (const card of fallbackCards) {
-            const tileId = card.getAttribute('data-tile-id') || '';
             const ordinal = Math.max(0, allCurrentCards.indexOf(card));
             const promptIndex = batchIndices[Math.min(ordinal, batchIndices.length - 1)] ?? batchIndices[0] ?? 0;
             const ok = await autoDownloadResult(promptIndex + 1, folderName, !isImgMode, selectedQuality, card);
             if (ok) {
                 downloadCount++;
-                if (tileId) _downloadedTileIds.add(tileId);
+                markDownloadCardHandled(card);
             }
             await new Promise(r => setTimeout(r, 3000));
         }
@@ -3869,7 +4387,7 @@ async function runAutomation(request) {
         minDelay = 20,
         maxDelay = 30,
         selectedMode = 'text-to-video',
-        videoModel = 'veo-3.1-fast',
+        videoModel = 'veo-3.1-quality',
         imageModel = 'nano-banana-2',
         aspectRatio = '16:9',
         uploadedFiles = [],
@@ -3896,6 +4414,7 @@ async function runAutomation(request) {
         clearRenderCardOwners();
         _downloadDone.clear();
         _downloadedTileIds.clear();
+        _downloadedCardKeys.clear();
 
         try {
             chrome.runtime.sendMessage({ action: 'CLEAR_FILENAME_QUEUE' }).catch(() => { });
@@ -4062,7 +4581,7 @@ async function runAutomation(request) {
                         promptText,
                         beforeErrorCount,
                         beforeGridSnapshot,
-                        3200
+                        10000
                     );
 
                     if (submitResult.accepted) {
@@ -4075,7 +4594,13 @@ async function runAutomation(request) {
                         continue;
                     }
 
-                    submitted = true;
+                    if (submitAttempt < 1) {
+                        safeSendQueueStatus({ groupId, index, status: `Flow chưa nhận submit (${submitResult.reason}), thử lại… 🔁`, percent: 0 });
+                        continue;
+                    }
+
+                    safeSendQueueStatus({ groupId, index, status: `Flow chưa nhận submit (${submitResult.reason}) ❌`, percent: 0 });
+                    return;
                 }
 
                 if (!submitted) {

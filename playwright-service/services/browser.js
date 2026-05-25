@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const { getExtensionArgs } = require('../utils/extension-loader');
 
-const PROJECT_URL = 'https://labs.google/fx/vi/tools/flow/project/ac6ad605-baee-425f-a98d-b56dbce19391';
-const PROJECT_ID = 'ac6ad605-baee-425f-a98d-b56dbce19391';
+const PROJECT_URL = 'https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1';
+const PROJECT_ID = '022f171a-baeb-4a4a-8561-51d0c992f3a1';
 const SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
 
 let globalContext = null;
@@ -99,7 +99,7 @@ async function handleAuthRedirect(page, context) {
 }
 
 // ── Browser page management ──────────────────────────────────
-async function getBrowserPage(baseDir) {
+async function getSharedContext(baseDir) {
   const userDataDir = path.join(baseDir, 'chrome-data');
   const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
 
@@ -107,20 +107,26 @@ async function getBrowserPage(baseDir) {
     try {
       globalContext.pages();
     } catch (e) {
-      console.log('[Browser] Context is dead, resetting...');
+      console.log('[Browser] Shared context is dead, resetting...');
       globalContext = null;
       globalPage = null;
     }
   }
 
   if (!globalContext) {
-    console.log('[Browser] Launching persistent context...');
+    console.log('[Browser] Launching shared persistent context...');
+    const isHeadless = process.env.HEADLESS === 'true';
+    
+    // Remove stale lock if present
+    try { fs.unlinkSync(path.join(userDataDir, 'SingletonLock')); } catch (_) {}
+    
     globalContext = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
+      headless: isHeadless,
       args: [
         '--disable-blink-features=AutomationControlled',
         ...getExtensionArgs(baseDir),
-      ]
+      ],
+      acceptDownloads: true
     });
 
     if (fs.existsSync(cookieFile)) {
@@ -134,39 +140,34 @@ async function getBrowserPage(baseDir) {
     }
   }
 
+  return globalContext;
+}
+
+async function getBrowserPage(baseDir) {
+  const context = await getSharedContext(baseDir);
+  const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
+
   if (!globalPage || globalPage.isClosed()) {
     console.log('[Browser] Creating new page...');
     try {
-      globalPage = await globalContext.newPage();
+      globalPage = await context.newPage();
     } catch (e) {
-      console.log('[Browser] newPage() failed, relaunching context...');
-      try { await globalContext.close(); } catch (_) { }
+      console.log('[Browser] newPage() failed, reloading context...');
+      try { await context.close(); } catch (_) { }
       globalContext = null;
-      globalContext = await chromium.launchPersistentContext(userDataDir, {
-        headless: false,
-        args: [
-          '--disable-blink-features=AutomationControlled',
-          ...getExtensionArgs(baseDir),
-        ]
-      });
-      if (fs.existsSync(cookieFile)) {
-        try {
-          const cookies2 = JSON.parse(fs.readFileSync(cookieFile, 'utf-8'));
-          await globalContext.addCookies(cookies2);
-          console.log(`[Browser] Reloaded ${cookies2.length} cookies after relaunch.`);
-        } catch (e2) { }
-      }
-      globalPage = await globalContext.newPage();
+      
+      const newContext = await getSharedContext(baseDir);
+      globalPage = await newContext.newPage();
     }
     setupTokenInterceptor(globalPage);
     await globalPage.goto(PROJECT_URL);
     await globalPage.waitForTimeout(6000);
-    await handleAuthRedirect(globalPage, globalContext);
+    await handleAuthRedirect(globalPage, context);
   } else {
     if (!globalPage.url().includes(PROJECT_URL)) {
       await globalPage.goto(PROJECT_URL);
       await globalPage.waitForTimeout(5000);
-      await handleAuthRedirect(globalPage, globalContext);
+      await handleAuthRedirect(globalPage, context);
     } else {
       await globalPage.keyboard.press('Escape');
       await globalPage.waitForTimeout(500);
@@ -181,6 +182,7 @@ function getContext() {
 
 module.exports = {
   getBrowserPage,
+  getSharedContext,
   adoptBrowserPage,
   getContext,
   ensureBearerToken,

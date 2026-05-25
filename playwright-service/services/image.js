@@ -77,6 +77,49 @@ async function switchToMode(page, targetMode = 'image') {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Direct API upload (bypasses DOM)
+// ═══════════════════════════════════════════════════════════════
+async function uploadImageDirect(context, bearerToken, buffer) {
+  const imageBase64 = buffer.toString('base64');
+  const apiUrl = 'https://aisandbox-pa.googleapis.com/v1/flow/uploadImage';
+  const requestBody = {
+    clientContext: {
+      projectId: PROJECT_ID,
+      tool: 'PINHOLE'
+    },
+    imageBytes: imageBase64
+  };
+
+  console.log('[UploadDirect] Sending POST to uploadImage API...');
+  const response = await context.request.fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain;charset=UTF-8',
+      'Authorization': `Bearer ${bearerToken}`,
+      'Origin': 'https://labs.google',
+      'Referer': 'https://labs.google/',
+      'x-browser-channel': 'stable',
+    },
+    data: JSON.stringify(requestBody),
+    timeout: 60000 // 60s
+  });
+
+  const status = response.status();
+  const bodyText = await response.text();
+  if (status !== 200) {
+    throw new Error(`[UploadDirect] API returned HTTP ${status}: ${bodyText.substring(0, 500)}`);
+  }
+
+  const result = JSON.parse(bodyText);
+  const mediaId = result.media?.name;
+  if (!mediaId) {
+    throw new Error('[UploadDirect] API response did not contain media.name');
+  }
+
+  return mediaId;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Upload images via file input (simplest reliable method)
 // Returns after upload completes in the project gallery
 // ═══════════════════════════════════════════════════════════════
@@ -228,18 +271,18 @@ async function prepareGeneration(page, prompt, filePayloads, config, baseDir) {
 
   console.log(`[Gen] model=${imageModel} ratio=${aspectRatio} outputs=${outputCount}`);
 
-  let tempFilePaths = [];
-
-  console.log('[Gen] Step 1b: Switching to Image mode...');
-  await switchToMode(page, 'image');
-
-  if (filePayloads && filePayloads.length > 0) {
-    console.log(`[Gen] Step 2: Uploading ${filePayloads.length} image(s)...`);
-    tempFilePaths = await uploadImages(page, filePayloads, baseDir);
-  }
+  console.log('[Gen] Step 1: Getting Bearer token...');
+  const bearerToken = await ensureBearerToken(page);
 
   let imageInputUUIDs = [];
-  if (config.imageSelection && config.imageSelection.length > 0) {
+  if (filePayloads && filePayloads.length > 0) {
+    console.log(`[Gen] Step 2: Uploading ${filePayloads.length} image(s) directly via API...`);
+    for (const fp of filePayloads) {
+      const uuid = await uploadImageDirect(context, bearerToken, fp.buffer);
+      console.log(`[Gen]   Uploaded: ${fp.name} -> ${uuid}`);
+      imageInputUUIDs.push(uuid);
+    }
+  } else if (config.imageSelection && config.imageSelection.length > 0) {
     console.log(`[Gen] Step 3: Resolving ${config.imageSelection.length} image reference(s)...`);
     for (const sel of config.imageSelection) {
       if (sel.startsWith('name:')) {
@@ -252,21 +295,12 @@ async function prepareGeneration(page, prompt, filePayloads, config, baseDir) {
       }
     }
     console.log(`[Gen] Resolved ${imageInputUUIDs.length} UUID(s): ${imageInputUUIDs.join(', ')}`);
-  } else if (tempFilePaths.length > 0) {
-    for (const fp of filePayloads) {
-      const uuid = await findImageUUID(page, fp.name);
-      if (uuid) imageInputUUIDs.push(uuid);
-    }
   }
 
-  console.log('[Gen] Step 4: Getting tokens...');
-  const bearerToken = await ensureBearerToken(page);
+  console.log('[Gen] Step 4: Getting reCAPTCHA token...');
   const recaptchaToken = await getRecaptchaToken(page, 'IMAGE_GENERATION');
-  console.log(`[Gen]   Bearer: ${bearerToken.substring(0, 30)}...`);
   console.log(`[Gen]   reCAPTCHA: ${recaptchaToken.substring(0, 30)}... (${recaptchaToken.length} chars)`);
   console.log(`[Gen] ✅ Setup complete — releasing browser lock.`);
-
-  tempFilePaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
 
   return { context, bearerToken, recaptchaToken, imageInputUUIDs, prompt, aspectRatio, imageModel, outputCount };
 }
@@ -368,5 +402,6 @@ module.exports = {
   executeGeneration,
   findImageUUID,
   switchToMode,
-  uploadImages
+  uploadImages,
+  uploadImageDirect
 };

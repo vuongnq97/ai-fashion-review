@@ -229,14 +229,14 @@ async function serializeFilesForMessage(files) {
 function normalizeVideoModelValue(modelValue) {
   const raw = (modelValue || '').toLowerCase();
 
-  if (!raw) return 'veo-3.1-fast';
+  if (!raw) return 'veo-3.1-quality';
   if (raw.includes('veo-2-quality')) return 'veo-3.1-quality';
   if (raw.includes('veo-2-fast')) return 'veo-3.1-fast';
   if (raw.includes('lite-lower')) return 'veo-3.1-lite-lower';
   if (raw.includes('fast-lower') || raw.includes('lower')) return 'veo-3.1-fast-lower';
   if (raw.includes('quality')) return 'veo-3.1-quality';
   if (raw.includes('lite')) return 'veo-3.1-lite';
-  return 'veo-3.1-fast';
+  return 'veo-3.1-quality';
 }
 
 function applyDefaultDebugSettings(settingTab = document.getElementById('setting-tab')) {
@@ -2131,7 +2131,7 @@ ${schemaGuide}`.trim();
 
       console.log("-> Mode được chọn để gửi xuống web:", selectedMode);
 
-      let videoModel = 'veo-3.1-fast'; // Mặc định
+      let videoModel = 'veo-3.1-quality'; // Mặc định
       let imageModel = 'nano-banana-2'; // Mặc định
       let videoAspectRatio = '16:9'; // Biến cho video
       let imageAspectRatio = '16:9'; // Biến cho ảnh
@@ -2798,12 +2798,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // 1. Cập nhật chữ (Pending -> Đang tạo -> Xong)
       const statusText = targetItem.querySelector('.status-text');
       if (statusText) {
-        // Tạm thời ẩn phần hiển thị % trong status text, sẽ bật lại sau nếu cần.
-        const statusWithoutPercent = String(request.status || '')
-          .replace(/\s*\(?\d+%\)?/g, '')
-          .replace(/\s{2,}/g, ' ')
-          .trim();
-        statusText.textContent = statusWithoutPercent;
+        let visibleStatus = String(request.status || '').replace(/\s{2,}/g, ' ').trim();
+        const numericPercent = Number(request.percent);
+        if (
+          Number.isFinite(numericPercent)
+          && numericPercent > 0
+          && numericPercent < 100
+          && !/\d+\s*%/.test(visibleStatus)
+          && /render|processing|đang render/i.test(visibleStatus)
+        ) {
+          visibleStatus = `${visibleStatus} (${Math.round(numericPercent)}%)`;
+        }
+        statusText.textContent = visibleStatus;
 
         if (request.status.includes("Xong")) {
           targetItem.classList.remove('running', 'submitted');
@@ -2819,7 +2825,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             loadingIcon.style.stroke = "#4fd1c5";
           }
 
-        } else if (request.status.includes("Đang")) {
+        } else if (/(Đang|Đợi|Chờ|Pending|Queue|Render|Processing)/i.test(request.status || '')) {
           targetItem.classList.remove('completed');
           targetItem.classList.add('running');
           statusText.style.color = "#f59e0b"; // Chữ màu Cam vàng

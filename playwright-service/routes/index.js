@@ -113,7 +113,7 @@ router.post('/generate-video', upload.array('images', 5), async (req, res) => {
   const enqueueResult = enqueue(async () => {
     let imagePathsToClean = [];
     try {
-      const { prompt, extendPrompt, base64Images, imageSelection, fileNames, aspectRatio, videoModelKey } = body;
+      const { prompt, extendPrompt, base64Images, imageSelection, fileNames, aspectRatio, videoModelKey, chatId, panelIndex, panelName } = body;
 
       if (!prompt) {
         res.status(400).json({ error: 'Prompt is required' });
@@ -163,6 +163,14 @@ router.post('/generate-video', upload.array('images', 5), async (req, res) => {
     if (!prepared || res.headersSent) return;
     const resultBase64 = await executeVideoGeneration(prepared);
     if (resultBase64) {
+      const { chatId, panelIndex, panelName } = body;
+      const targetChatId = chatId || process.env.DEFAULT_TELEGRAM_CHAT_ID;
+      if (targetChatId) {
+        console.log(`[VideoGen] Sending video directly to Telegram for chatId: ${targetChatId}, panel: ${panelName || panelIndex}`);
+        sendVideoToTelegramDirect(targetChatId, resultBase64, panelIndex, panelName).catch(err => {
+          console.error('[VideoGen] Direct Telegram send failed:', err.message);
+        });
+      }
       res.json({ success: true, video: { base64: resultBase64, mimeType: 'video/mp4' } });
     } else {
       if (!res.headersSent) res.status(500).json({ success: false, error: 'Could not extract generated video' });
@@ -313,6 +321,89 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
 });
 
 // ═══════════════════════════════════════════════════════════════
+// Playwright Web UI Automation Route
+// ═══════════════════════════════════════════════════════════════
+
+const automationBatches = new Map();
+const AUTOMATION_BATCH_WAIT_MS = 5000;
+
+router.post('/automate-storyboard', upload.array('images', 10), async (req, res) => {
+  const files = req.files;
+  const body = req.body || {};
+  let imagePathsToClean = [];
+
+  try {
+    const { base64Images, fileNames, chatId } = body;
+    const targetChatId = chatId || process.env.DEFAULT_TELEGRAM_CHAT_ID || '8724472821';
+    let filePayloads = [];
+
+    // Handle physical file uploads
+    if (files && files.length > 0) {
+      files.forEach((f, idx) => {
+        const fPath = path.join(baseDir, f.path);
+        imagePathsToClean.push(fPath);
+        const name = (fileNames && fileNames[idx]) ? fileNames[idx] : (f.originalname || 'upload.png');
+        filePayloads.push({ name, mimeType: f.mimetype, buffer: fs.readFileSync(fPath) });
+      });
+    }
+
+    // Handle base64 string uploads
+    if (base64Images) {
+      const b64Array = Array.isArray(base64Images) ? base64Images : [base64Images];
+      b64Array.forEach((b64, idx) => {
+        const name = (fileNames && fileNames[idx]) ? fileNames[idx] : `image_${idx}.png`;
+        filePayloads.push({ name, mimeType: 'image/png', buffer: Buffer.from(b64, 'base64') });
+      });
+    }
+
+    if (filePayloads.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one image is required' });
+    }
+
+    // ── Batching logic ───────────────────────────────────────
+    console.log(`[API] Automate batch "${targetChatId}": +${filePayloads.length} image(s)`);
+
+    if (!automationBatches.has(targetChatId)) {
+      automationBatches.set(targetChatId, {
+        images: [],
+        timer: null
+      });
+    }
+
+    const batch = automationBatches.get(targetChatId);
+    batch.images.push(...filePayloads);
+
+    // Reset the batch timer (extend window on each new image)
+    if (batch.timer) clearTimeout(batch.timer);
+    batch.timer = setTimeout(async () => {
+      const { images } = batch;
+      automationBatches.delete(targetChatId);
+
+      console.log(`[API] Automate batch "${targetChatId}": trigger Playwright automation with ${images.length} image(s)...`);
+      
+      // Asynchronously trigger Playwright automation in the background
+      const { runStoryboardAutomation } = require('../services/automation');
+      runStoryboardAutomation(targetChatId, images, baseDir).catch(err => {
+        console.error(`[API] Background automation error for ${targetChatId}:`, err.message);
+      });
+    }, AUTOMATION_BATCH_WAIT_MS);
+
+    // Return immediately to n8n to avoid timeouts
+    res.json({ success: true, message: 'Automation triggered' });
+
+  } catch (error) {
+    console.error('[Automate API] Error:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  } finally {
+    imagePathsToClean.forEach(p => {
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {}
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // TikTok API Routes
 // ═══════════════════════════════════════════════════════════════
 
@@ -451,5 +542,72 @@ router.get('/export-cookies', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    console.log('[Telegram] ⚠️ TELEGRAM_BOT_TOKEN is not configured in .env');
+    return false;
+  }
+
+  const pName = panelName || `Panel ${panelIndex || 1}`;
+
+  try {
+    // Step 1: Crop & Resize video locally using our service
+    console.log(`[Telegram] Resizing ${pName} before sending...`);
+    const resizedBase64 = await processVideoBase64(videoBase64, {
+      cropPercent: 0.04,
+      aspectRatio: '9:16'
+    });
+
+    // Step 2: Send status message
+    console.log(`[Telegram] Sending status update to chat ${chatId}...`);
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `🎬 ${pName} đã resize xong!\n📤 Đang gửi video về Telegram...`
+      })
+    });
+
+    // Step 3: Send video file
+    console.log(`[Telegram] Uploading video to chat ${chatId}...`);
+    const videoBuffer = Buffer.from(resizedBase64, 'base64');
+    const blob = new Blob([videoBuffer], { type: 'video/mp4' });
+    
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('video', blob, `${pName.toLowerCase().replace(/\s+/g, '_')}_resized.mp4`);
+    formData.append('caption', `✅ ${pName} đã sẵn sàng!`);
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Telegram API returned HTTP ${response.status}: ${errText}`);
+    }
+
+    console.log(`[Telegram] ✅ Successfully sent ${pName} to Telegram.`);
+    return true;
+  } catch (error) {
+    console.error(`[Telegram] ❌ Failed to send ${pName} to Telegram:`, error.message);
+    // Attempt to notify user of failure
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `⚠️ Lỗi gửi ${pName} về Telegram: ${error.message}`
+        })
+      });
+    } catch (_) {}
+    return false;
+  }
+}
 
 module.exports = router;

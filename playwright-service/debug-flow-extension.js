@@ -2,6 +2,8 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { EXTENSION_ID, getExtensionArgs } = require('./utils/extension-loader');
+const { startTrustedSubmitWatchdog } = require('./utils/flow-submit-watchdog');
+const { startTrustedAssetWatchdog } = require('./utils/flow-asset-watchdog');
 const { adoptBrowserPage, PROJECT_URL } = require('./services/browser');
 
 function parseArgs(argv) {
@@ -158,7 +160,8 @@ async function waitForDownloads(downloadedVideos, pendingDownloads, expectedCoun
   }
 
   const rawPrompts = loadPrompts(baseDir, args, imagePaths.length);
-  const promptCount = splitPrompts(rawPrompts).length;
+  const promptBlocks = splitPrompts(rawPrompts);
+  const promptCount = promptBlocks.length;
   const expectedCount = Math.max(promptCount, imagePaths.length);
   const expectedVideoCount = Math.min(expectedCount, imagePaths.length);
 
@@ -273,8 +276,24 @@ async function waitForDownloads(downloadedVideos, pendingDownloads, expectedCoun
   await extensionPage.getByRole('button', { name: '▷ Run', exact: true }).click();
   console.log('[DebugFlowExt] Clicked extension Run.');
 
-  await waitForExtensionQueue(extensionPage, expectedCount);
-  const results = await waitForDownloads(downloadedVideos, pendingDownloads, expectedVideoCount, extensionPage);
+  const submitWatchdog = startTrustedSubmitWatchdog(flowPage, promptBlocks, {
+    label: 'DebugFlowExtSubmit',
+  });
+  const assetWatchdog = startTrustedAssetWatchdog(flowPage, extensionPage, imagePaths, {
+    label: 'DebugFlowExtAsset',
+  });
+
+  let results = [];
+  try {
+    await waitForExtensionQueue(extensionPage, expectedCount);
+    const trustedClickCount = submitWatchdog.getClickCount();
+    console.log(`[DebugFlowExt] Trusted submit clicks performed: ${trustedClickCount}`);
+    console.log(`[DebugFlowExt] Trusted asset clicks performed: ${assetWatchdog.getClickCount()}`);
+    results = await waitForDownloads(downloadedVideos, pendingDownloads, expectedVideoCount, extensionPage);
+  } finally {
+    submitWatchdog.stop();
+    assetWatchdog.stop();
+  }
 
   const reportPath = path.join(outputDir, `debug-report-${Date.now()}.json`);
   fs.writeFileSync(reportPath, JSON.stringify({

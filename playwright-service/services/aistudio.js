@@ -4,8 +4,10 @@ const fs = require('fs');
 const { adoptBrowserPage, ensureBearerToken, PROJECT_URL } = require('./browser');
 const { prepareVideoGeneration, executeVideoGeneration } = require('./video');
 const { EXTENSION_ID, getExtensionArgs } = require('../utils/extension-loader');
+const { startTrustedSubmitWatchdog } = require('../utils/flow-submit-watchdog');
+const { startTrustedAssetWatchdog } = require('../utils/flow-asset-watchdog');
 
-const AISTUDIO_URL = 'https://aistudio.google.com/apps/84e40bfc-9754-42bd-aa01-7b6813f8afdb?fullscreenApplet=true';
+const AISTUDIO_URL = 'https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true';
 
 let globalContext = null;
 let globalPage = null;
@@ -92,60 +94,25 @@ async function closePageQuietly(page, label) {
 
 // ── Browser management ───────────────────────────────────────
 async function getAIStudioPage(baseDir) {
-  const userDataDir = path.join(baseDir, 'chrome-data');
+  const { getSharedContext } = require('./browser');
+  const context = await getSharedContext(baseDir);
 
-  if (globalContext) {
-    try { globalContext.pages(); } catch (e) {
-      console.log('[AIStudio] Context is dead, resetting...');
-      globalContext = null;
-      globalPage = null;
+  if (globalPage && !globalPage.isClosed()) {
+    if (!globalPage.url().includes('aistudio.google.com/apps')) {
+      await globalPage.goto(AISTUDIO_URL);
+      await globalPage.waitForTimeout(6000);
     }
+    return globalPage;
   }
 
-  if (!globalContext) {
-    console.log('[AIStudio] Launching persistent context...');
-    // Remove stale lock
-    try { fs.unlinkSync(path.join(userDataDir, 'SingletonLock')); } catch (_) {}
+  console.log('[AIStudio] Creating new page in shared context...');
+  globalPage = await context.newPage();
+  await globalPage.goto(AISTUDIO_URL);
+  console.log('[AIStudio] Waiting for page load...');
+  await globalPage.waitForTimeout(8000);
 
-    globalContext = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
-      args: [
-        '--disable-blink-features=AutomationControlled',
-        ...getExtensionArgs(baseDir),
-      ],
-      acceptDownloads: true
-    });
-  }
-
-  if (!globalPage || globalPage.isClosed()) {
-    console.log('[AIStudio] Creating new page...');
-    try {
-      globalPage = await globalContext.newPage();
-    } catch (e) {
-      console.log('[AIStudio] newPage() failed, relaunching...');
-      try { await globalContext.close(); } catch (_) {}
-      globalContext = null;
-      try { fs.unlinkSync(path.join(userDataDir, 'SingletonLock')); } catch (_) {}
-      globalContext = await chromium.launchPersistentContext(userDataDir, {
-        headless: false,
-        args: [
-          '--disable-blink-features=AutomationControlled',
-          ...getExtensionArgs(baseDir),
-        ],
-        acceptDownloads: true
-      });
-      globalPage = await globalContext.newPage();
-    }
-    await globalPage.goto(AISTUDIO_URL);
-    console.log('[AIStudio] Waiting for page load...');
-    await globalPage.waitForTimeout(8000);
-
-    if (globalPage.url().includes('accounts.google.com')) {
-      throw new Error('Not authenticated for AI Studio. Please login manually first.');
-    }
-  } else if (!globalPage.url().includes('aistudio.google.com/apps')) {
-    await globalPage.goto(AISTUDIO_URL);
-    await globalPage.waitForTimeout(6000);
+  if (globalPage.url().includes('accounts.google.com')) {
+    throw new Error('Not authenticated for AI Studio. Please login manually first.');
   }
 
   return globalPage;
@@ -484,7 +451,8 @@ async function generateVideosWithExtensionFromPanels(baseDir, panels, rawPrompts
 
   const flowPage = await openFlowPageFromAIStudioContext();
   const context = globalContext;
-  const expectedCount = Math.max(splitCopiedPrompts(rawPrompts).length, panelPaths.length);
+  const promptBlocks = splitCopiedPrompts(rawPrompts).map(item => item.prompt);
+  const expectedCount = Math.max(promptBlocks.length, panelPaths.length);
   const expectedVideoCount = Math.min(expectedCount, panelPaths.length);
   const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos');
   if (!fs.existsSync(videoDir)) fs.mkdirSync(videoDir, { recursive: true });
@@ -542,6 +510,8 @@ async function generateVideosWithExtensionFromPanels(baseDir, panels, rawPrompts
   };
 
   let extensionPage = null;
+  let submitWatchdog = null;
+  let assetWatchdog = null;
   let shouldCloseTabs = false;
   context.pages().forEach(attachDownloadListener);
   context.on('page', attachDownloadListener);
@@ -574,6 +544,13 @@ async function generateVideosWithExtensionFromPanels(baseDir, panels, rawPrompts
     await extensionPage.bringToFront();
     await extensionPage.getByRole('button', { name: '▷ Run', exact: true }).click();
 
+    submitWatchdog = startTrustedSubmitWatchdog(flowPage, promptBlocks, {
+      label: 'AIStudioExtensionSubmit',
+    });
+    assetWatchdog = startTrustedAssetWatchdog(flowPage, extensionPage, panelPaths, {
+      label: 'AIStudioExtensionAsset',
+    });
+
     const queueDebugPromise = waitForExtensionQueue(extensionPage, expectedCount)
       .catch(error => {
         console.log(`[AIStudio→Extension] Queue debug ended with warning: ${error.message}`);
@@ -592,6 +569,13 @@ async function generateVideosWithExtensionFromPanels(baseDir, panels, rawPrompts
       context.pages().forEach(attachDownloadListener);
       
       await extensionPage.waitForTimeout(5000);
+    }
+
+    if (submitWatchdog) {
+      console.log(`[AIStudio→Extension] Trusted submit clicks performed: ${submitWatchdog.getClickCount()}`);
+    }
+    if (assetWatchdog) {
+      console.log(`[AIStudio→Extension] Trusted asset clicks performed: ${assetWatchdog.getClickCount()}`);
     }
 
     // Fallback: scan multiple directories for recently created mp4 files
@@ -658,6 +642,13 @@ async function generateVideosWithExtensionFromPanels(baseDir, panels, rawPrompts
     shouldCloseTabs = true;
     return downloadedVideos.slice(0, expectedVideoCount);
   } finally {
+    if (submitWatchdog) {
+      submitWatchdog.stop();
+    }
+    if (assetWatchdog) {
+      assetWatchdog.stop();
+    }
+
     context.off('page', attachDownloadListener);
     context.pages().forEach(page => {
       try { page.removeListener('download', downloadHandler); } catch (_) {}

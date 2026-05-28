@@ -2,10 +2,13 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { getExtensionArgs } = require('../utils/extension-loader');
+const { getConfig } = require('../utils/config-manager');
 
-const PROJECT_URL = 'https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1';
-const PROJECT_ID = '022f171a-baeb-4a4a-8561-51d0c992f3a1';
-const SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
+const config = getConfig(path.resolve(__dirname, '..'));
+
+const PROJECT_URL = config.systemSettings.flowProjectUrl || 'https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1';
+const PROJECT_ID = config.systemSettings.flowProjectId || '022f171a-baeb-4a4a-8561-51d0c992f3a1';
+const SITE_KEY = config.systemSettings.recaptchaSiteKey || '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
 
 let globalContext = null;
 let globalPage = null;

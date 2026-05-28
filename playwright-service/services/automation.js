@@ -3,6 +3,7 @@ const fs = require('fs');
 const axios = require('axios');
 const { getAIStudioPage, getAppFrame, dismissOverlays } = require('./aistudio');
 const { getBrowserPage } = require('./browser');
+const { applyConfigToUI } = require('../utils/config-manager');
 
 async function runStoryboardAutomation(chatId, filePayloads, baseDir) {
   console.log(`[Automate] Starting AI Studio automation for chatId: ${chatId}`);
@@ -81,7 +82,12 @@ async function runStoryboardAutomation(chatId, filePayloads, baseDir) {
       throw new Error('Could not find AI Studio app iframe or file input inside the iframe after 30s');
     }
 
-    console.log('[Automate] Found iframe. Uploading product images...');
+    console.log('[Automate] Found iframe. Applying configuration settings...');
+    
+    // Apply default config.json settings to the UI iframe
+    await applyConfigToUI(frame, baseDir);
+
+    console.log('[Automate] Uploading product images...');
 
     // 5. Upload files into the iframe's file input
     const fileInput = await frame.$('input[type="file"]');

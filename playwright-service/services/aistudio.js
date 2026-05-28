@@ -7,7 +7,9 @@ const { EXTENSION_ID, getExtensionArgs } = require('../utils/extension-loader');
 const { startTrustedSubmitWatchdog } = require('../utils/flow-submit-watchdog');
 const { startTrustedAssetWatchdog } = require('../utils/flow-asset-watchdog');
 
-const AISTUDIO_URL = 'https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true';
+const { getConfig, applyConfigToUI } = require('../utils/config-manager');
+const config = getConfig(path.resolve(__dirname, '..'));
+const AISTUDIO_URL = config.systemSettings.aiStudioUrl || 'https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true';
 
 let globalContext = null;
 let globalPage = null;
@@ -742,6 +744,9 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   // Step 4: Get iframe
   const frame = await getAppFrame(page);
   console.log('[AIStudio] ✅ Found app iframe');
+
+  // Apply default config.json settings to the UI iframe
+  await applyConfigToUI(frame, baseDir);
 
   // Step 5: Upload images
   await uploadProductImages(frame, filePayloads, baseDir);

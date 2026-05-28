@@ -1,0 +1,8 @@
+{
+  "name": "Fashion Storyboard Creator (Vietnamese)",
+  "description": "Ứng dụng tạo storyboard đánh giá sản phẩm thời trang và prompt Veo 3 từ hình ảnh sản phẩm.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

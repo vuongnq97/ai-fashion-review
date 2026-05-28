@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const { getConfig } = require('./config-manager');
 
-const EXTENSION_ID = 'jmobnhoghinjlmjogafjadohcmdebbej';
+const config = getConfig(path.resolve(__dirname, '..'));
+const EXTENSION_ID = config.systemSettings.chromeExtensionId || 'jmobnhoghinjlmjogafjadohcmdebbej';
 
 function getExtensionPath(baseDir = path.resolve(__dirname, '..')) {
   return path.join(baseDir, 'extension');

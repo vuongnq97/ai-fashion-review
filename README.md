@@ -183,6 +183,45 @@ node playwright-service/test-video-crop.js --input playwright-service/test.mp4 -
 node playwright-service/debug-aistudio.js
 ```
 
+### Gemini WebAPI Storyboard Provider
+
+`playwright-service/config.json` can switch storyboard generation away from AI Studio UI automation:
+
+```json
+{
+  "systemSettings": {
+    "storyboardProvider": "gemini-webapi"
+  }
+}
+```
+
+Install the Python bridge dependency:
+
+```bash
+python -m pip install -r playwright-service/gemini-webapi-bridge/requirements.txt
+```
+
+Set these values in `playwright-service/.env`:
+
+```env
+GEMINI_SECURE_1PSID=your___Secure-1PSID_cookie
+GEMINI_SECURE_1PSIDTS=your___Secure-1PSIDTS_cookie
+GEMINI_COOKIE_PATH=./gemini-cookies
+GEMINI_WEBAPI_PYTHON=C:/Users/LAPTOP_036/AppData/Local/Programs/Python/Python312/python.exe
+GEMINI_WEBAPI_PANEL_CONCURRENCY=3
+```
+
+With this provider, `/api/generate-storyboard`, `/api/automate-storyboard`, and the Telegram bot full flow use `gemini_webapi` for analysis, storyboard prompts, and panel images. The existing Flow/Veo direct API step is still used for video generation.
+
+To export Gemini cookies from the same Playwright profile used by the service, run:
+
+```bash
+cd playwright-service
+node export-gemini-cookies.js
+```
+
+Use this script instead of opening system Chrome manually. It launches the persistent `chrome-data` profile directly.
+
 ## Expose Server Qua Internet (Ngrok)
 
 Để Telegram webhook hoặc external clients gọi được server:

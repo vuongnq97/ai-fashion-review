@@ -31,12 +31,18 @@ playwright-service/node_modules/
 gemini-image-service/node_modules/
 nodes/node_modules/
 
+# Python
+__pycache__/
+*.pyc
+
 # Sensitive files
 playwright-service/.env
 playwright-service/.env.*
 !playwright-service/.env.example
 playwright-service/tokens.json
 playwright-service/cookies/
+playwright-service/gemini-cookies/
+gemini-cookies/
 playwright-service/labs.google.cookies.json
 playwright-service/labs.google.cookies.backup-*.json
 config

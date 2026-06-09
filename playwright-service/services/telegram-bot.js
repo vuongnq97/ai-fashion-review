@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { runStoryboardAutomation } = require('./automation');
+const { runStoryboardFullFlow } = require('./storyboard-fullflow');
 
 // Chat-specific batch data accumulator
 const botBatches = new Map();
@@ -109,17 +109,17 @@ async function handleUpdate(botToken, update) {
         return;
       }
 
-      await sendTelegramMessage(botToken, chatId, `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang mở trình duyệt tự động để tạo Storyboard...`);
+      await sendTelegramMessage(botToken, chatId, `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang tạo storyboard và video...`);
 
-      // Trigger the Playwright automation in the background
+      // Trigger the provider-based full flow in the background.
       const baseDir = path.resolve(__dirname, '..');
-      runStoryboardAutomation(chatId, batch.photos, baseDir)
+      runStoryboardFullFlow(chatId, batch.photos, baseDir)
         .then(() => {
-          console.log(`[Telegram Bot] Storyboard automation completed for chat ${chatId}`);
+          console.log(`[Telegram Bot] Storyboard full flow completed for chat ${chatId}`);
         })
         .catch(err => {
-          console.error(`[Telegram Bot] Playwright execution error for chat ${chatId}:`, err.message);
-          sendTelegramMessage(botToken, chatId, `⚠️ Lỗi chạy tự động: ${err.message}`).catch(() => {});
+          console.error(`[Telegram Bot] Full flow error for chat ${chatId}:`, err.message);
+          sendTelegramMessage(botToken, chatId, `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => {});
         });
 
     }, BATCH_WINDOW_MS);

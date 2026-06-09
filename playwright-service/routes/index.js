@@ -8,7 +8,9 @@ const { getBrowserPage } = require('../services/browser');
 const { automateGeneration, prepareGeneration, executeGeneration } = require('../services/image');
 const { automateVideoGeneration, prepareVideoGeneration, executeVideoGeneration } = require('../services/video');
 const tiktok = require('../services/tiktok');
-const aistudio = require('../services/aistudio');
+const { getStoryboardProvider } = require('../services/storyboard-provider');
+const { runStoryboardFullFlow } = require('../services/storyboard-fullflow');
+const { sendVideoToTelegramDirect } = require('../services/telegram-send');
 const { processVideoBase64 } = require('../services/video-resize');
 
 const router = express.Router();
@@ -262,7 +264,9 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
     // If no batchKey, process immediately (single image, no batching)
     if (!batchKey) {
       console.log(`[API] Storyboard: ${filePayloads.length} image(s) received (no batch)`);
-      const results = await aistudio.generateStoryboard(baseDir, filePayloads, options);
+      const provider = getStoryboardProvider(baseDir);
+      console.log(`[API] Storyboard provider: ${provider.name}`);
+      const results = await provider.generateStoryboard(baseDir, filePayloads, options);
       return res.json({ success: true, results, isPrimary: true });
     }
 
@@ -297,7 +301,9 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
       console.log(`[API] Storyboard batch "${batchKey}": processing ${images.length} image(s) for ${waiters.length} waiter(s)`);
 
       try {
-        const results = await aistudio.generateStoryboard(baseDir, images, batchOpts);
+        const provider = getStoryboardProvider(baseDir);
+        console.log(`[API] Storyboard provider: ${provider.name}`);
+        const results = await provider.generateStoryboard(baseDir, images, batchOpts);
         waiters.forEach((w, idx) => w.resolve({ results, isPrimary: idx === 0 }));
       } catch (err) {
         waiters.forEach(w => w.reject(err));
@@ -321,7 +327,7 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
 });
 
 // ═══════════════════════════════════════════════════════════════
-// Playwright Web UI Automation Route
+// Provider-based full-flow automation route
 // ═══════════════════════════════════════════════════════════════
 
 const automationBatches = new Map();
@@ -379,12 +385,11 @@ router.post('/automate-storyboard', upload.array('images', 10), async (req, res)
       const { images } = batch;
       automationBatches.delete(targetChatId);
 
-      console.log(`[API] Automate batch "${targetChatId}": trigger Playwright automation with ${images.length} image(s)...`);
+      console.log(`[API] Automate batch "${targetChatId}": trigger provider full flow with ${images.length} image(s)...`);
       
-      // Asynchronously trigger Playwright automation in the background
-      const { runStoryboardAutomation } = require('../services/automation');
-      runStoryboardAutomation(targetChatId, images, baseDir).catch(err => {
-        console.error(`[API] Background automation error for ${targetChatId}:`, err.message);
+      // Asynchronously trigger provider-based full flow in the background.
+      runStoryboardFullFlow(targetChatId, images, baseDir).catch(err => {
+        console.error(`[API] Background full flow error for ${targetChatId}:`, err.message);
       });
     }, AUTOMATION_BATCH_WAIT_MS);
 
@@ -542,72 +547,5 @@ router.get('/export-cookies', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
-async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) {
-    console.log('[Telegram] ⚠️ TELEGRAM_BOT_TOKEN is not configured in .env');
-    return false;
-  }
-
-  const pName = panelName || `Panel ${panelIndex || 1}`;
-
-  try {
-    // Step 1: Crop & Resize video locally using our service
-    console.log(`[Telegram] Resizing ${pName} before sending...`);
-    const resizedBase64 = await processVideoBase64(videoBase64, {
-      cropPercent: 0.04,
-      aspectRatio: '9:16'
-    });
-
-    // Step 2: Send status message
-    console.log(`[Telegram] Sending status update to chat ${chatId}...`);
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `🎬 ${pName} đã resize xong!\n📤 Đang gửi video về Telegram...`
-      })
-    });
-
-    // Step 3: Send video file
-    console.log(`[Telegram] Uploading video to chat ${chatId}...`);
-    const videoBuffer = Buffer.from(resizedBase64, 'base64');
-    const blob = new Blob([videoBuffer], { type: 'video/mp4' });
-    
-    const formData = new FormData();
-    formData.append('chat_id', chatId);
-    formData.append('video', blob, `${pName.toLowerCase().replace(/\s+/g, '_')}_resized.mp4`);
-    formData.append('caption', `✅ ${pName} đã sẵn sàng!`);
-
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Telegram API returned HTTP ${response.status}: ${errText}`);
-    }
-
-    console.log(`[Telegram] ✅ Successfully sent ${pName} to Telegram.`);
-    return true;
-  } catch (error) {
-    console.error(`[Telegram] ❌ Failed to send ${pName} to Telegram:`, error.message);
-    // Attempt to notify user of failure
-    try {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `⚠️ Lỗi gửi ${pName} về Telegram: ${error.message}`
-        })
-      });
-    } catch (_) {}
-    return false;
-  }
-}
 
 module.exports = router;

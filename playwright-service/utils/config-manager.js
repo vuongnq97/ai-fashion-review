@@ -20,6 +20,7 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
       modelImagePath: ""
     },
     systemSettings: {
+      storyboardProvider: "aistudio-playwright",
       aiStudioUrl: "https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true",
       flowProjectUrl: "https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1",
       flowProjectId: "022f171a-baeb-4a4a-8561-51d0c992f3a1",

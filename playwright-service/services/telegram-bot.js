@@ -2,12 +2,16 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
+const { runFromDriveFolder } = require('./drive-folder');
 
-// Chat-specific batch data accumulator
+// Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
 const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
+
+// Prevent concurrent /p runs per chat
+const activePRuns = new Set();
 
 /**
  * Sends a text message to a specific Telegram Chat ID
@@ -45,6 +49,42 @@ async function downloadTelegramFile(botToken, fileId) {
 }
 
 /**
+ * Handle /p1 .. /p5 commands.
+ * Triggers the same drive-folder flow as `node server.js -p <n>` would.
+ */
+async function handlePCommand(botToken, chatId, folderNumber) {
+  const runKey = `${chatId}:p${folderNumber}`;
+
+  if (activePRuns.has(runKey)) {
+    await sendTelegramMessage(botToken, chatId,
+      `⏳ Đang chạy /p${folderNumber} rồi, vui lòng chờ hoàn thành trước khi gửi lại.`);
+    return;
+  }
+
+  activePRuns.add(runKey);
+  await sendTelegramMessage(botToken, chatId,
+    `📂 Đang khởi động luồng /p${folderNumber} — tải ảnh và tạo video...`);
+
+  const baseDir = path.resolve(__dirname, '..');
+
+  runFromDriveFolder(String(folderNumber), baseDir)
+    .then((result) => {
+      const sent = result && result.sentCount != null ? result.sentCount : '?';
+      console.log(`[Telegram Bot] /p${folderNumber} flow completed for chat ${chatId}. Sent: ${sent}`);
+      sendTelegramMessage(botToken, chatId,
+        `✅ /p${folderNumber} hoàn thành! Đã gửi ${sent} video.`).catch(() => {});
+    })
+    .catch((err) => {
+      console.error(`[Telegram Bot] /p${folderNumber} flow error for chat ${chatId}:`, err.message);
+      sendTelegramMessage(botToken, chatId,
+        `⚠️ /p${folderNumber} lỗi: ${err.message}`).catch(() => {});
+    })
+    .finally(() => {
+      activePRuns.delete(runKey);
+    });
+}
+
+/**
  * Process a single Telegram update
  */
 async function handleUpdate(botToken, update) {
@@ -53,13 +93,30 @@ async function handleUpdate(botToken, update) {
 
   const chatId = message.chat.id;
 
-  // 1. Handle commands
-  if (message.text && message.text.startsWith('/start')) {
-    await sendTelegramMessage(botToken, chatId, "👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang cho bạn.");
-    return;
+  // ── 1. Handle commands ────────────────────────────────────────────────────
+  if (message.text) {
+    const text = message.text.trim();
+
+    // /start
+    if (text.startsWith('/start')) {
+      await sendTelegramMessage(botToken, chatId,
+        '👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang cho bạn.\n\n' +
+        '📂 Hoặc dùng lệnh /p1 /p2 /p3 /p4 /p5 để tải ảnh từ thư mục Drive/local tương ứng.'
+      );
+      return;
+    }
+
+    // /p1 .. /p5  (also handles e.g. /p1@botname sent in groups)
+    const pMatch = text.match(/^\/p([1-5])(?:@\S+)?$/i);
+    if (pMatch) {
+      const folderNumber = pMatch[1];
+      console.log(`[Telegram Bot] Received /p${folderNumber} command from chat ${chatId}`);
+      await handlePCommand(botToken, chatId, folderNumber);
+      return;
+    }
   }
 
-  // 2. Handle photos
+  // ── 2. Handle photos (normal / default flow) ──────────────────────────────
   if (message.photo && message.photo.length > 0) {
     // Get the highest resolution photo (last element in the array)
     const photo = message.photo[message.photo.length - 1];
@@ -73,7 +130,8 @@ async function handleUpdate(botToken, update) {
         photos: [],
         timer: null
       });
-      await sendTelegramMessage(botToken, chatId, "📥 Đã nhận được hình ảnh. Đang chuẩn bị tải và gom album...");
+      await sendTelegramMessage(botToken, chatId,
+        '📥 Đã nhận được hình ảnh. Đang chuẩn bị tải và gom album...');
     }
 
     const batch = botBatches.get(chatId);
@@ -100,16 +158,18 @@ async function handleUpdate(botToken, update) {
       botBatches.delete(chatId);
 
       console.log(`[Telegram Bot] Batch timed out for chat ${chatId}. Checking downloads...`);
-      
+
       // Give active downloads 2 seconds to finish up
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       if (batch.photos.length === 0) {
-        await sendTelegramMessage(botToken, chatId, "⚠️ Không tải được ảnh nào thành công. Vui lòng thử lại.");
+        await sendTelegramMessage(botToken, chatId,
+          '⚠️ Không tải được ảnh nào thành công. Vui lòng thử lại.');
         return;
       }
 
-      await sendTelegramMessage(botToken, chatId, `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang tạo storyboard và video...`);
+      await sendTelegramMessage(botToken, chatId,
+        `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang tạo storyboard và video...`);
 
       // Trigger the provider-based full flow in the background.
       const baseDir = path.resolve(__dirname, '..');
@@ -119,10 +179,32 @@ async function handleUpdate(botToken, update) {
         })
         .catch(err => {
           console.error(`[Telegram Bot] Full flow error for chat ${chatId}:`, err.message);
-          sendTelegramMessage(botToken, chatId, `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => {});
+          sendTelegramMessage(botToken, chatId,
+            `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => {});
         });
 
     }, BATCH_WINDOW_MS);
+  }
+}
+
+/**
+ * Register the bot command menu so Telegram shows /p1–/p5 as tappable buttons.
+ * Uses the setMyCommands API — called once on startup.
+ */
+async function registerBotCommands(botToken) {
+  const commands = [
+    { command: 'p1', description: 'Chạy luồng folder p1' },
+    { command: 'p2', description: 'Chạy luồng folder p2' },
+    { command: 'p3', description: 'Chạy luồng folder p3' },
+    { command: 'p4', description: 'Chạy luồng folder p4' },
+    { command: 'p5', description: 'Chạy luồng folder p5' },
+    { command: 'start', description: 'Bắt đầu / Xem hướng dẫn' },
+  ];
+  try {
+    await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands });
+    console.log('[Telegram Bot] ✅ Bot commands registered (menu buttons ready).');
+  } catch (err) {
+    console.warn('[Telegram Bot] ⚠️ Failed to register bot commands:', err.message);
   }
 }
 
@@ -140,6 +222,9 @@ function startTelegramBot() {
     console.log('[Telegram Bot] Bot is already polling.');
     return;
   }
+
+  // Register command menu buttons on startup (fire-and-forget)
+  registerBotCommands(botToken);
 
   isPolling = true;
   console.log('[Telegram Bot] Starting Telegram updates polling loop...');

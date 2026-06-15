@@ -5,6 +5,17 @@ const cors = require('cors');
 const morgan = require('morgan');
 const apiRoutes = require('./routes/index');
 
+// ─── CLI argument parsing ────────────────────────────────────────────────────
+// Usage: node server.js -p 1
+//   -p <folder>  Load images from local folder "p<folder>" instead of Telegram
+const cliArgs = process.argv.slice(2);
+const pIndex = cliArgs.indexOf('-p');
+const pFolder = pIndex !== -1 && cliArgs[pIndex + 1] ? cliArgs[pIndex + 1] : null;
+if (pFolder) {
+  console.log(`📁 CLI mode: -p "${pFolder}" detected. Will load images from folder p${pFolder} instead of Telegram.`);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const app = express();
 const port = 3000;
 
@@ -48,13 +59,21 @@ if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
 
 server.listen(port, () => {
   console.log(`🚀 Playwright Automation Server listening on port ${port}`);
-  
-  // Start the direct Telegram bot update listener
-  try {
-    const { startTelegramBot } = require('./services/telegram-bot');
-    startTelegramBot();
-  } catch (err) {
-    console.error('Failed to start Telegram bot polling:', err.message);
+
+  if (pFolder) {
+    // ─── -p mode: read images from local/Drive-synced folder ─────────────────
+    const { runFromDriveFolder } = require('./services/drive-folder');
+    console.log(`[Server] Starting drive-folder mode for folder: p${pFolder}`);
+    runFromDriveFolder(pFolder, path.resolve(__dirname))
+      .catch(err => console.error('[Server] Drive folder flow error:', err.message));
+  } else {
+    // ─── Normal mode: start Telegram bot long-polling ─────────────────────────
+    try {
+      const { startTelegramBot } = require('./services/telegram-bot');
+      startTelegramBot();
+    } catch (err) {
+      console.error('Failed to start Telegram bot polling:', err.message);
+    }
   }
 });
 

@@ -1,10 +1,11 @@
-const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const { getBrowserPage } = require('./browser');
 const { prepareVideoGeneration, executeVideoGeneration } = require('./video');
 const { getConfig } = require('../utils/config-manager');
+const geminiStoryboard = require('./gemini-client/gemini-storyboard');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -25,85 +26,31 @@ function getMimeExt(mimeType) {
   return /jpe?g/i.test(String(mimeType || '')) ? '.jpg' : '.png';
 }
 
-function getPythonCommand() {
-  return process.env.GEMINI_WEBAPI_PYTHON || process.env.PYTHON || 'python';
-}
+/**
+ * Run the Node.js Gemini storyboard bridge (replaces Python subprocess).
+ * @param {string} baseDir
+ * @param {object} request - Same JSON format as Python bridge input
+ * @param {number} [timeoutMs]
+ * @returns {Promise<object>} - Same JSON format as Python bridge output
+ */
+async function runBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
+  const tmpRoot = path.join(baseDir, 'uploads', 'gemini-webapi-runs');
+  ensureDir(tmpRoot);
+  const workDir = fs.mkdtempSync(path.join(tmpRoot, 'run-'));
 
-function getBridgeEnv(baseDir) {
-  const env = { ...process.env };
-  if (env.GEMINI_COOKIE_PATH && !path.isAbsolute(env.GEMINI_COOKIE_PATH)) {
-    env.GEMINI_COOKIE_PATH = path.resolve(baseDir, env.GEMINI_COOKIE_PATH);
+  const timer = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Gemini storyboard timed out after ${Math.round(timeoutMs / 1000)}s`)), timeoutMs)
+  );
+
+  try {
+    const result = await Promise.race([
+      geminiStoryboard.run(request, workDir),
+      timer,
+    ]);
+    return result;
+  } finally {
+    removeDirQuietly(workDir);
   }
-  return env;
-}
-
-function runBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
-  return new Promise((resolve, reject) => {
-    const bridgeDir = path.join(baseDir, 'gemini-webapi-bridge');
-    const scriptPath = path.join(bridgeDir, 'gemini_storyboard.py');
-    if (!fs.existsSync(scriptPath)) {
-      reject(new Error(`Gemini WebAPI bridge script not found: ${scriptPath}`));
-      return;
-    }
-
-    const tmpRoot = path.join(baseDir, 'uploads', 'gemini-webapi-runs');
-    ensureDir(tmpRoot);
-    const workDir = fs.mkdtempSync(path.join(tmpRoot, 'run-'));
-    const requestPath = path.join(workDir, 'request.json');
-    const outputPath = path.join(workDir, 'result.json');
-    fs.writeFileSync(requestPath, JSON.stringify(request), 'utf8');
-
-    const args = [scriptPath, '--input', requestPath, '--output', outputPath, '--work-dir', workDir];
-    const child = spawn(getPythonCommand(), args, {
-      cwd: baseDir,
-      env: getBridgeEnv(baseDir),
-      windowsHide: true,
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let finished = false;
-    const timer = setTimeout(() => {
-      if (finished) return;
-      child.kill('SIGTERM');
-      reject(new Error(`Gemini WebAPI bridge timed out after ${Math.round(timeoutMs / 1000)}s`));
-    }, timeoutMs);
-
-    child.stdout.on('data', chunk => {
-      stdout += chunk.toString();
-      const text = chunk.toString().trim();
-      if (text) console.log(`[GeminiWebAPI stdout] ${text}`);
-    });
-    child.stderr.on('data', chunk => {
-      stderr += chunk.toString();
-      const text = chunk.toString().trim();
-      if (text) console.log(`[GeminiWebAPI] ${text}`);
-    });
-    child.on('error', error => {
-      finished = true;
-      clearTimeout(timer);
-      removeDirQuietly(workDir);
-      reject(error);
-    });
-    child.on('close', code => {
-      finished = true;
-      clearTimeout(timer);
-      try {
-        if (code !== 0) {
-          throw new Error(`Gemini WebAPI bridge exited with code ${code}: ${(stderr || stdout).slice(-2000)}`);
-        }
-        if (!fs.existsSync(outputPath)) {
-          throw new Error(`Gemini WebAPI bridge did not write output file. ${(stderr || stdout).slice(-2000)}`);
-        }
-        const result = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-        removeDirQuietly(workDir);
-        resolve(result);
-      } catch (error) {
-        removeDirQuietly(workDir);
-        reject(error);
-      }
-    });
-  });
 }
 
 function buildRequest(filePayloads, options, baseDir) {

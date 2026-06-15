@@ -4,6 +4,20 @@ const path = require('path');
 const readline = require('readline');
 const { getExtensionArgs } = require('./utils/extension-loader');
 
+function clearCookieCache(cookieDir) {
+  if (!fs.existsSync(cookieDir)) return;
+  const files = fs.readdirSync(cookieDir).filter(f => f.startsWith('.cached_cookies_') && f.endsWith('.json'));
+  for (const file of files) {
+    try {
+      fs.unlinkSync(path.join(cookieDir, file));
+      console.log(`[GeminiCookies] Deleted stale cache: ${file}`);
+    } catch (e) {
+      console.log(`[GeminiCookies] ⚠️ Could not delete cache file ${file}: ${e.message}`);
+    }
+  }
+  if (files.length === 0) console.log('[GeminiCookies] No stale cache files found.');
+}
+
 function setEnvValue(envPath, key, value) {
   let text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
   const line = `${key}=${value || ''}`;
@@ -76,8 +90,19 @@ async function waitForEnter(message) {
   setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
   setEnvValue(envPath, 'GEMINI_WEBAPI_PYTHON', 'C:/Users/LAPTOP_036/AppData/Local/Programs/Python/Python312/python.exe');
 
+  // Save ALL cookies to gemini-cookies/cookies.json so gemini-api.js can load them
+  const cookieDir = path.join(baseDir, 'gemini-cookies');
+  fs.mkdirSync(cookieDir, { recursive: true });
+  const cookieFilePath = path.join(cookieDir, 'cookies.json');
+  fs.writeFileSync(cookieFilePath, JSON.stringify(cookies, null, 2), 'utf8');
+  console.log(`[GeminiCookies] Saved ${cookies.length} cookies → ${cookieFilePath}`);
+
   console.log(`[GeminiCookies] Exported Gemini cookies to ${envPath}`);
   console.log(`[GeminiCookies] __Secure-1PSIDTS found: ${secure1psidts ? 'yes' : 'no'}`);
+
+  // Clear stale gemini_webapi cookie cache so the next run uses fresh cookies
+  clearCookieCache(cookieDir);
+  console.log('[GeminiCookies] ✅ Done. Restart the server to apply new cookies.');
 
   await context.close();
 })().catch(error => {

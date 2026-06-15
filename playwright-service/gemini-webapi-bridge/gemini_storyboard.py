@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+PANEL_MAX_RETRIES = int(os.environ.get("GEMINI_WEBAPI_PANEL_MAX_RETRIES", "3"))
+PANEL_RETRY_DELAY = float(os.environ.get("GEMINI_WEBAPI_PANEL_RETRY_DELAY", "5"))
+
 from gemini_webapi import GeminiClient, set_log_level
 
 
@@ -292,51 +295,68 @@ async def run(request: Dict[str, Any], work_dir: Path) -> Dict[str, Any]:
             model=options.get("imageModel") or os.environ.get("GEMINI_WEBAPI_IMAGE_MODEL") or "unspecified",
         )
         storyboard_path = await save_first_image(storyboard_response, output_dir, "storyboard.png")
+        if not storyboard_path:
+            raise RuntimeError("Gemini did not return a storyboard image; stopping before panel generation.")
         storyboard_b64 = read_b64(storyboard_path) if storyboard_path else None
 
-        panel_reference_files = [storyboard_path] if storyboard_path else input_paths
+        panel_reference_files = [storyboard_path]
+        # Default concurrency is 1 (sequential) because gemini_webapi uses a single
+        # browser/session and Google aborts concurrent requests (error 1100).
         panel_concurrency = max(
             1,
-            int(os.environ.get("GEMINI_WEBAPI_PANEL_CONCURRENCY") or panel_count),
+            int(os.environ.get("GEMINI_WEBAPI_PANEL_CONCURRENCY") or "1"),
         )
         panel_semaphore = asyncio.Semaphore(panel_concurrency)
 
         async def generate_panel(idx: int) -> Dict[str, Any]:
             panel_index = idx + 1
-            async with panel_semaphore:
-                log(
-                    f"Generating panel {panel_index}/{panel_count} "
-                    f"(parallel, concurrency={panel_concurrency})"
-                )
-                prompt = analysis["veo3Prompts"][idx]
-                response = await client.generate_content(
-                    build_panel_prompt(
-                        bool(storyboard_path),
-                        panel_index,
-                        panel_count,
-                        analysis["script"][idx],
-                        prompt,
-                        options,
-                    ),
-                    files=panel_reference_files,
-                    temporary=True,
-                    model=options.get("imageModel") or os.environ.get("GEMINI_WEBAPI_IMAGE_MODEL") or "unspecified",
-                )
-                panel_path = await save_first_image(response, output_dir, f"panel-{panel_index}.png")
-                if not panel_path:
-                    raise RuntimeError(f"Gemini did not return an image for panel {panel_index}")
-                log(f"Completed panel {panel_index}/{panel_count}")
-                return {
-                    "index": panel_index,
-                    "prompt": prompt,
-                    "imageBase64": read_b64(panel_path),
-                    "mimeType": "image/png",
-                    "sourcePath": str(panel_path),
-                }
+            prompt = analysis["veo3Prompts"][idx]
+            last_exc: Exception = RuntimeError("Unknown error")
+            for attempt in range(1, PANEL_MAX_RETRIES + 1):
+                async with panel_semaphore:
+                    log(
+                        f"Generating panel {panel_index}/{panel_count} "
+                        f"(concurrency={panel_concurrency}, attempt {attempt}/{PANEL_MAX_RETRIES})"
+                    )
+                    try:
+                        response = await client.generate_content(
+                            build_panel_prompt(
+                                bool(storyboard_path),
+                                panel_index,
+                                panel_count,
+                                analysis["script"][idx],
+                                prompt,
+                                options,
+                            ),
+                            files=panel_reference_files,
+                            temporary=True,
+                            model=options.get("imageModel") or os.environ.get("GEMINI_WEBAPI_IMAGE_MODEL") or "unspecified",
+                        )
+                        panel_path = await save_first_image(response, output_dir, f"panel-{panel_index}.png")
+                        if not panel_path:
+                            raise RuntimeError(f"Gemini did not return an image for panel {panel_index}")
+                        log(f"Completed panel {panel_index}/{panel_count}")
+                        return {
+                            "index": panel_index,
+                            "prompt": prompt,
+                            "imageBase64": read_b64(panel_path),
+                            "mimeType": "image/png",
+                            "sourcePath": str(panel_path),
+                        }
+
+                    except Exception as exc:
+                        last_exc = exc
+                        if attempt < PANEL_MAX_RETRIES:
+                            delay = PANEL_RETRY_DELAY * attempt
+                            log(f"Panel {panel_index} attempt {attempt} failed ({exc}). Retrying in {delay:.0f}s...")
+                            await asyncio.sleep(delay)
+                        else:
+                            log(f"Panel {panel_index} failed after {PANEL_MAX_RETRIES} attempts: {exc}")
+            raise last_exc
 
         log(
-            f"Generating {panel_count} panel image(s) in parallel "
-            f"(concurrency={panel_concurrency})"
+            f"Generating {panel_count} panel image(s) sequentially "
+            f"(concurrency={panel_concurrency}, max_retries={PANEL_MAX_RETRIES})"
         )
         panels = await asyncio.gather(
             *(generate_panel(idx) for idx in range(panel_count))

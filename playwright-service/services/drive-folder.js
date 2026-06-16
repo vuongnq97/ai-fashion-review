@@ -3,99 +3,134 @@ const path = require('path');
 const axios = require('axios');
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
 
-// Supported local image extensions
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
-
-// Supported Drive image MIME types
 const IMAGE_MIME_TYPES = new Set([
-  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
 ]);
 
-// ─── Google Drive helpers ─────────────────────────────────────────────────────
-
-/**
- * Extract the folder ID from a Google Drive URL.
- * Supports:
- *   https://drive.google.com/drive/folders/FOLDER_ID
- *   https://drive.google.com/drive/folders/FOLDER_ID?usp=sharing
- */
-function extractDriveFolderId(url) {
-  const match = String(url || '').match(/\/folders\/([a-zA-Z0-9_-]+)/);
+function extractDriveFolderId(value) {
+  const raw = String(value || '').trim();
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(raw) && !raw.includes('/')) {
+    return raw;
+  }
+  const match = raw.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
 }
 
-/**
- * Check if a string looks like a Google Drive URL (not a local path).
- */
 function isDriveUrl(value) {
   return typeof value === 'string' && value.includes('drive.google.com');
 }
 
-/**
- * Resolve the source configuration for -p <folderName>.
- *
- * Priority:
- *   1. DRIVE_FOLDER_P{n}  env var  (Drive URL or local path)
- *   2. DRIVE_SYNC_ROOT     env var  (only if it's a local path, not a URL)
- *   3. ./p{n}              relative fallback
- *
- * Returns: { type: 'drive-api' | 'local', value: string }
- */
+function normalizeFolderName(folderName) {
+  const name = String(folderName || '').trim().replace(/^\/+/, '');
+  return /^\d+$/.test(name) ? `p${name}` : name;
+}
+
+function folderEnvKey(folderName) {
+  return `DRIVE_FOLDER_${normalizeFolderName(folderName).replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase()}`;
+}
+
+function getDriveApiKey() {
+  const apiKey = (process.env.GOOGLE_DRIVE_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error(
+      '[DriveFolder] GOOGLE_DRIVE_API_KEY is required to use Google Drive.\n' +
+      '  -> Get a free key: https://console.cloud.google.com/apis/credentials\n' +
+      '  -> Enable "Google Drive API" then create an API key.'
+    );
+  }
+  return apiKey;
+}
+
+function escapeDriveQueryValue(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 function resolveFolderConfig(folderName) {
-  // 1. Per-folder env var: DRIVE_FOLDER_P1, DRIVE_FOLDER_P2, ...
-  const specificKey = `DRIVE_FOLDER_P${folderName}`;
-  const specificVal = (process.env[specificKey] || '').trim();
+  const normalizedName = normalizeFolderName(folderName);
+
+  // Per-folder override, for example DRIVE_FOLDER_P1 or DRIVE_FOLDER_M2.
+  const specificVal = (process.env[folderEnvKey(normalizedName)] || '').trim();
   if (specificVal) {
-    if (isDriveUrl(specificVal)) {
+    if (isDriveUrl(specificVal) || extractDriveFolderId(specificVal)) {
       return { type: 'drive-api', value: specificVal };
     }
     return { type: 'local', value: specificVal };
   }
 
-  // 2. DRIVE_SYNC_ROOT — only use if it's a real local path (not a Drive URL)
+  // Parent Drive folder: command name maps to a direct child folder name.
+  const parentFolder = (
+    process.env.DRIVE_PARENT_FOLDER_ID ||
+    process.env.DRIVE_PARENT_FOLDER_URL ||
+    process.env.DRIVE_PARENT_FOLDER ||
+    ''
+  ).trim();
+  if (parentFolder) {
+    const parentFolderId = extractDriveFolderId(parentFolder);
+    if (!parentFolderId) {
+      throw new Error(`[DriveFolder] Cannot extract parent folder ID from: ${parentFolder}`);
+    }
+    return { type: 'drive-child', value: parentFolderId, folderName: normalizedName };
+  }
+
+  // Local parent directory fallback.
   const syncRoot = (process.env.DRIVE_SYNC_ROOT || '').trim();
   if (syncRoot && !isDriveUrl(syncRoot)) {
-    return { type: 'local', value: path.join(syncRoot, `p${folderName}`) };
+    return { type: 'local', value: path.join(syncRoot, normalizedName) };
   }
 
-  // 3. Default: ./p{n} relative to playwright-service directory
-  return { type: 'local', value: path.join(process.cwd(), `p${folderName}`) };
+  return { type: 'local', value: path.join(process.cwd(), normalizedName) };
 }
 
-// ─── Google Drive API download ────────────────────────────────────────────────
-
-/**
- * Download all images from a public Google Drive folder using Drive API v3.
- * Requires GOOGLE_DRIVE_API_KEY in .env (free, no OAuth needed for public folders).
- *
- * @param {string} folderId  - Google Drive folder ID
- * @returns {Promise<Array<{name, mimeType, buffer}>>}
- */
-async function downloadFromDriveFolder(folderId) {
-  const apiKey = (process.env.GOOGLE_DRIVE_API_KEY || '').trim();
-  if (!apiKey) {
-    throw new Error(
-      '[DriveFolder] GOOGLE_DRIVE_API_KEY is required to download from Google Drive.\n' +
-      '  → Get a free key: https://console.cloud.google.com/apis/credentials\n' +
-      '  → Enable "Google Drive API" then create an API key.'
-    );
-  }
-
-  console.log(`[DriveFolder] Listing files in Google Drive folder: ${folderId}`);
-
-  // List image files in the folder
+async function listDriveFiles(params) {
+  const apiKey = getDriveApiKey();
   const listRes = await axios.get('https://www.googleapis.com/drive/v3/files', {
     params: {
-      q: `'${folderId}' in parents and trashed=false`,
+      ...params,
       key: apiKey,
-      fields: 'files(id,name,mimeType)',
-      pageSize: 100,
-      orderBy: 'name',
     },
     timeout: 30000,
   });
+  return listRes.data.files || [];
+}
 
-  const allFiles = listRes.data.files || [];
+async function findDriveChildFolder(parentFolderId, folderName) {
+  const safeName = escapeDriveQueryValue(folderName);
+  const folderMimeType = 'application/vnd.google-apps.folder';
+
+  console.log(`[DriveFolder] Searching child folder "${folderName}" in parent: ${parentFolderId}`);
+
+  const folders = await listDriveFiles({
+    q: `'${parentFolderId}' in parents and name='${safeName}' and mimeType='${folderMimeType}' and trashed=false`,
+    fields: 'files(id,name,mimeType)',
+    pageSize: 10,
+    orderBy: 'name',
+  });
+
+  if (folders.length === 0) {
+    throw new Error(`[DriveFolder] Folder "${folderName}" was not found under parent folder "${parentFolderId}".`);
+  }
+  if (folders.length > 1) {
+    console.warn(`[DriveFolder] Found ${folders.length} folders named "${folderName}". Using first: ${folders[0].id}`);
+  }
+
+  console.log(`[DriveFolder] Matched child folder "${folders[0].name}": ${folders[0].id}`);
+  return folders[0].id;
+}
+
+async function downloadFromDriveFolder(folderId) {
+  console.log(`[DriveFolder] Listing files in Google Drive folder: ${folderId}`);
+
+  const allFiles = await listDriveFiles({
+    q: `'${folderId}' in parents and trashed=false`,
+    fields: 'files(id,name,mimeType)',
+    pageSize: 100,
+    orderBy: 'name',
+  });
   const imageFiles = allFiles.filter(f => IMAGE_MIME_TYPES.has(f.mimeType));
 
   if (imageFiles.length === 0) {
@@ -107,9 +142,10 @@ async function downloadFromDriveFolder(folderId) {
 
   console.log(`[DriveFolder] Found ${imageFiles.length} image(s) in Drive folder.`);
 
+  const apiKey = getDriveApiKey();
   const filePayloads = [];
   for (const file of imageFiles) {
-    console.log(`[DriveFolder]   → Downloading: ${file.name}`);
+    console.log(`[DriveFolder] -> Downloading: ${file.name}`);
     const dlRes = await axios.get(
       `https://www.googleapis.com/drive/v3/files/${file.id}`,
       {
@@ -119,21 +155,13 @@ async function downloadFromDriveFolder(folderId) {
       }
     );
     const buffer = Buffer.from(dlRes.data);
-    console.log(`[DriveFolder]     ✅ ${file.name} (${buffer.length} bytes)`);
+    console.log(`[DriveFolder]    OK ${file.name} (${buffer.length} bytes)`);
     filePayloads.push({ name: file.name, mimeType: file.mimeType, buffer });
   }
 
   return filePayloads;
 }
 
-// ─── Local folder load ────────────────────────────────────────────────────────
-
-/**
- * Read all supported image files from a local directory.
- *
- * @param {string} folderPath - Absolute local path
- * @returns {Array<{name, mimeType, buffer}>}
- */
 function loadImagesFromFolder(folderPath) {
   if (!fs.existsSync(folderPath)) {
     throw new Error(`[DriveFolder] Folder not found: ${folderPath}`);
@@ -151,37 +179,26 @@ function loadImagesFromFolder(folderPath) {
   return imageFiles.map(filename => {
     const ext = path.extname(filename).toLowerCase();
     const mimeType =
-      ext === '.png'  ? 'image/png'  :
+      ext === '.png' ? 'image/png' :
       ext === '.webp' ? 'image/webp' :
-      ext === '.gif'  ? 'image/gif'  : 'image/jpeg';
+      ext === '.gif' ? 'image/gif' :
+      'image/jpeg';
     const buffer = fs.readFileSync(path.join(folderPath, filename));
-    console.log(`[DriveFolder]   → Loaded: ${filename} (${buffer.length} bytes)`);
+    console.log(`[DriveFolder] -> Loaded: ${filename} (${buffer.length} bytes)`);
     return { name: filename, mimeType, buffer };
   });
 }
 
-// ─── Main entry point ─────────────────────────────────────────────────────────
-
-/**
- * Entry point for `node server.js -p <folderName>`.
- *
- * Auto-detects whether to download from Google Drive or read from local disk.
- * Configure via .env:
- *   DRIVE_FOLDER_P1=https://drive.google.com/drive/folders/FOLDER_ID   ← Drive URL
- *   DRIVE_FOLDER_P1=/path/to/local/folder                              ← Local path
- *   GOOGLE_DRIVE_API_KEY=...                                            ← Needed for Drive URL
- *
- * @param {string} folderName - The value after -p (e.g. "1")
- * @param {string} baseDir    - Absolute path to playwright-service root
- */
 async function runFromDriveFolder(folderName, baseDir) {
-  const config = resolveFolderConfig(folderName);
+  const normalizedName = normalizeFolderName(folderName);
+  const config = resolveFolderConfig(normalizedName);
+  console.log(`[DriveFolder] Folder name : ${normalizedName}`);
   console.log(`[DriveFolder] Source type : ${config.type}`);
   console.log(`[DriveFolder] Source value: ${config.value}`);
 
   const chatId = process.env.DEFAULT_TELEGRAM_CHAT_ID
     ? String(process.env.DEFAULT_TELEGRAM_CHAT_ID)
-    : `local-p${folderName}`;
+    : `local-${normalizedName}`;
   console.log(`[DriveFolder] Using chatId: ${chatId}`);
 
   let filePayloads;
@@ -189,21 +206,24 @@ async function runFromDriveFolder(folderName, baseDir) {
     if (config.type === 'drive-api') {
       const folderId = extractDriveFolderId(config.value);
       if (!folderId) {
-        throw new Error(`[DriveFolder] Cannot extract folder ID from URL: ${config.value}`);
+        throw new Error(`[DriveFolder] Cannot extract folder ID from: ${config.value}`);
       }
       console.log(`[DriveFolder] Drive folder ID: ${folderId}`);
+      filePayloads = await downloadFromDriveFolder(folderId);
+    } else if (config.type === 'drive-child') {
+      const folderId = await findDriveChildFolder(config.value, config.folderName);
       filePayloads = await downloadFromDriveFolder(folderId);
     } else {
       filePayloads = loadImagesFromFolder(config.value);
     }
   } catch (err) {
-    console.error(`[DriveFolder] ❌ Failed to load images: ${err.message}`);
+    console.error(`[DriveFolder] Failed to load images: ${err.message}`);
     throw err;
   }
 
-  console.log(`[DriveFolder] 🚀 Starting storyboard full flow with ${filePayloads.length} image(s)...`);
+  console.log(`[DriveFolder] Starting storyboard full flow with ${filePayloads.length} image(s)...`);
   const result = await runStoryboardFullFlow(chatId, filePayloads, baseDir);
-  console.log(`[DriveFolder] ✅ Full flow completed. Sent ${result.sentCount ?? '?'} video(s).`);
+  console.log(`[DriveFolder] Full flow completed. Sent ${result.sentCount ?? '?'} video(s).`);
   return result;
 }
 
@@ -211,6 +231,8 @@ module.exports = {
   runFromDriveFolder,
   loadImagesFromFolder,
   downloadFromDriveFolder,
+  findDriveChildFolder,
   extractDriveFolderId,
+  normalizeFolderName,
   resolveFolderConfig,
 };

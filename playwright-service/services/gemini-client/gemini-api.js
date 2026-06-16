@@ -579,6 +579,21 @@ class GeminiApiClient {
       // When this happens the response is a polite refusal text, not a transient error —
       // retrying will not help and just wastes time. Throw a non-retryable error.
       const lowerText = result.text.toLowerCase();
+      const isImageLimitResponse =
+        lowerText.includes('create more images as soon as your limit resets') ||
+        lowerText.includes('check your usage in settings') ||
+        lowerText.includes('image limit') ||
+        lowerText.includes('usage limit') ||
+        lowerText.includes('limit resets') ||
+        lowerText.includes('quota');
+
+      if (isImageLimitResponse) {
+        throw new Error(
+          '[GeminiAPI] Gemini image generation limit reached for this account/session. ' +
+          'Open AI Studio/Gemini Settings to check usage or wait for the image limit to reset.'
+        );
+      }
+
       const isVideoModeResponse =
         // Gemini saying it's generating a video
         lowerText.includes('đang tạo video') ||

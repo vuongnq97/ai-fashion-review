@@ -10,7 +10,7 @@ const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-// Prevent concurrent /p runs per chat
+// Prevent concurrent folder-command runs per chat
 const activePRuns = new Set();
 
 /**
@@ -21,6 +21,8 @@ async function sendTelegramMessage(botToken, chatId, text) {
     await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       chat_id: chatId,
       text: text
+    }, {
+      timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
     });
   } catch (error) {
     console.error(`[Telegram Bot] Error sending message to ${chatId}:`, error.message);
@@ -49,35 +51,37 @@ async function downloadTelegramFile(botToken, fileId) {
 }
 
 /**
- * Handle /p1 .. /p5 commands.
+ * Handle folder commands such as /p1, /p2, /m1, /m2.
  * Triggers the same drive-folder flow as `node server.js -p <n>` would.
  */
-async function handlePCommand(botToken, chatId, folderNumber) {
-  const runKey = `${chatId}:p${folderNumber}`;
+async function handleFolderCommand(botToken, chatId, folderName) {
+  const commandName = String(folderName || '').trim().toLowerCase();
+  const runKey = `${chatId}:${commandName}`;
 
   if (activePRuns.has(runKey)) {
     await sendTelegramMessage(botToken, chatId,
-      `⏳ Đang chạy /p${folderNumber} rồi, vui lòng chờ hoàn thành trước khi gửi lại.`);
+      `⏳ Đang chạy /${commandName} rồi, vui lòng chờ hoàn thành trước khi gửi lại.`);
     return;
   }
 
   activePRuns.add(runKey);
   await sendTelegramMessage(botToken, chatId,
-    `📂 Đang khởi động luồng /p${folderNumber} — tải ảnh và tạo video...`);
+    `📂 Đang khởi động luồng /${commandName} — tìm folder, tải ảnh và tạo video...`);
 
   const baseDir = path.resolve(__dirname, '..');
 
-  runFromDriveFolder(String(folderNumber), baseDir)
+  runFromDriveFolder(commandName, baseDir)
     .then((result) => {
       const sent = result && result.sentCount != null ? result.sentCount : '?';
-      console.log(`[Telegram Bot] /p${folderNumber} flow completed for chat ${chatId}. Sent: ${sent}`);
+      const summary = result?.productInfo?.summary ? `\n${result.productInfo.summary}` : '';
+      console.log(`[Telegram Bot] /${commandName} flow completed for chat ${chatId}. Sent: ${sent}`);
       sendTelegramMessage(botToken, chatId,
-        `✅ /p${folderNumber} hoàn thành! Đã gửi ${sent} video.`).catch(() => {});
+        `✅ /${commandName} hoàn thành! Đã gửi ${sent} video.${summary}`).catch(() => {});
     })
     .catch((err) => {
-      console.error(`[Telegram Bot] /p${folderNumber} flow error for chat ${chatId}:`, err.message);
+      console.error(`[Telegram Bot] /${commandName} flow error for chat ${chatId}:`, err.message);
       sendTelegramMessage(botToken, chatId,
-        `⚠️ /p${folderNumber} lỗi: ${err.message}`).catch(() => {});
+        `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => {});
     })
     .finally(() => {
       activePRuns.delete(runKey);
@@ -101,17 +105,18 @@ async function handleUpdate(botToken, update) {
     if (text.startsWith('/start')) {
       await sendTelegramMessage(botToken, chatId,
         '👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang cho bạn.\n\n' +
-        '📂 Hoặc dùng lệnh /p1 /p2 /p3 /p4 /p5 để tải ảnh từ thư mục Drive/local tương ứng.'
+        '📂 Hoặc dùng lệnh như /p1 /p2 /m1 /m2 để tải ảnh từ thư mục Drive/local cùng tên.'
       );
       return;
     }
 
-    // /p1 .. /p5  (also handles e.g. /p1@botname sent in groups)
-    const pMatch = text.match(/^\/p([1-5])(?:@\S+)?$/i);
-    if (pMatch) {
-      const folderNumber = pMatch[1];
-      console.log(`[Telegram Bot] Received /p${folderNumber} command from chat ${chatId}`);
-      await handlePCommand(botToken, chatId, folderNumber);
+    // Folder commands (also handles e.g. /p1@botname sent in groups).
+    // Keep /start reserved; any other alphanumeric command maps to a folder name.
+    const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
+    if (folderMatch && folderMatch[1].toLowerCase() !== 'start') {
+      const folderName = folderMatch[1].toLowerCase();
+      console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
+      await handleFolderCommand(botToken, chatId, folderName);
       return;
     }
   }
@@ -188,20 +193,21 @@ async function handleUpdate(botToken, update) {
 }
 
 /**
- * Register the bot command menu so Telegram shows /p1–/p5 as tappable buttons.
+ * Register sample bot commands so Telegram shows common folder names as tappable buttons.
  * Uses the setMyCommands API — called once on startup.
  */
 async function registerBotCommands(botToken) {
   const commands = [
     { command: 'p1', description: 'Chạy luồng folder p1' },
     { command: 'p2', description: 'Chạy luồng folder p2' },
-    { command: 'p3', description: 'Chạy luồng folder p3' },
-    { command: 'p4', description: 'Chạy luồng folder p4' },
-    { command: 'p5', description: 'Chạy luồng folder p5' },
+    { command: 'm1', description: 'Chạy luồng folder m1' },
+    { command: 'm2', description: 'Chạy luồng folder m2' },
     { command: 'start', description: 'Bắt đầu / Xem hướng dẫn' },
   ];
   try {
-    await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands });
+    await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
+      timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
+    });
     console.log('[Telegram Bot] ✅ Bot commands registered (menu buttons ready).');
   } catch (err) {
     console.warn('[Telegram Bot] ⚠️ Failed to register bot commands:', err.message);
@@ -233,13 +239,21 @@ function startTelegramBot() {
   (async () => {
     while (isPolling) {
       try {
+        const pollTimeoutSeconds = Math.max(
+          10,
+          parseInt(process.env.TELEGRAM_POLL_TIMEOUT_SECONDS || '50', 10)
+        );
+        const requestTimeoutMs = Math.max(
+          pollTimeoutSeconds * 1000 + 25000,
+          parseInt(process.env.TELEGRAM_POLL_REQUEST_TIMEOUT_MS || '75000', 10)
+        );
         const response = await axios.get(`https://api.telegram.org/bot${botToken}/getUpdates`, {
           params: {
             offset: pollingOffset,
-            timeout: 30,
+            timeout: pollTimeoutSeconds,
             allowed_updates: JSON.stringify(['message'])
           },
-          timeout: 35000 // Timeout slightly longer than the Telegram API timeout (30s)
+          timeout: requestTimeoutMs
         });
 
         const updates = response.data.result || [];
@@ -248,7 +262,11 @@ function startTelegramBot() {
           await handleUpdate(botToken, update);
         }
       } catch (error) {
-        console.error('[Telegram Bot] Polling error:', error.message);
+        if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+          console.warn('[Telegram Bot] Polling request timed out; retrying...');
+        } else {
+          console.error('[Telegram Bot] Polling error:', error.message);
+        }
         // Wait 5 seconds on failure before retrying to avoid high CPU loop
         await new Promise(resolve => setTimeout(resolve, 5000));
       }

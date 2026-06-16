@@ -34,6 +34,7 @@ nodes/node_modules/
 # Python
 __pycache__/
 *.pyc
+playwright-service/.venv/
 
 # Sensitive files
 playwright-service/.env
@@ -55,6 +56,9 @@ gemini-image-service/chrome-data/
 # Uploads, generated media, debug output
 playwright-service/uploads/
 playwright-service/debug-output/
+playwright-service/debug-capture/
+playwright-service/debug-network/
+playwright-service/debug-snaps/
 playwright-service/test-output/
 playwright-service/*.png
 playwright-service/*.mov

@@ -59,6 +59,56 @@ function normalizePrompt(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function normalizeHashtag(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const tag = raw.startsWith('#') ? raw : `#${raw}`;
+  return tag
+    .replace(/\s+/g, '')
+    .replace(/[^\p{L}\p{N}_#]/gu, '')
+    .replace(/^#+/, '#');
+}
+
+function slugToHashtag(value) {
+  const raw = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .trim();
+  return raw ? `#${raw}` : '';
+}
+
+function normalizeProductMetadata(analysis, category) {
+  const source = (analysis && typeof analysis === 'object') ? analysis : {};
+  const productName = normalizePrompt(source.productName || source.product_name || source.name || category || 'San pham thoi trang');
+  const providedTags = Array.isArray(source.hashtags) ? source.hashtags : [];
+  const fallbackTags = [
+    productName,
+    category || 'Fashion product',
+    source.type,
+    'thoi trang',
+    'review san pham',
+    'fashion review',
+  ];
+
+  const hashtags = [];
+  for (const value of [...providedTags, ...fallbackTags]) {
+    const normalized = normalizeHashtag(value) || slugToHashtag(value);
+    if (normalized && !hashtags.some(tag => tag.toLowerCase() === normalized.toLowerCase())) {
+      hashtags.push(normalized);
+    }
+    if (hashtags.length === 5) break;
+  }
+
+  while (hashtags.length < 5) {
+    hashtags.push(`#sanpham${hashtags.length + 1}`);
+  }
+
+  return { productName, hashtags };
+}
+
 function getMimeExt(mimeType) {
   return /jpe?g/i.test(String(mimeType || '')) ? '.jpg' : '.png';
 }
@@ -95,6 +145,8 @@ Requirements:
 JSON schema:
 {
   "analysis": {
+    "productName": "Vietnamese product name inferred from the images",
+    "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
     "type": "string",
     "materials": "string",
     "highlights": ["string"],
@@ -120,6 +172,9 @@ JSON schema:
 }
 
 Important:
+- Infer "analysis.productName" from visible product information, product type, design, and labels/text in the images.
+- Extract existing hashtags from the images if visible. If fewer than 5 are visible, add relevant Vietnamese/TikTok-friendly fashion hashtags until there are exactly 5.
+- "analysis.hashtags" must contain exactly 5 unique hashtags, each starting with "#".
 - "script" and "veo3Prompts" must contain exactly ${panelCount} items.
 - Each veo3 prompt must be one line, with no newline characters.
 - Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and Script nhan vat.`.trim();
@@ -196,6 +251,8 @@ Generate exactly one still image now.`.trim();
 function normalizeAnalysis(data, panelCount) {
   const script = Array.isArray(data.script) ? data.script : [];
   const prompts = Array.isArray(data.veo3Prompts) ? data.veo3Prompts : [];
+  const rawAnalysis = (typeof data.analysis === 'object' && data.analysis) ? data.analysis : {};
+  const productMetadata = normalizeProductMetadata(rawAnalysis, rawAnalysis.type || 'Fashion product');
 
   const normalizedScript = [];
   for (let idx = 0; idx < panelCount; idx++) {
@@ -228,7 +285,10 @@ function normalizeAnalysis(data, panelCount) {
     ...data,
     script: normalizedScript,
     veo3Prompts: normalizedPrompts,
-    analysis: (typeof data.analysis === 'object' && data.analysis) ? data.analysis : {},
+    analysis: {
+      ...rawAnalysis,
+      ...productMetadata,
+    },
     frameData: data.frameData || '',
     cropTemplate: data.cropTemplate || '',
   };

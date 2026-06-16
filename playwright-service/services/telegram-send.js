@@ -1,5 +1,9 @@
 const { processVideoBase64 } = require('./video-resize');
 
+function telegramTimeoutMs(defaultMs) {
+  return parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || String(defaultMs), 10);
+}
+
 async function sendTelegramMessage(chatId, text) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
@@ -7,15 +11,19 @@ async function sendTelegramMessage(chatId, text) {
     return false;
   }
 
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text }),
+    signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
   });
+  if (!response.ok) {
+    throw new Error(`Telegram sendMessage HTTP ${response.status}: ${await response.text()}`);
+  }
   return true;
 }
 
-async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName) {
+async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName, caption) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
     console.log('[Telegram] TELEGRAM_BOT_TOKEN is not configured in .env');
@@ -41,11 +49,12 @@ async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelN
     const formData = new FormData();
     formData.append('chat_id', chatId);
     formData.append('video', blob, `${pName.toLowerCase().replace(/\s+/g, '_')}_resized.mp4`);
-    formData.append('caption', `${pName} đã sẵn sàng.`);
+    formData.append('caption', caption || `${pName} đã sẵn sàng.`);
 
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
       method: 'POST',
       body: formData,
+      signal: AbortSignal.timeout(telegramTimeoutMs(120000)),
     });
 
     if (!response.ok) {

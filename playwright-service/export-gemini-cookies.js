@@ -88,7 +88,8 @@ async function waitForEnter(message) {
   setEnvValue(envPath, 'GEMINI_SECURE_1PSID', secure1psid.value);
   setEnvValue(envPath, 'GEMINI_SECURE_1PSIDTS', secure1psidts ? secure1psidts.value : '');
   setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
-  setEnvValue(envPath, 'GEMINI_WEBAPI_PYTHON', 'C:/Users/LAPTOP_036/AppData/Local/Programs/Python/Python312/python.exe');
+  setEnvValue(envPath, 'GEMINI_WEBAPI_IMPL', 'python');
+  setEnvValue(envPath, 'GEMINI_WEBAPI_PYTHON', '.venv\\Scripts\\python.exe');
 
   // Save ALL cookies to gemini-cookies/cookies.json so gemini-api.js can load them
   const cookieDir = path.join(baseDir, 'gemini-cookies');

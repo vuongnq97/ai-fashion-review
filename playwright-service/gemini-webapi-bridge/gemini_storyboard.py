@@ -59,6 +59,57 @@ def normalize_prompt(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
+def normalize_hashtag(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    tag = raw if raw.startswith("#") else f"#{raw}"
+    tag = re.sub(r"\s+", "", tag)
+    tag = re.sub(r"[^\w#]", "", tag, flags=re.UNICODE)
+    tag = re.sub(r"^#+", "#", tag)
+    return tag
+
+
+def slug_to_hashtag(value: Any) -> str:
+    raw = str(value or "")
+    raw = raw.replace("đ", "d").replace("Đ", "D")
+    raw = re.sub(r"[^a-zA-Z0-9]+", "", raw)
+    return f"#{raw}" if raw else ""
+
+
+def normalize_product_metadata(analysis: Any, category: str) -> Dict[str, Any]:
+    source = analysis if isinstance(analysis, dict) else {}
+    product_name = normalize_prompt(
+        source.get("productName")
+        or source.get("product_name")
+        or source.get("name")
+        or category
+        or "San pham thoi trang"
+    )
+    provided_tags = source.get("hashtags") if isinstance(source.get("hashtags"), list) else []
+    fallback_tags = [
+        product_name,
+        category or "Fashion product",
+        source.get("type"),
+        "thoi trang",
+        "review san pham",
+        "fashion review",
+    ]
+
+    hashtags: List[str] = []
+    for value in [*provided_tags, *fallback_tags]:
+        normalized = normalize_hashtag(value) or slug_to_hashtag(value)
+        if normalized and normalized.lower() not in {tag.lower() for tag in hashtags}:
+            hashtags.append(normalized)
+        if len(hashtags) == 5:
+            break
+
+    while len(hashtags) < 5:
+        hashtags.append(f"#sanpham{len(hashtags) + 1}")
+
+    return {"productName": product_name, "hashtags": hashtags}
+
+
 def build_analysis_prompt(options: Dict[str, Any]) -> str:
     panel_count = int(options.get("panelCount") or 3)
     scene_ratio = options.get("sceneRatio") or options.get("aspectRatio") or "9:16"
@@ -94,6 +145,8 @@ Requirements:
 JSON schema:
 {{
   "analysis": {{
+    "productName": "Vietnamese product name inferred from the images",
+    "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
     "type": "string",
     "materials": "string",
     "highlights": ["string"],
@@ -119,6 +172,9 @@ JSON schema:
 }}
 
 Important:
+- Infer "analysis.productName" from visible product information, product type, design, and labels/text in the images.
+- Extract existing hashtags from the images if visible. If fewer than 5 are visible, add relevant Vietnamese/TikTok-friendly fashion hashtags until there are exactly 5.
+- "analysis.hashtags" must contain exactly 5 unique hashtags, each starting with "#".
 - "script" and "veo3Prompts" must contain exactly {panel_count} items.
 - Each veo3 prompt must be one line, with no newline characters.
 - Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and Script nhan vat.
@@ -203,6 +259,22 @@ async def save_first_image(response: Any, output_dir: Path, filename: str) -> Op
     return None
 
 
+def log_response_without_image(label: str, response: Any) -> None:
+    text = str(getattr(response, "text", "") or "").strip()
+    images = list(getattr(response, "images", None) or [])
+    videos = list(getattr(response, "videos", None) or [])
+    media = list(getattr(response, "media", None) or [])
+    candidates = list(getattr(response, "candidates", None) or [])
+    log(
+        f"{label} returned no image "
+        f"(candidates={len(candidates)}, images={len(images)}, videos={len(videos)}, media={len(media)})"
+    )
+    if text:
+        log(f"{label} text: {text[:1000]}")
+    else:
+        log(f"{label} text: (empty)")
+
+
 def read_b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -243,6 +315,9 @@ def normalize_analysis(data: Dict[str, Any], panel_count: int) -> Dict[str, Any]
     data["veo3Prompts"] = normalized_prompts
     if not isinstance(data.get("analysis"), dict):
         data["analysis"] = {}
+    data["analysis"].update(
+        normalize_product_metadata(data["analysis"], data["analysis"].get("type") or "Fashion product")
+    )
     data.setdefault("frameData", "")
     data.setdefault("cropTemplate", "")
     return data
@@ -278,6 +353,14 @@ async def run(request: Dict[str, Any], work_dir: Path) -> Dict[str, Any]:
     await client.init(timeout=int(os.environ.get("GEMINI_WEBAPI_INIT_TIMEOUT", "60")), auto_close=True, close_delay=120, auto_refresh=True)
 
     try:
+        models = client.list_models() or []
+        if models:
+            visible_models = [
+                f"{getattr(model, 'model_name', '') or '?'} ({getattr(model, 'display_name', '') or '?'})"
+                for model in models
+            ]
+            log("Available models: " + ", ".join(visible_models[:20]))
+
         log("Generating analysis and Veo prompts")
         analysis_response = await client.generate_content(
             build_analysis_prompt(options),
@@ -296,6 +379,7 @@ async def run(request: Dict[str, Any], work_dir: Path) -> Dict[str, Any]:
         )
         storyboard_path = await save_first_image(storyboard_response, output_dir, "storyboard.png")
         if not storyboard_path:
+            log_response_without_image("Storyboard image response", storyboard_response)
             raise RuntimeError("Gemini did not return a storyboard image; stopping before panel generation.")
         storyboard_b64 = read_b64(storyboard_path) if storyboard_path else None
 
@@ -334,6 +418,7 @@ async def run(request: Dict[str, Any], work_dir: Path) -> Dict[str, Any]:
                         )
                         panel_path = await save_first_image(response, output_dir, f"panel-{panel_index}.png")
                         if not panel_path:
+                            log_response_without_image(f"Panel {panel_index} image response", response)
                             raise RuntimeError(f"Gemini did not return an image for panel {panel_index}")
                         log(f"Completed panel {panel_index}/{panel_count}")
                         return {

@@ -33,6 +33,20 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+class JsonParseResponseError extends Error {
+  constructor(text, cause) {
+    const cleaned = stripCodeFence(text);
+    super(
+      'Could not parse JSON from response. ' +
+      `First 200 chars: ${cleaned.slice(0, 200)} ` +
+      `Last 200 chars: ${cleaned.slice(-200)}`
+    );
+    this.name = 'JsonParseResponseError';
+    this.responseText = cleaned;
+    this.cause = cause;
+  }
+}
+
 function stripCodeFence(text) {
   let cleaned = (text || '').trim();
   if (cleaned.startsWith('```')) {
@@ -45,13 +59,17 @@ function parseJsonObject(text) {
   const cleaned = stripCodeFence(text);
   try {
     return JSON.parse(cleaned);
-  } catch (_) {
+  } catch (error) {
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
     if (start >= 0 && end > start) {
-      return JSON.parse(cleaned.slice(start, end + 1));
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch (sliceError) {
+        throw new JsonParseResponseError(cleaned, sliceError);
+      }
     }
-    throw new Error('Could not parse JSON from response: ' + cleaned.slice(0, 200));
+    throw new JsonParseResponseError(cleaned, error);
   }
 }
 
@@ -180,7 +198,7 @@ Important:
 - "analysis.hashtags" must contain exactly 5 unique hashtags, each starting with "#".
 - "script" and "veo3Prompts" must contain exactly ${panelCount} items.
 - Each veo3 prompt must be one line, with no newline characters.
-- Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and Script nhan vat.`.trim();
+- Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and vietnamese voice Script.`.trim();
 }
 
 function buildStoryboardPrompt(analysis, options = {}) {
@@ -305,6 +323,36 @@ function normalizeAnalysis(data, panelCount) {
  * @param {string} workDir   - Working directory for temporary files
  * @returns {Promise<object>} - Same format as Python bridge output JSON
  */
+async function generateAnalysisJson(client, options, fileData) {
+  const maxAttempts = parseInt(process.env.GEMINI_WEBAPI_ANALYSIS_MAX_RETRIES || '3', 10);
+  const basePrompt = buildAnalysisPrompt(options);
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const retryLine = attempt === 1
+      ? ''
+      : '\n\nYour previous response was not valid parseable JSON. Return the complete JSON object only, with all strings properly escaped and all braces/arrays closed.';
+
+    const analysisResult = await client.generateContent({
+      prompt: basePrompt + retryLine,
+      fileData,
+      temporary: true,
+    });
+
+    try {
+      return parseJsonObject(analysisResult.text || '');
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts) break;
+      const delay = PANEL_RETRY_DELAY_MS * attempt;
+      log(`Analysis JSON parse failed (attempt ${attempt}/${maxAttempts}); retrying in ${Math.round(delay / 1000)}s...`);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
 async function run(request, workDir) {
   const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
   const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
@@ -364,13 +412,7 @@ async function run(request, workDir) {
 
     // ── 2. Analysis ─────────────────────────────────────────────────────────
     log('Generating analysis and Veo prompts...');
-    const analysisResult = await client.generateContent({
-      prompt: buildAnalysisPrompt(options),
-      fileData,
-      temporary: true,
-    });
-
-    const analysisRaw = parseJsonObject(analysisResult.text || '');
+    const analysisRaw = await generateAnalysisJson(client, options, fileData);
     const analysis = normalizeAnalysis(analysisRaw, panelCount);
     log(`Analysis done. Panels: ${analysis.script.length}, Prompts: ${analysis.veo3Prompts.length}`);
 
@@ -414,34 +456,50 @@ async function run(request, workDir) {
     async function generatePanelParallel(idx) {
       const panelIndex = idx + 1;
       const prompt = analysis.veo3Prompts[idx];
-      log(`[Panel ${panelIndex}] Requesting image...`);
+      let lastError;
 
-      const result = await client.generateContent({
-        prompt: buildPanelPrompt(
-          !!storyboardPath,
-          panelIndex,
-          panelCount,
-          analysis.script[idx],
-          prompt,
-          options
-        ),
-        fileData: panelFileData,
-        temporary: true,
-        expectImages: true,
-      });
+      for (let attempt = 1; attempt <= PANEL_MAX_RETRIES; attempt++) {
+        const startedAt = Date.now();
+        log(`[Panel ${panelIndex}] Requesting image (attempt ${attempt}/${PANEL_MAX_RETRIES})...`);
 
-      const imgBuf = await client.downloadImage(result.images[0].url);
-      const panelPath = path.join(outputDir, `panel-${panelIndex}.png`);
-      fs.writeFileSync(panelPath, imgBuf);
-      log(`[Panel ${panelIndex}] ✅ Done`);
+        try {
+          const result = await client.generateContent({
+            prompt: buildPanelPrompt(
+              !!storyboardPath,
+              panelIndex,
+              panelCount,
+              analysis.script[idx],
+              prompt,
+              options
+            ),
+            fileData: panelFileData,
+            temporary: true,
+            expectImages: true,
+          });
+          log(`[Panel ${panelIndex}] Image response received after ${Math.round((Date.now() - startedAt) / 1000)}s; downloading...`);
 
-      return {
-        index: panelIndex,
-        prompt,
-        imageBase64: imgBuf.toString('base64'),
-        mimeType: 'image/png',
-        sourcePath: panelPath,
-      };
+          const imgBuf = await client.downloadImage(result.images[0].url);
+          const panelPath = path.join(outputDir, `panel-${panelIndex}.png`);
+          fs.writeFileSync(panelPath, imgBuf);
+          log(`[Panel ${panelIndex}] Done after ${Math.round((Date.now() - startedAt) / 1000)}s`);
+
+          return {
+            index: panelIndex,
+            prompt,
+            imageBase64: imgBuf.toString('base64'),
+            mimeType: 'image/png',
+            sourcePath: panelPath,
+          };
+        } catch (error) {
+          lastError = error;
+          if (attempt >= PANEL_MAX_RETRIES) break;
+          const delay = PANEL_RETRY_DELAY_MS * attempt;
+          log(`[Panel ${panelIndex}] Attempt ${attempt} failed after ${Math.round((Date.now() - startedAt) / 1000)}s: ${error.message}. Retrying in ${Math.round(delay / 1000)}s...`);
+          await sleep(delay);
+        }
+      }
+
+      throw lastError;
     }
 
     // ── Concurrency pool ──────────────────────────────────────────────────────
@@ -487,7 +545,7 @@ async function run(request, workDir) {
     };
 
   } finally {
-    try { await client.close(); } catch (_) {}
+    try { await client.close(); } catch (_) { }
   }
 }
 

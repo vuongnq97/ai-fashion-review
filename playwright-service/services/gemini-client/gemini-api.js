@@ -235,14 +235,16 @@ class GeminiApiClient {
     };
 
     const normalizeCookie = (c) => {
+      const name = String(c.name || '');
+      const sameSite = normalizeSameSite(c.sameSite);
       const cookie = {
-        name: c.name,
+        name,
         value: c.value,
         domain: c.domain || '.google.com',
         path: c.path || '/',
-        secure: c.secure !== undefined ? !!c.secure : false,
+        secure: c.secure !== undefined ? !!c.secure : name.startsWith('__Secure-') || sameSite === 'None',
         httpOnly: c.httpOnly !== undefined ? !!c.httpOnly : false,
-        sameSite: normalizeSameSite(c.sameSite),
+        sameSite,
       };
       if (c.expires && typeof c.expires === 'number' && c.expires > 0) {
         cookie.expires = c.expires;
@@ -522,7 +524,7 @@ class GeminiApiClient {
     if (!this._initialized) throw new Error('[GeminiAPI] Call init() first.');
     if (!prompt) throw new Error('[GeminiAPI] Prompt cannot be empty.');
 
-    const MAX_RETRIES = 10;
+    const MAX_RETRIES = Math.max(1, parseInt(process.env.GEMINI_WEBAPI_GENERATE_MAX_RETRIES || '3', 10));
     let lastError;
 
     // Single warmup before all retries
@@ -538,13 +540,14 @@ class GeminiApiClient {
         // Do NOT retry 'EmptyText' — that's a real image-only response being misidentified
         const isRetryable = msg.includes('error code') ||
                             msg.includes('temporary error') ||
-                            msg.includes('Empty response');
+                            msg.includes('Empty response') ||
+                            msg.toLowerCase().includes('timeout');
         if (isRetryable && attempt < MAX_RETRIES) {
           // Exponential backoff with jitter: 8s, 12s, 16s, 20s...
           const baseDelay = 8000;
           const jitter = Math.floor(Math.random() * 2000);
           const delay = Math.min(baseDelay * attempt + jitter, 60000);
-          console.error(`[GeminiAPI] Temporary error (attempt ${attempt}/${MAX_RETRIES}), retrying in ${Math.round(delay/1000)}s...`);
+          console.error(`[GeminiAPI] Temporary error (attempt ${attempt}/${MAX_RETRIES}): ${msg.split('\n')[0]}. Retrying in ${Math.round(delay/1000)}s...`);
           await new Promise(r => setTimeout(r, delay));
 
           // Every 3 attempts, refresh session tokens (SNlM0e / cfb2h / FdrFJe may have expired)
@@ -646,7 +649,8 @@ class GeminiApiClient {
       'f.req': fReq,
     });
 
-    const GENERATE_TIMEOUT_MS = parseInt(process.env.GEMINI_GENERATE_TIMEOUT_MS || '300000', 10); // 5 min default
+    const defaultTimeoutMs = expectImages ? 120000 : 300000;
+    const GENERATE_TIMEOUT_MS = parseInt(process.env.GEMINI_GENERATE_TIMEOUT_MS || String(defaultTimeoutMs), 10);
 
     const response = await this._apiContext.post(
       `${ENDPOINT_GENERATE}?${params.toString()}`,

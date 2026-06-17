@@ -123,7 +123,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       }
 
       const panelName = `Panel ${video.panelIndex || sentCount + 1}`;
-      const caption = `${panelName} đã sẵn sàng.\n${productInfo.summary}`;
+      const caption = `${panelName} đã sẵn sàng.`;
       const ok = await sendVideoToTelegramDirect(chatId, base64, video.panelIndex, panelName, caption);
       if (ok) sentCount++;
     }

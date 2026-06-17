@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
 const { runFromDriveFolder } = require('./drive-folder');
+const { handleDailyVlogCommand, handleDailyVlogPhoto, isWaitingForDailyVlogPhoto } = require('./dailyvlog-flow');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
@@ -105,15 +106,23 @@ async function handleUpdate(botToken, update) {
     if (text.startsWith('/start')) {
       await sendTelegramMessage(botToken, chatId,
         '👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang cho bạn.\n\n' +
-        '📂 Hoặc dùng lệnh như /p1 /p2 /m1 /m2 để tải ảnh từ thư mục Drive/local cùng tên.'
+        '📂 Hoặc dùng lệnh như /p1 /p2 /m1 /m2 để tải ảnh từ thư mục Drive/local cùng tên.\n' +
+        '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.'
       );
       return;
     }
 
+    // ── Daily Vlog command ────────────────────────────────────────────────────
+    if (text === '/dailyvlog' || text.startsWith('/dailyvlog@')) {
+      console.log(`[Telegram Bot] Received /dailyvlog command from chat ${chatId}`);
+      await handleDailyVlogCommand(botToken, chatId);
+      return;
+    }
+
     // Folder commands (also handles e.g. /p1@botname sent in groups).
-    // Keep /start reserved; any other alphanumeric command maps to a folder name.
+    // Keep /start and /dailyvlog reserved; any other alphanumeric command maps to a folder name.
     const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
-    if (folderMatch && folderMatch[1].toLowerCase() !== 'start') {
+    if (folderMatch && !['start', 'dailyvlog'].includes(folderMatch[1].toLowerCase())) {
       const folderName = folderMatch[1].toLowerCase();
       console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
       await handleFolderCommand(botToken, chatId, folderName);
@@ -121,13 +130,29 @@ async function handleUpdate(botToken, update) {
     }
   }
 
-  // ── 2. Handle photos (normal / default flow) ──────────────────────────────
+  // ── 2. Handle photos ──────────────────────────────────────────────────────
   if (message.photo && message.photo.length > 0) {
     // Get the highest resolution photo (last element in the array)
     const photo = message.photo[message.photo.length - 1];
     const fileId = photo.file_id;
 
     console.log(`[Telegram Bot] Received photo from chat ${chatId}, file_id: ${fileId}`);
+
+    // ── 2a. Daily Vlog photo: route to dailyvlog handler if waiting ───────────
+    if (isWaitingForDailyVlogPhoto(chatId)) {
+      downloadTelegramFile(botToken, fileId)
+        .then(buffer => {
+          const photoName = `dailyvlog_${Date.now()}.png`;
+          const consumed = handleDailyVlogPhoto(botToken, chatId, buffer, photoName);
+          if (consumed) {
+            console.log(`[Telegram Bot] Photo routed to dailyvlog handler for chat ${chatId}`);
+          }
+        })
+        .catch(err => {
+          console.error(`[Telegram Bot] Error downloading dailyvlog photo ${fileId}:`, err.message);
+        });
+      return; // Photo handled by dailyvlog flow
+    }
 
     // If it's a new batch for this chat, notify user and set up map entry
     if (!botBatches.has(chatId)) {
@@ -198,6 +223,7 @@ async function handleUpdate(botToken, update) {
  */
 async function registerBotCommands(botToken) {
   const commands = [
+    { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
     { command: 'p1', description: 'Chạy luồng folder p1' },
     { command: 'p2', description: 'Chạy luồng folder p2' },
     { command: 'p3', description: 'Chạy luồng folder p3' },

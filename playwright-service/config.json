@@ -17,5 +17,10 @@
     "flowProjectId": "022f171a-baeb-4a4a-8561-51d0c992f3a1",
     "recaptchaSiteKey": "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
     "chromeExtensionId": "jmobnhoghinjlmjogafjadohcmdebbej"
+  },
+  "dailyVlogSettings": {
+    "panelCount": 5,
+    "sceneRatio": "9:16",
+    "nhiReferencePath": "assets/nhi"
   }
 }

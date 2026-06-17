@@ -26,6 +26,11 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
       flowProjectId: "022f171a-baeb-4a4a-8561-51d0c992f3a1",
       recaptchaSiteKey: "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
       chromeExtensionId: "jmobnhoghinjlmjogafjadohcmdebbej"
+    },
+    dailyVlogSettings: {
+      panelCount: 5,
+      sceneRatio: "9:16",
+      nhiReferencePath: "assets/nhi"
     }
   };
 
@@ -38,7 +43,8 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
     const parsed = JSON.parse(raw);
     return {
       uiSettings: { ...defaults.uiSettings, ...parsed.uiSettings },
-      systemSettings: { ...defaults.systemSettings, ...parsed.systemSettings }
+      systemSettings: { ...defaults.systemSettings, ...parsed.systemSettings },
+      dailyVlogSettings: { ...defaults.dailyVlogSettings, ...parsed.dailyVlogSettings }
     };
   } catch (err) {
     console.error(`[ConfigManager] Error reading config.json:`, err.message);

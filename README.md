@@ -32,23 +32,35 @@ Telegram user gửi ảnh
 playwright-service/
   server.js                         Express + Telegram bot entry point, port 3000
   routes/index.js                   REST API endpoints
-  login.js                          Mở browser để đăng nhập Google lần đầu
+  login.js                          Đăng nhập Google lần đầu
+  config.json                       Cấu hình (storyboard provider, panel count...)
 
   services/
-    telegram-bot.js                 Telegram long-polling listener (không cần n8n)
-    automation.js                   Orchestrator: AI Studio → Flow → Resize → Telegram
+    telegram-bot.js                 Telegram long-polling listener
+    telegram-send.js                Gửi tin nhắn/video về Telegram
+    storyboard-fullflow.js          Orchestrator luồng review sản phẩm
+    storyboard-provider.js          Chọn provider: aistudio-playwright | gemini-webapi
     aistudio.js                     Giao tiếp với Google AI Studio (storyboard)
+    gemini-webapi-storyboard.js     Storyboard qua Gemini WebAPI (Node.js/Python bridge)
+    dailyvlog-flow.js               State machine + flow controller cho Daily Vlog
+    dailyvlog-storyboard.js         Pipeline + prompts cho Daily Vlog
     browser.js                      Quản lý browser context, Bearer + reCAPTCHA token
     image.js                        Upload ảnh qua direct API (uploadImageDirect)
     video.js                        Tạo video Veo 3 qua direct API
     video-resize.js                 Resize/crop video bằng FFmpeg
+    drive-folder.js                 Load ảnh từ Google Drive/local folder
     tiktok.js                       TikTok OAuth + upload (tùy chọn)
 
+  services/gemini-client/
+    gemini-api.js                   Gemini Web API client (Playwright-based)
+    gemini-storyboard.js            Node.js storyboard generation (thay Python bridge)
+
   utils/
+    config-manager.js               Đọc/ghi config.json
     flow-asset-watchdog.js          Theo dõi asset upload status
     flow-submit-watchdog.js         Theo dõi video generation status
 
-  extension/                        Chrome extension cho batch processing (debug/legacy)
+  assets/nhi/                       Ảnh tham chiếu nhân vật Nhi (cho Daily Vlog)
   uploads/                          File tạm (panel images, video downloads)
   chrome-data/                      Chrome profile/session đăng nhập Google
 ```
@@ -121,16 +133,41 @@ Server chạy tại `http://localhost:3000`. Khi khởi động:
 
 ## Sử Dụng
 
-### Luồng Chính (Telegram → Video)
+### Luồng Chính: Review Sản Phẩm (Telegram → Video)
 
 1. Gửi 1 hoặc nhiều ảnh sản phẩm vào Telegram bot.
 2. Bot tự động nhận ảnh, gom batch (đợi 5 giây nếu có nhiều ảnh liên tiếp).
-3. Mở AI Studio, upload ảnh, tạo storyboard với panel images + video prompts.
-4. Pre-launch Google Flow tab để lấy Bearer token và enterprise reCAPTCHA token.
-5. Upload từng panel image lên Flow qua **direct API** (`/v1/flow/uploadImage`).
-6. Gọi API tạo video Veo 3 (`batchAsyncGenerateVideoStartImage`) — không thao tác DOM.
-7. Resize/crop video về tỉ lệ 9:16 bằng FFmpeg.
-8. Gửi từng video đã resize về Telegram cho user.
+3. Gemini WebAPI phân tích sản phẩm, tạo storyboard + panel images + video prompts.
+4. Tạo video Veo 3 cho từng panel (direct API hoặc Google Flow).
+5. Resize/crop video về tỉ lệ 9:16 bằng FFmpeg.
+6. Gửi từng video đã resize về Telegram cho user.
+
+Hoặc dùng folder commands: `/p1`, `/p2`, `/m1`... để tải ảnh từ Google Drive/local folder.
+
+### Luồng Daily Vlog: Lifestyle cho Nhi (Telegram → Video)
+
+1. Gửi `/dailyvlog` vào Telegram bot.
+2. Gửi ảnh sản phẩm (1 hoặc nhiều ảnh).
+3. Pipeline 4 bước tự động:
+   - **Step 1**: Phân tích sản phẩm theo lifestyle (text-only JSON)
+   - **Step 2**: Tạo storyboard N panel cho Nhi (image generation)
+   - **Step 3**: Vẽ từng panel riêng (image generation)
+   - **Step 4**: Tạo N video Veo 3 (tái sử dụng video pipeline)
+4. Gửi video về Telegram kèm gợi ý caption và hashtags.
+
+Cấu hình Daily Vlog riêng trong `config.json`:
+
+```json
+{
+  "dailyVlogSettings": {
+    "panelCount": 5,
+    "sceneRatio": "9:16",
+    "nhiReferencePath": "assets/nhi"
+  }
+}
+```
+
+Đặt ảnh tham chiếu nhân vật Nhi vào `playwright-service/assets/nhi/` để kết quả nhân vật nhất quán hơn.
 
 ### REST API Endpoints
 
@@ -250,8 +287,7 @@ playwright-service/chrome-data/
 playwright-service/uploads/
 playwright-service/labs.google.cookies.json
 playwright-service/tokens.json
-database.sqlite*
-n8nEventLog.log
+gemini-cookies/
 ```
 
 Các file này chứa session Google, Telegram token, dữ liệu video tạm hoặc cookie nhạy cảm.
@@ -297,6 +333,9 @@ cd playwright-service && node server.js
 # Đăng nhập Google lại
 cd playwright-service && node login.js
 
+# Export Gemini cookies
+cd playwright-service && node export-gemini-cookies.js
+
 # Kill service port 3000 nếu bị kẹt
 lsof -ti :3000 | xargs kill -9
 
@@ -306,20 +345,3 @@ ngrok http 3000
 # Test direct API
 node playwright-service/debug-flow-direct-video-api.js
 ```
-
-## Legacy: n8n Workflow (Tùy Chọn)
-
-Nếu muốn dùng n8n workflow thay vì Telegram bot tích hợp:
-
-```bash
-# Cài n8n
-docker run -d --name n8n -p 5678:5678 \
-  -v n8n_data:/home/node/.n8n \
-  --add-host=host.docker.internal:host-gateway \
-  n8nio/n8n:2.17.7
-
-# Push workflow
-npx --yes n8nac push workflows/solid-saddle-de3ecbf97f11/ReviewAI.workflow.ts --verify
-```
-
-Workflow n8n gọi server qua `http://host.docker.internal:3000`.

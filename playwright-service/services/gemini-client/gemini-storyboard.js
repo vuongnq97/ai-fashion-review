@@ -129,8 +129,9 @@ function buildAnalysisPrompt(options = {}) {
     ? 'Voice-over must be short, punchy, curiosity-driven, 24-30 Vietnamese words per panel.'
     : 'Voice-over must feel natural, clear, 18-24 Vietnamese words per panel.';
 
-  return `You are a senior fashion product analyst, storyboard director, and Veo 3 prompt writer.
-Analyze the uploaded product images and create a short Vietnamese review storyboard.
+  return `TEXT-ONLY TASK. Do not generate images. Do not call image generation. Do not create a visual storyboard asset.
+You are a senior fashion product analyst, text storyboard planner, and Veo 3 prompt writer.
+Analyze the uploaded product reference images and write a Vietnamese review plan as JSON text only.
 
 Requirements:
 - Category: ${category}
@@ -141,6 +142,8 @@ Requirements:
 - Product identity must remain consistent across all panels.
 - Do not ask follow-up questions.
 - Return ONLY valid JSON. No markdown, no commentary.
+- If you are unable to inspect the images, still return the JSON schema with best-effort assumptions. Never mention image quota, limits, usage, or settings.
+- This step is only for text analysis and prompt writing. The actual image generation will happen in a later separate request.
 
 JSON schema:
 {
@@ -164,8 +167,8 @@ JSON schema:
       "cameraAction": "detailed camera movement"
     }
   ],
-  "frameData": "Combined detailed visual plan for all panels.",
-  "cropTemplate": "How to crop/extract each panel cleanly.",
+  "frameData": "Combined text-only visual plan for all panels.",
+  "cropTemplate": "Text-only notes for panel composition/cropping.",
   "veo3Prompts": [
     "One single-line Vietnamese Veo 3 prompt for panel 1"
   ]
@@ -353,8 +356,11 @@ async function run(request, workDir) {
       log(`  Uploaded: ${file.filename} → ${url.slice(0, 60)}...`);
     }
 
-    // fileData format: [[[url], filename], ...]  (mirrors Python file_data)
-    const fileData = uploadedUrls.map((url, i) => [[url], inputFiles[i].filename]);
+    const fileData = uploadedUrls.map((url, i) => ({
+      url,
+      filename: inputFiles[i].filename,
+      mimeType: inputFiles[i].mimeType,
+    }));
 
     // ── 2. Analysis ─────────────────────────────────────────────────────────
     log('Generating analysis and Veo prompts...');
@@ -399,7 +405,7 @@ async function run(request, workDir) {
     // Upload storyboard 1 lần, dùng chung cho tất cả panels.
     const sbBuf = fs.readFileSync(storyboardPath);
     const sbUrl = await client.uploadFile(sbBuf, 'storyboard.png', 'image/png');
-    const panelFileData = [[[sbUrl], 'storyboard.png']];
+    const panelFileData = [{ url: sbUrl, filename: 'storyboard.png', mimeType: 'image/png' }];
 
     /**
      * Generate one panel image using the shared client.

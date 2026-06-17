@@ -30,6 +30,13 @@ function setEnvValue(envPath, key, value) {
   fs.writeFileSync(envPath, text, 'utf8');
 }
 
+function getEnvValue(envPath, key) {
+  if (!fs.existsSync(envPath)) return '';
+  const text = fs.readFileSync(envPath, 'utf8');
+  const match = text.match(new RegExp(`^${key}=(.*)$`, 'm'));
+  return match ? match[1].trim() : '';
+}
+
 async function waitForEnter(message) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   await new Promise(resolve => {
@@ -88,8 +95,11 @@ async function waitForEnter(message) {
   setEnvValue(envPath, 'GEMINI_SECURE_1PSID', secure1psid.value);
   setEnvValue(envPath, 'GEMINI_SECURE_1PSIDTS', secure1psidts ? secure1psidts.value : '');
   setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
-  setEnvValue(envPath, 'GEMINI_WEBAPI_IMPL', 'python');
-  setEnvValue(envPath, 'GEMINI_WEBAPI_PYTHON', '.venv\\Scripts\\python.exe');
+
+  const currentImpl = getEnvValue(envPath, 'GEMINI_WEBAPI_IMPL');
+  if (!currentImpl) {
+    setEnvValue(envPath, 'GEMINI_WEBAPI_IMPL', process.platform === 'win32' ? 'python' : 'node');
+  }
 
   // Save ALL cookies to gemini-cookies/cookies.json so gemini-api.js can load them
   const cookieDir = path.join(baseDir, 'gemini-cookies');

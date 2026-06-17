@@ -76,12 +76,12 @@ async function handleFolderCommand(botToken, chatId, folderName) {
       const summary = result?.productInfo?.summary ? `\n${result.productInfo.summary}` : '';
       console.log(`[Telegram Bot] /${commandName} flow completed for chat ${chatId}. Sent: ${sent}`);
       sendTelegramMessage(botToken, chatId,
-        `✅ /${commandName} hoàn thành! Đã gửi ${sent} video.${summary}`).catch(() => {});
+        `${summary}`).catch(() => { });
     })
     .catch((err) => {
       console.error(`[Telegram Bot] /${commandName} flow error for chat ${chatId}:`, err.message);
       sendTelegramMessage(botToken, chatId,
-        `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => {});
+        `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => { });
     })
     .finally(() => {
       activePRuns.delete(runKey);
@@ -185,7 +185,7 @@ async function handleUpdate(botToken, update) {
         .catch(err => {
           console.error(`[Telegram Bot] Full flow error for chat ${chatId}:`, err.message);
           sendTelegramMessage(botToken, chatId,
-            `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => {});
+            `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => { });
         });
 
     }, BATCH_WINDOW_MS);

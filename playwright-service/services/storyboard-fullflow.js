@@ -1,5 +1,59 @@
+const fs = require('fs');
+const path = require('path');
+
 const { getStoryboardProvider } = require('./storyboard-provider');
 const { sendTelegramMessage, sendVideoToTelegramDirect } = require('./telegram-send');
+
+const UPLOAD_MEDIA_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+  '.avif',
+  '.mp4',
+  '.mov',
+  '.webm',
+]);
+
+function removeEmptyDirs(dir, rootDir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      removeEmptyDirs(path.join(dir, entry.name), rootDir);
+    }
+  }
+
+  if (dir !== rootDir && fs.readdirSync(dir).length === 0) {
+    fs.rmdirSync(dir);
+  }
+}
+
+function cleanupUploadsMedia(baseDir) {
+  const uploadsDir = path.join(baseDir, 'uploads');
+  if (!fs.existsSync(uploadsDir)) return;
+
+  let deleted = 0;
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+      } else if (UPLOAD_MEDIA_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+        fs.unlinkSync(fullPath);
+        deleted++;
+      }
+    }
+  }
+
+  try {
+    walk(uploadsDir);
+    removeEmptyDirs(uploadsDir, uploadsDir);
+    console.log(`[FullFlow] Cleaned uploads media: deleted ${deleted} file(s) from ${uploadsDir}`);
+  } catch (error) {
+    console.warn(`[FullFlow] Could not fully clean uploads media: ${error.message}`);
+  }
+}
 
 function normalizeHashtags(value) {
   const input = Array.isArray(value) ? value : [];
@@ -36,47 +90,54 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
     throw new Error('At least one product image is required');
   }
 
-  const provider = getStoryboardProvider(baseDir);
-  console.log(`[FullFlow] Storyboard provider: ${provider.name}`);
-  await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
+  try {
+    const provider = getStoryboardProvider(baseDir);
+    console.log(`[FullFlow] Storyboard provider: ${provider.name}`);
+    await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
 
-  const result = await provider.generateStoryboard(baseDir, filePayloads, {
-    generateVideos: true,
-    includeVideoBase64: true,
-    aspectRatio: options.aspectRatio || '9:16',
-    videoModelKey: options.videoModelKey || null,
-    cleanupFiles: options.cleanupFiles,
-  });
+    const result = await provider.generateStoryboard(baseDir, filePayloads, {
+      generateVideos: true,
+      includeVideoBase64: true,
+      aspectRatio: options.aspectRatio || '9:16',
+      videoModelKey: options.videoModelKey || null,
+      cleanupFiles: options.cleanupFiles,
+    });
 
-  const videos = Array.isArray(result.videos) ? result.videos : [];
-  if (videos.length === 0) {
-    throw new Error('No videos returned from storyboard/video generation.');
-  }
-  const productInfo = buildProductTelegramText(result.analysis);
+    const videos = Array.isArray(result.videos) ? result.videos : [];
+    if (videos.length === 0) {
+      throw new Error('No videos returned from storyboard/video generation.');
+    }
+    const productInfo = buildProductTelegramText(result.analysis);
 
-  let sentCount = 0;
-  for (const video of videos) {
-    if (video.error) {
-      await sendTelegramMessage(chatId, `Lỗi tạo video panel ${video.panelIndex || '?'}: ${video.error}`);
-      continue;
+    let sentCount = 0;
+    for (const video of videos) {
+      if (video.error) {
+        await sendTelegramMessage(chatId, `Lỗi tạo video panel ${video.panelIndex || '?'}: ${video.error}`);
+        continue;
+      }
+
+      const base64 = video.video?.base64 || video.videoBase64 || null;
+      if (!base64) {
+        await sendTelegramMessage(chatId, `Video panel ${video.panelIndex || '?'} thiếu base64 output.`);
+        continue;
+      }
+
+      const panelName = `Panel ${video.panelIndex || sentCount + 1}`;
+      const caption = `${panelName} đã sẵn sàng.\n${productInfo.summary}`;
+      const ok = await sendVideoToTelegramDirect(chatId, base64, video.panelIndex, panelName, caption);
+      if (ok) sentCount++;
     }
 
-    const base64 = video.video?.base64 || video.videoBase64 || null;
-    if (!base64) {
-      await sendTelegramMessage(chatId, `Video panel ${video.panelIndex || '?'} thiếu base64 output.`);
-      continue;
+    await sendTelegramMessage(chatId, `Hoàn tất full flow: đã gửi ${sentCount}/${videos.length} video.\n${productInfo.summary}`);
+    return { ...result, sentCount, productInfo };
+  } finally {
+    if (options.cleanupUploads !== false) {
+      cleanupUploadsMedia(baseDir);
     }
-
-    const panelName = `Panel ${video.panelIndex || sentCount + 1}`;
-    const caption = `${panelName} đã sẵn sàng.\n${productInfo.summary}`;
-    const ok = await sendVideoToTelegramDirect(chatId, base64, video.panelIndex, panelName, caption);
-    if (ok) sentCount++;
   }
-
-  await sendTelegramMessage(chatId, `Hoàn tất full flow: đã gửi ${sentCount}/${videos.length} video.\n${productInfo.summary}`);
-  return { ...result, sentCount, productInfo };
 }
 
 module.exports = {
+  cleanupUploadsMedia,
   runStoryboardFullFlow,
 };

@@ -20,14 +20,17 @@ function redactHeaders(headers = {}) {
 
 function redactText(text = '') {
   return String(text)
+    .replace(/([?&]at=)[^&\s]+/g, '$1[REDACTED_AT_TOKEN]')
+    .replace(/\bat=[^&\s]+/g, 'at=[REDACTED_AT_TOKEN]')
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED_API_KEY]')
     .replace(/AQ\.[0-9A-Za-z_-]{20,}/g, '[REDACTED_AISTUDIO_TOKEN]')
+    .replace(/AD1_[0-9A-Za-z_-]{20,}/g, '[REDACTED_GEMINI_TOKEN]')
     .replace(/__Secure-[^=;\s]+=[^;\s]+/g, '[REDACTED_COOKIE]')
-    .slice(0, 12000);
+    .slice(0, 50000);
 }
 
 function shouldLog(rawUrl) {
-  return /aistudio\.google\.com|ai\.studio|generativelanguage\.googleapis\.com|alkalimakersuite|MakerSuiteService|batchexecute|streamGenerate|run\.app|googleusercontent\.com/i.test(rawUrl);
+  return /gemini\.google\.com|content-push\.googleapis\.com|aistudio\.google\.com|ai\.studio|labs\.google|aisandbox-pa\.googleapis\.com|generativelanguage\.googleapis\.com|alkalimakersuite|MakerSuiteService|batchexecute|StreamGenerate|streamGenerate|run\.app|googleusercontent\.com/i.test(rawUrl);
 }
 
 function append(file, entry) {
@@ -61,6 +64,19 @@ function append(file, entry) {
     });
   });
 
+  context.on('requestfailed', (request) => {
+    const requestUrl = request.url();
+    if (!shouldLog(requestUrl)) return;
+    append(logFile, {
+      type: 'requestfailed',
+      at: new Date().toISOString(),
+      method: request.method(),
+      url: requestUrl,
+      resourceType: request.resourceType(),
+      failure: request.failure(),
+    });
+  });
+
   context.on('response', async (response) => {
     const responseUrl = response.url();
     if (!shouldLog(responseUrl)) return;
@@ -90,6 +106,8 @@ function append(file, entry) {
   console.log('[Browser] Opened:', url);
   console.log('[Browser] Network log:', logFile);
   console.log('[Browser] Use this window normally. Close it when done.');
+  console.log('[Browser] Sensitive headers/cookies/tokens are redacted before saving.');
 
   await new Promise((resolve) => context.on('close', resolve));
+  console.log('[Browser] Closed. Network log saved:', logFile);
 })();

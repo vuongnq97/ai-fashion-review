@@ -198,6 +198,8 @@ class GeminiApiClient {
     this.sessionId = null;     // FdrFJe
     this.language = 'en';      // TuX5cc
     this.pushId = 'feeds/mcudyrk2a4khkz'; // qKIAYe
+    this.uiModelContextId = process.env.GEMINI_UI_MODEL_CONTEXT_ID || '56fdd199312815e2';
+    this.uiClientInstanceId = process.env.GEMINI_UI_CLIENT_INSTANCE_ID || crypto.randomUUID().toUpperCase();
 
     this._reqid = Math.floor(Math.random() * 90000) + 10000;
     this._apiContext = null;   // Playwright APIRequestContext
@@ -213,6 +215,14 @@ class GeminiApiClient {
    */
   _buildCookies() {
     const cookies = [];
+    const cookieNames = new Set();
+
+    const addCookie = (cookie) => {
+      const key = `${cookie.name}|${cookie.domain || '.google.com'}|${cookie.path || '/'}`;
+      if (cookieNames.has(key)) return;
+      cookieNames.add(key);
+      cookies.push(cookie);
+    };
 
     // Playwright requires: name, value, domain, path — plus optional httpOnly, secure, sameSite, expires
     // sameSite must be exactly 'Strict'|'Lax'|'None' (capital first letter)
@@ -224,28 +234,23 @@ class GeminiApiClient {
       return 'Lax';
     };
 
-    if (this.secure1Psid) {
-      cookies.push({
-        name: '__Secure-1PSID',
-        value: this.secure1Psid,
-        domain: '.google.com',
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Lax',
-      });
-    }
-    if (this.secure1Psidts) {
-      cookies.push({
-        name: '__Secure-1PSIDTS',
-        value: this.secure1Psidts,
-        domain: '.google.com',
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Lax',
-      });
-    }
+    const normalizeCookie = (c) => {
+      const cookie = {
+        name: c.name,
+        value: c.value,
+        domain: c.domain || '.google.com',
+        path: c.path || '/',
+        secure: c.secure !== undefined ? !!c.secure : false,
+        httpOnly: c.httpOnly !== undefined ? !!c.httpOnly : false,
+        sameSite: normalizeSameSite(c.sameSite),
+      };
+      if (c.expires && typeof c.expires === 'number' && c.expires > 0) {
+        cookie.expires = c.expires;
+      }
+      return cookie;
+    };
+
+    let loadedCookieFile = false;
 
     // Load extra cookies from file if provided
     if (this.cookieFilePath) {
@@ -273,22 +278,17 @@ class GeminiApiClient {
             const raw = JSON.parse(fs.readFileSync(resolvedCookieFile, 'utf8'));
             for (const c of raw) {
               if (!c.name || !c.value) continue;
-              // Skip duplicates already added above
-              if (c.name === '__Secure-1PSID' || c.name === '__Secure-1PSIDTS') continue;
-              const cookie = {
-                name: c.name,
-                value: c.value,
-                domain: c.domain || '.google.com',
-                path: c.path || '/',
-                secure: c.secure !== undefined ? !!c.secure : false,
-                httpOnly: c.httpOnly !== undefined ? !!c.httpOnly : false,
-                sameSite: normalizeSameSite(c.sameSite),
-              };
-              // Only add expires if it's a valid positive number
-              if (c.expires && typeof c.expires === 'number' && c.expires > 0) {
-                cookie.expires = c.expires;
-              }
-              cookies.push(cookie);
+              addCookie(normalizeCookie(c));
+            }
+            loadedCookieFile = true;
+
+            const file1Psid = raw.find(c => c.name === '__Secure-1PSID')?.value || '';
+            const file1Psidts = raw.find(c => c.name === '__Secure-1PSIDTS')?.value || '';
+            if (this.secure1Psid && file1Psid && this.secure1Psid !== file1Psid) {
+              console.warn('[GeminiAPI] GEMINI_COOKIE_PATH has a different __Secure-1PSID than .env; using cookie file session to avoid mixed Google accounts.');
+            }
+            if (this.secure1Psidts && file1Psidts && this.secure1Psidts !== file1Psidts) {
+              console.warn('[GeminiAPI] GEMINI_COOKIE_PATH has a different __Secure-1PSIDTS than .env; using cookie file session to avoid mixed Google accounts.');
             }
             console.warn(`[GeminiAPI] Loaded ${raw.length} cookies from: ${resolvedCookieFile}`);
           }
@@ -297,6 +297,58 @@ class GeminiApiClient {
         console.error('[GeminiAPI] Failed to load cookie file:', e.message);
       }
     }
+
+    if (!loadedCookieFile) {
+      if (this.secure1Psid) {
+        addCookie({
+          name: '__Secure-1PSID',
+          value: this.secure1Psid,
+          domain: '.google.com',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        });
+      }
+      if (this.secure1Psidts) {
+        addCookie({
+          name: '__Secure-1PSIDTS',
+          value: this.secure1Psidts,
+          domain: '.google.com',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        });
+      }
+    } else {
+      const hasCookie = (name) => cookies.some(cookie => cookie.name === name);
+      if (!hasCookie('__Secure-1PSID') && this.secure1Psid) {
+        console.warn('[GeminiAPI] Cookie file has no __Secure-1PSID; falling back to .env value.');
+        addCookie({
+          name: '__Secure-1PSID',
+          value: this.secure1Psid,
+          domain: '.google.com',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        });
+      }
+      if (!hasCookie('__Secure-1PSIDTS') && this.secure1Psidts) {
+        console.warn('[GeminiAPI] Cookie file has no __Secure-1PSIDTS; falling back to .env value.');
+        addCookie({
+          name: '__Secure-1PSIDTS',
+          value: this.secure1Psidts,
+          domain: '.google.com',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        });
+      }
+    }
+
     return cookies;
   }
 
@@ -423,6 +475,37 @@ class GeminiApiClient {
     return await response.text();
   }
 
+  _formatFileData(fileData, uiImageShape = false) {
+    if (!fileData) return null;
+    const items = Array.isArray(fileData) ? fileData : [fileData];
+
+    return items.map((item) => {
+      if (!uiImageShape) {
+        if (Array.isArray(item)) return item;
+        return [[item.url], item.filename || item.name || 'upload.png'];
+      }
+
+      if (Array.isArray(item)) {
+        const url = Array.isArray(item[0]) ? item[0][0] : item[0];
+        const filename = item[1] || 'upload.png';
+        const mimeType = item[2] || item.mimeType || 'image/png';
+        return [[url, 1, null, mimeType], filename, null, null, null, null, null, null, [0]];
+      }
+
+      return [
+        [item.url, 1, null, item.mimeType || 'image/png'],
+        item.filename || item.name || 'upload.png',
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        [0],
+      ];
+    });
+  }
+
   // ── Generate Content ───────────────────────────────────────────────────────
 
   /**
@@ -493,14 +576,13 @@ class GeminiApiClient {
     this._reqid += 100000;
     const uuidVal = crypto.randomUUID().toUpperCase();
 
-    // Build the inner request list (69-element array)
-    // Indexes mirror gemini_webapi/client.py _generate()
-    const messageContent = [prompt, 0, null, fileData, null, null, 0];
-    const innerReqList = new Array(69).fill(null);
+    const formattedFileData = this._formatFileData(fileData, expectImages);
+    const messageContent = [prompt, 0, null, formattedFileData, null, null, 0];
+    const innerReqList = new Array(expectImages ? 81 : 69).fill(null);
     innerReqList[0] = messageContent;
     innerReqList[1] = [this.language];
     innerReqList[2] = DEFAULT_METADATA;
-    innerReqList[6] = [1];
+    innerReqList[6] = [expectImages ? 0 : 1];
     innerReqList[STREAMING_FLAG_INDEX] = 1;  // index 7
     innerReqList[10] = 1;
     innerReqList[11] = 0;
@@ -513,7 +595,12 @@ class GeminiApiClient {
     innerReqList[53] = 0;
     innerReqList[59] = uuidVal;
     innerReqList[61] = [];
-    innerReqList[68] = 2;
+    innerReqList[68] = expectImages ? 1 : 2;
+    if (expectImages) {
+      innerReqList[4] = crypto.randomBytes(16).toString('hex');
+      innerReqList[79] = 1;
+      innerReqList[80] = 1;
+    }
 
     const fReq = JSON.stringify([null, JSON.stringify(innerReqList)]);
 
@@ -530,8 +617,29 @@ class GeminiApiClient {
       ...SAME_DOMAIN_HEADERS,
       'x-goog-ext-525005358-jspb': `["${uuidVal}",1]`,
       'x-goog-ext-73010989-jspb': '[0]',
-      'x-goog-ext-73010990-jspb': '[0]',
+      'x-goog-ext-73010990-jspb': expectImages ? '[0,0,0]' : '[0]',
     };
+    if (expectImages) {
+      requestHeaders['x-goog-ext-525001261-jspb'] = JSON.stringify([
+        1,
+        null,
+        null,
+        null,
+        this.uiModelContextId,
+        null,
+        null,
+        0,
+        [4, 5, 6, 8],
+        null,
+        null,
+        3,
+        null,
+        null,
+        1,
+        1,
+        this.uiClientInstanceId,
+      ]);
+    }
 
     const bodyStr = buildFormBody({
       at: this.accessToken || '',

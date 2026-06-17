@@ -10,6 +10,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const { GeminiApiClient } = require('./services/gemini-client/gemini-api');
+const path = require('path');
 
 async function main() {
   const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
@@ -21,7 +22,10 @@ async function main() {
   }
 
   console.log('[SmokeTest] Initializing GeminiApiClient...');
-  const client = new GeminiApiClient({ secure1Psid, secure1Psidts });
+  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
+    ? path.resolve(__dirname, process.env.GEMINI_COOKIE_PATH)
+    : null;
+  const client = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
 
   try {
     await client.init();

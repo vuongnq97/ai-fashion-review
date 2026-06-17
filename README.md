@@ -345,3 +345,22 @@ ngrok http 3000
 # Test direct API
 node playwright-service/debug-flow-direct-video-api.js
 ```
+
+## Legacy: n8n Workflow (Không còn sử dụng)
+
+> **Lưu ý:** Luồng n8n đã được thay thế hoàn toàn bằng Telegram bot tích hợp trong server Node.js. Phần này chỉ để tham khảo.
+
+Nếu muốn dùng n8n workflow (legacy):
+
+```bash
+# Cài n8n
+docker run -d --name n8n -p 5678:5678 \
+  -v n8n_data:/home/node/.n8n \
+  --add-host=host.docker.internal:host-gateway \
+  n8nio/n8n:2.17.7
+
+# Push workflow
+npx --yes n8nac push workflows/solid-saddle-de3ecbf97f11/ReviewAI.workflow.ts --verify
+```
+
+Workflow n8n gọi server qua `http://host.docker.internal:3000`.

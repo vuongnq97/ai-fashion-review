@@ -10,12 +10,16 @@ const { processVideoBase64 } = require('./video-resize');
 // Video model mapping
 // ═══════════════════════════════════════════════════════════════
 const VIDEO_MODEL_MAP = {
-  'portrait': 'veo_3_1_i2v_s_portrait',
-  'landscape': 'veo_3_1_i2v_s_landscape',
-  'square': 'veo_3_1_i2v_s_square',
+  'portrait': 'veo_3_1_i2v_lite_low_priority',
+  'landscape': 'veo_3_1_i2v_lite_low_priority',
+  'square': 'veo_3_1_i2v_lite_low_priority',
 };
 
 const RAW_VIDEO_MODEL_ALIASES = {
+  'default': 'veo_3_1_i2v_lite_low_priority',
+  'quality': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-quality': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-quality-lower': 'veo_3_1_i2v_lite_low_priority',
   'veo-3.1-lite-lower': 'veo_3_1_i2v_lite_low_priority',
   'veo-3.1-lite-low-priority': 'veo_3_1_i2v_lite_low_priority',
   'veo_3_1_i2v_lite_low_priority': 'veo_3_1_i2v_lite_low_priority',
@@ -26,6 +30,11 @@ const RAW_VIDEO_MODEL_ALIASES = {
   'veo_3_1_i2v_lite': 'veo_3_1_i2v_lite',
   'veo-3.1-fast': 'veo_3_1_i2v_fast',
   'veo_3_1_i2v_fast': 'veo_3_1_i2v_fast',
+  // 4-second video models
+  '4s': 'veo_3_1_i2v_s_lite_4s_low_priority',
+  'veo-3.1-4s': 'veo_3_1_i2v_s_lite_4s_low_priority',
+  'veo-3.1-4s-low-priority': 'veo_3_1_i2v_s_lite_4s_low_priority',
+  'veo_3_1_i2v_s_lite_4s_low_priority': 'veo_3_1_i2v_s_lite_4s_low_priority',
 };
 
 const VIDEO_ASPECT_MAP = {
@@ -64,7 +73,8 @@ async function startVideoGeneration(page, context, {
   prompt,
   startImageMediaId,
   aspectRatio = '9:16',
-  videoModelKey = null
+  videoModelKey = null,
+  cropCoordinates = null
 }) {
   // Reload page to get fresh reCAPTCHA context
   // (UI interactions like upload/picker contaminate the reCAPTCHA score)
@@ -83,6 +93,13 @@ async function startVideoGeneration(page, context, {
   const seed = Math.floor(Math.random() * 100000);
   const sessionId = `;${Date.now()}`;
   const batchId = crypto.randomUUID();
+
+  const startImage = {
+    mediaId: startImageMediaId
+  };
+  if (cropCoordinates) {
+    startImage.cropCoordinates = cropCoordinates;
+  }
 
   const requestBody = {
     mediaGenerationContext: {
@@ -109,9 +126,7 @@ async function startVideoGeneration(page, context, {
       },
       videoModelKey: videoModelKey,
       metadata: {},
-      startImage: {
-        mediaId: startImageMediaId
-      }
+      startImage
     }],
     useV2ModelConfig: true
   };
@@ -142,7 +157,13 @@ async function startVideoGeneration(page, context, {
   const body = await response.text();
 
   if (status !== 200) {
-    throw new Error(`[VideoGen] API returned HTTP ${status}: ${body.substring(0, 500)}`);
+    let quotaReason = '';
+    try {
+      const errorBody = JSON.parse(body);
+      const reason = errorBody.error?.details?.find(detail => detail.reason)?.reason;
+      quotaReason = reason ? ` reason=${reason}` : '';
+    } catch (_) {}
+    throw new Error(`[VideoGen] API returned HTTP ${status}${quotaReason} model=${videoModelKey} ratio=${apiAspect}: ${body.substring(0, 500)}`);
   }
 
   const result = JSON.parse(body);

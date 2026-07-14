@@ -20,6 +20,8 @@ function redactHeaders(headers = {}) {
 
 function redactText(text = '') {
   return String(text)
+    .replace(/("token"\s*:\s*")[^"]{20,}(")/g, '$1[REDACTED_TOKEN]$2')
+    .replace(/0cAFcWeA[0-9A-Za-z_-]{20,}/g, '[REDACTED_RECAPTCHA_TOKEN]')
     .replace(/([?&]at=)[^&\s]+/g, '$1[REDACTED_AT_TOKEN]')
     .replace(/\bat=[^&\s]+/g, 'at=[REDACTED_AT_TOKEN]')
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED_API_KEY]')

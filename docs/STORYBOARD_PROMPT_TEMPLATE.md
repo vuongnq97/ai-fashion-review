@@ -91,7 +91,9 @@ Biến cần điền:
 
 ## 2. Prompt Tạo Ảnh Storyboard Tổng
 
-Template:
+> **Lưu ý:** Prompt mặc định dùng phong cách `cinematic commercial lighting, realistic fashion photography`. Luồng `/template1` đã chuyển sang **Smartphone Realism** (xem [mục 4](#4-smartphone-realism-directive-template1)).
+
+Template (mặc định):
 
 ```text
 Generate one clean fashion storyboard image from the uploaded product reference images.
@@ -110,6 +112,31 @@ Storyboard data:
 Generate an image. Do not return only text.
 ```
 
+Template (template1 — Smartphone Realism):
+
+```text
+Generate one faceless footwear review storyboard image from the uploaded product reference images.
+
+CRITICAL VISUAL DIRECTION — SMARTPHONE REALISM:
+{SMARTPHONE_REALISM_FULL}
+
+Storyboard requirements:
+- Exactly 2 panels arranged side by side in one single still image.
+- Each panel frame is optimized for {scene_ratio} aspect ratio.
+- Both panels must share the same home setting, time of day, surface, background, mood, and natural window lighting from Scene plan.
+- Panel 1: beautiful feminine hand holding one sandal close to camera. Hand must show pores, knuckle creases, natural skin. Product surface must be matte with texture grain and mold seam lines.
+- Panel 2: top-down POV on-foot shot. Feet not in perfect parallel. Socks slightly wrinkled, off-white/ivory.
+- The photo must look like it was taken with a normal smartphone camera at home: natural window light with gradient falloff, slight sensor noise in shadows, slightly off-center framing, matte product surfaces, no studio lighting.
+- Wood floor or home surface must show natural grain, joint gaps, minor imperfections.
+- {text_rule}
+- Output must be a still photo collage. Do NOT generate or describe a video.
+
+Scene plan:
+{scene_data_json}
+
+Generate one still storyboard image now.
+```
+
 Biến cần điền:
 
 - `{panel_count}`: số panel.
@@ -118,10 +145,14 @@ Biến cần điền:
   - Mặc định: `No text, labels, captions, UI, logos, or watermarks inside the image.`
   - Nếu cho phép chữ: `Avoid unnecessary text.`
 - `{analysis_json}`: JSON trả về từ bước phân tích/kịch bản.
+- `{SMARTPHONE_REALISM_FULL}`: hằng số chứa toàn bộ 6 directive smartphone realism (chỉ template1).
+- `{scene_data_json}`: JSON scene data bao gồm `sceneContext`, `outfitPlan`, `panels` (chỉ template1).
 
 ## 3. Prompt Tạo Từng Panel / Start Frame
 
-Template:
+> **Lưu ý:** Prompt mặc định dùng phong cách `polished vertical fashion commercial frame`. Luồng `/template1` đã chuyển sang **Smartphone Realism** (xem [mục 4](#4-smartphone-realism-directive-template1)).
+
+Template (mặc định):
 
 ```text
 Generate a single clean start-frame image for video.
@@ -143,6 +174,38 @@ Veo 3 prompt for this panel:
 Generate exactly one image. Do not return only text.
 ```
 
+Template (template1 — Smartphone Realism):
+
+```text
+Generate a single faceless footwear photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
+
+CRITICAL VISUAL DIRECTION — SMARTPHONE REALISM:
+{SMARTPHONE_REALISM_FULL}
+
+Panel: {panel_index} of {panel_count}
+Aspect ratio: {scene_ratio}
+Instructions:
+- {source_instruction}
+- Keep the product identity exactly consistent with the reference photo(s).
+- The photo must look like it was casually taken with a normal smartphone camera.
+- Product surface: matte EVA/rubber with fine texture grain, mold seam lines, faint fingerprint marks. NEVER glossy porcelain or smooth render finish.
+- Human skin: visible pores, knuckle creases, light veins, natural skin tone variation. NEVER plastic/waxy skin.
+- Framing: slightly off-center, not perfectly aligned. Background has everyday home details.
+- Lighting: natural window light with gradient falloff, realistic shadow contact. No studio lights, no warm golden glow.
+- Faint sensor noise in shadow areas, light sharpening artifacts near edges.
+- For Panel 1: hand with visible pores and knuckle creases, neat glossy nude/pink nails.
+- For Panel 2: top-down POV, feet not in perfect parallel.
+- Make it a vertical start frame suitable for image-to-video, maintaining the smartphone camera aesthetic.
+
+Panel data:
+{script_item_json}
+
+Motion reference prompt:
+{veo_prompt}
+
+Generate exactly one still image now.
+```
+
 Biến cần điền:
 
 - `{panel_index}`: số thứ tự panel, bắt đầu từ `1`.
@@ -153,8 +216,89 @@ Biến cần điền:
   - Nếu không có storyboard tổng: `Use the uploaded product images as visual references and create this panel directly.`
 - `{script_item_json}`: object script của panel đang xử lý.
 - `{veo_prompt}`: prompt Veo 3 một dòng của panel đó.
+- `{SMARTPHONE_REALISM_FULL}`: hằng số chứa toàn bộ 6 directive smartphone realism (chỉ template1).
 
-## Ví Dụ Cụ Thể
+## 4. Smartphone Realism Directive (template1)
+
+Từ tháng 7/2026, luồng `/template1` đã chuyển từ phong cách **commercial photography** sang **smartphone realism** để ảnh sinh ra giống camera điện thoại thật hơn.
+
+Directive gồm 7 block, mỗi block giải quyết 1 vấn đề cụ thể:
+
+### 4.1. Photography Style
+
+```text
+Photography style: authentic customer review photo casually taken at home with a normal smartphone camera.
+This is NOT a studio photo, NOT a commercial advertisement, NOT a 3D render, NOT an AI-generated artwork.
+```
+
+### 4.2. Smartphone Camera Traits
+
+```text
+Smartphone camera characteristics:
+- Main 1x lens, approximately 24–28 mm equivalent focal length.
+- Auto mode, no Portrait Mode bokeh.
+- Slight white-balance drift, minor brightness inconsistency, and occasional soft-focus edges.
+- Faint sensor noise in shadow areas, light sharpening artifacts, subtle barrel distortion at edges.
+- No fake bokeh, no artificial background blur.
+- The two panels may have slightly different exposure as if the phone metered each shot independently.
+```
+
+### 4.3. Lighting Rules
+
+```text
+Lighting rules:
+- Natural window light: brighter near the window, gradually darker toward the room interior.
+- Allow slight overexposure near the window and slightly dark shadow areas.
+- Realistic shadow contact under sandals, feet, and hands.
+- No warm golden glow, no pastel color grading, no studio rim lights.
+```
+
+### 4.4. Product Material Realism
+
+```text
+Product material realism:
+- Describe the product as EVA foam or soft molded rubber.
+- Surface must be slightly matte with fine texture grain, mold seam lines, faint fingerprint marks, or very light scuffs.
+- FORBIDDEN: glossy porcelain surface, smooth 3D-render finish, shiny artificial plastic.
+```
+
+### 4.5. Human Body Realism
+
+```text
+Human body realism:
+- Hands must show visible pores, knuckle creases, light veins, and natural skin tone variation.
+- Feet must show ankle bone structure, natural toe positioning; two feet should NOT stand in perfect parallel symmetry.
+- Socks (if present) must have slight wrinkles, compression marks under straps, and off-white/ivory tone instead of pure white.
+- Denim/fabric garments must show weave texture, stitching, natural creases, and slight wear.
+- FORBIDDEN: plastic/wax skin, doll-like hands, unnaturally long legs, fashion-model proportions.
+```
+
+### 4.6. Anti-Perfection Rules
+
+```text
+Anti-perfection rules:
+- Frame composition slightly off-center, not perfectly aligned.
+- Living room background has everyday details and imperfect surfaces.
+- Wood floor shows joint gaps, uneven grain, minor marks.
+- Curtains are not perfectly symmetrical.
+```
+
+### 4.7. Negative Prompt
+
+```text
+Negative prompt (must avoid): CGI look, over-processed HDR, waxy skin, fake bokeh, studio lighting setup, pastel Instagram filter, cinematic color grading, perfect bilateral symmetry, 3D render aesthetic.
+```
+
+Tất cả 7 block được nối lại thành `SMARTPHONE_REALISM_FULL` và inject vào cả 3 bước prompt của template1:
+1. `buildAnalysisPrompt()` — để Gemini sinh `visualDescription` và `sceneContext` theo hướng smartphone
+2. `buildStoryboardPrompt()` — để tạo ảnh storyboard tổng có aesthetic smartphone
+3. `buildPanelPrompt()` — để tạo từng panel với chi tiết smartphone realism
+
+Nguồn code: `playwright-service/services/gemini-client/gemini-storyboard.js`
+
+## Ví Dụ Cụ Thể (Template mặc định)
+
+> Ví dụ dưới đây dành cho **template mặc định** (non-template1), vẫn dùng phong cách commercial photography.
 
 Input giả định:
 
@@ -263,9 +407,9 @@ Ví dụ JSON kết quả mong muốn:
   "frameData": "Panel 1: Cận cảnh sneaker trắng trên bục studio tối giản, ánh sáng mềm, tập trung đế chunky và chất liệu thân giày. Panel 2: Người mẫu Việt Nam bước đi trên vỉa hè hiện đại, camera thấp bám theo giày. Panel 3: Lookbook studio, người mẫu tạo dáng với outfit streetwear, đôi sneaker là điểm nhấn chính.",
   "cropTemplate": "Tách panel X từ storyboard đã upload, giữ nguyên sản phẩm, người mẫu, ánh sáng, bố cục và phong cách hình ảnh của panel đó, chuyển thành một ảnh 9:16 sạch để làm start frame video. Không thêm chữ, không thêm UI, không tự diễn giải lại cảnh, không thay đổi nhận diện sản phẩm.",
   "veo3Prompts": [
-    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Cận cảnh đôi sneaker trắng đế chunky trên bục studio tối giản, ánh sáng mềm, footage quảng cáo sản phẩm cao cấp, giữ đúng thiết kế giày 100%. Tone & Mood: sạch, trẻ trung, cuốn hút. Hành động: 0s - 4s: máy quay dolly-in từ mũi giày lên thân giày, không xuất hiện chữ trên video. 5s - 8s: xoay nhẹ góc ba phần tư để thấy đế chunky và chất liệu lưới, không xuất hiện chữ trên video. Script nhan vat: “Một đôi sneaker trắng mà phối gần như bộ nào cũng hợp, nhất là khi bạn muốn cao ráo hơn ngay lập tức.”",
-    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Người mẫu Việt Nam trẻ mang sneaker trắng bước đi trên vỉa hè hiện đại, camera thấp tập trung vào giày, giữ đúng form và màu sản phẩm 100%. Tone & Mood: năng động, tự nhiên, dễ ứng dụng. Hành động: 0s - 4s: tracking shot ngang cổ chân theo từng bước đi, không xuất hiện chữ trên video. 5s - 8s: chuyển sang góc nghiêng cho thấy độ cao đế và dáng giày khi di chuyển, không xuất hiện chữ trên video. Script nhan vat: “Phần thân phối lưới nhìn nhẹ và thoáng, còn đế dày giúp bước chân chắc hơn khi di chuyển cả ngày.”",
-    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Người mẫu tạo dáng lookbook trong studio với outfit streetwear tối giản, sneaker trắng là điểm nhấn chính, giữ đúng sản phẩm và nhân vật 100%. Tone & Mood: tự tin, thời trang, thuyết phục. Hành động: 0s - 4s: camera tilt từ đôi giày lên outfit toàn thân, không xuất hiện chữ trên video. 5s - 8s: giữ hero shot với ánh sáng mềm và dáng đứng tự nhiên, không xuất hiện chữ trên video. Script nhan vat: “Muốn một đôi dễ mang, dễ phối, lên hình sạch và trẻ trung, mẫu này rất đáng để thử.”"
+    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Cận cảnh đôi sneaker trắng đế chunky trên bục studio tối giản, ánh sáng mềm, footage quảng cáo sản phẩm cao cấp, giữ đúng thiết kế giày 100%. Tone & Mood: sạch, trẻ trung, cuốn hút. Hành động: 0s - 4s: máy quay dolly-in từ mũi giày lên thân giày, không xuất hiện chữ trên video. 5s - 8s: xoay nhẹ góc ba phần tư để thấy đế chunky và chất liệu lưới, không xuất hiện chữ trên video. Script nhan vat: "Một đôi sneaker trắng mà phối gần như bộ nào cũng hợp, nhất là khi bạn muốn cao ráo hơn ngay lập tức."",
+    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Người mẫu Việt Nam trẻ mang sneaker trắng bước đi trên vỉa hè hiện đại, camera thấp tập trung vào giày, giữ đúng form và màu sản phẩm 100%. Tone & Mood: năng động, tự nhiên, dễ ứng dụng. Hành động: 0s - 4s: tracking shot ngang cổ chân theo từng bước đi, không xuất hiện chữ trên video. 5s - 8s: chuyển sang góc nghiêng cho thấy độ cao đế và dáng giày khi di chuyển, không xuất hiện chữ trên video. Script nhan vat: "Phần thân phối lưới nhìn nhẹ và thoáng, còn đế dày giúp bước chân chắc hơn khi di chuyển cả ngày."",
+    "Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Người mẫu tạo dáng lookbook trong studio với outfit streetwear tối giản, sneaker trắng là điểm nhấn chính, giữ đúng sản phẩm và nhân vật 100%. Tone & Mood: tự tin, thời trang, thuyết phục. Hành động: 0s - 4s: camera tilt từ đôi giày lên outfit toàn thân, không xuất hiện chữ trên video. 5s - 8s: giữ hero shot với ánh sáng mềm và dáng đứng tự nhiên, không xuất hiện chữ trên video. Script nhan vat: "Muốn một đôi dễ mang, dễ phối, lên hình sạch và trẻ trung, mẫu này rất đáng để thử.""
   ]
 }
 ```
@@ -313,7 +457,7 @@ Panel script:
 }
 
 Veo 3 prompt for this panel:
-Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Cận cảnh đôi sneaker trắng đế chunky trên bục studio tối giản, ánh sáng mềm, footage quảng cáo sản phẩm cao cấp, giữ đúng thiết kế giày 100%. Tone & Mood: sạch, trẻ trung, cuốn hút. Hành động: 0s - 4s: máy quay dolly-in từ mũi giày lên thân giày, không xuất hiện chữ trên video. 5s - 8s: xoay nhẹ góc ba phần tư để thấy đế chunky và chất liệu lưới, không xuất hiện chữ trên video. Script nhan vat: “Một đôi sneaker trắng mà phối gần như bộ nào cũng hợp, nhất là khi bạn muốn cao ráo hơn ngay lập tức.”
+Tạo video review với giọng nhân vật nữ miền Nam, Việt Nam, giọng nhẹ nhàng, dễ thương. VISUAL: Cận cảnh đôi sneaker trắng đế chunky trên bục studio tối giản, ánh sáng mềm, footage quảng cáo sản phẩm cao cấp, giữ đúng thiết kế giày 100%. Tone & Mood: sạch, trẻ trung, cuốn hút. Hành động: 0s - 4s: máy quay dolly-in từ mũi giày lên thân giày, không xuất hiện chữ trên video. 5s - 8s: xoay nhẹ góc ba phần tư để thấy đế chunky và chất liệu lưới, không xuất hiện chữ trên video. Script nhan vat: "Một đôi sneaker trắng mà phối gần như bộ nào cũng hợp, nhất là khi bạn muốn cao ráo hơn ngay lập tức."
 
 Generate exactly one image. Do not return only text.
 ```

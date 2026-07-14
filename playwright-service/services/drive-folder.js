@@ -122,6 +122,22 @@ async function findDriveChildFolder(parentFolderId, folderName) {
   return folders[0].id;
 }
 
+async function listDriveChildFolders(parentFolderId) {
+  const folderMimeType = 'application/vnd.google-apps.folder';
+  console.log(`[DriveFolder] Listing child folders in parent: ${parentFolderId}`);
+
+  const folders = await listDriveFiles({
+    q: `'${parentFolderId}' in parents and mimeType='${folderMimeType}' and trashed=false`,
+    fields: 'files(id,name,mimeType)',
+    pageSize: 100,
+    orderBy: 'name_natural',
+  });
+
+  return folders
+    .filter(folder => folder && folder.id && folder.name)
+    .map(folder => ({ id: folder.id, name: folder.name }));
+}
+
 async function downloadFromDriveFolder(folderId) {
   console.log(`[DriveFolder] Listing files in Google Drive folder: ${folderId}`);
 
@@ -189,7 +205,7 @@ function loadImagesFromFolder(folderPath) {
   });
 }
 
-async function runFromDriveFolder(folderName, baseDir) {
+async function runFromDriveFolder(folderName, baseDir, options = {}) {
   const normalizedName = normalizeFolderName(folderName);
   const config = resolveFolderConfig(normalizedName);
   console.log(`[DriveFolder] Folder name : ${normalizedName}`);
@@ -221,8 +237,9 @@ async function runFromDriveFolder(folderName, baseDir) {
     throw err;
   }
 
-  console.log(`[DriveFolder] Starting storyboard full flow with ${filePayloads.length} image(s)...`);
-  const result = await runStoryboardFullFlow(chatId, filePayloads, baseDir);
+  const templateLabel = options.template ? ` (${options.template})` : '';
+  console.log(`[DriveFolder] Starting storyboard full flow${templateLabel} with ${filePayloads.length} image(s)...`);
+  const result = await runStoryboardFullFlow(chatId, filePayloads, baseDir, options);
   console.log(`[DriveFolder] Full flow completed. Sent ${result.sentCount ?? '?'} video(s).`);
   return result;
 }
@@ -232,6 +249,7 @@ module.exports = {
   loadImagesFromFolder,
   downloadFromDriveFolder,
   findDriveChildFolder,
+  listDriveChildFolders,
   extractDriveFolderId,
   normalizeFolderName,
   resolveFolderConfig,

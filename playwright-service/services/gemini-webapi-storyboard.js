@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 
-const { getBrowserPage } = require('./browser');
+const { createFlowPage, closeFlowPage } = require('./browser');
 const { prepareVideoGeneration, executeVideoGeneration } = require('./video');
 const { getConfig } = require('../utils/config-manager');
 const geminiStoryboard = require('./gemini-client/gemini-storyboard');
@@ -24,7 +24,44 @@ function safeFileStem(value, fallback) {
 }
 
 function getMimeExt(mimeType) {
-  return /jpe?g/i.test(String(mimeType || '')) ? '.jpg' : '.png';
+  const value = String(mimeType || '').toLowerCase();
+  if (value.includes('webp')) return '.webp';
+  if (value.includes('gif')) return '.gif';
+  return /jpe?g/i.test(value) ? '.jpg' : '.png';
+}
+
+function getTemplateName(options = {}) {
+  return String(options.template || options.storyboardTemplate || options.promptTemplate || '').trim().toLowerCase();
+}
+
+function buildTemplate3ReferenceAssets(baseDir) {
+  const standPath = path.join(baseDir, 'assets', 'giadegiay.webp');
+  const shopPath = path.join(baseDir, 'assets', 'shopgiay.png');
+  const assets = [];
+
+  if (!fs.existsSync(standPath)) {
+    console.warn(`[GeminiWebAPI] Template3 display stand reference not found: ${standPath}`);
+  } else {
+    assets.push({
+      name: 'giadegiay-display-stand-reference.webp',
+      role: 'template3_display_stand_prop',
+      mimeType: 'image/webp',
+      base64: fs.readFileSync(standPath).toString('base64'),
+    });
+  }
+
+  if (!fs.existsSync(shopPath)) {
+    console.warn(`[GeminiWebAPI] Template3 shoe shop background reference not found: ${shopPath}`);
+  } else {
+    assets.push({
+      name: 'shopgiay-background-reference.png',
+      role: 'template3_shoe_shop_background_reference',
+      mimeType: 'image/png',
+      base64: fs.readFileSync(shopPath).toString('base64'),
+    });
+  }
+
+  return assets;
 }
 
 /**
@@ -154,6 +191,7 @@ async function runPythonBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
 function buildRequest(filePayloads, options, baseDir) {
   const config = getConfig(baseDir);
   const ui = config.uiSettings || {};
+  const template = getTemplateName(options);
   const mergedOptions = {
     category: ui.category || 'Fashion product',
     useVietnameseModel: ui.useVietnameseModel !== false,
@@ -163,6 +201,23 @@ function buildRequest(filePayloads, options, baseDir) {
     sceneRatio: options.aspectRatio || ui.sceneRatio || '9:16',
     ...options,
   };
+  if (template === 'template1') {
+    mergedOptions.template = 'template1';
+    mergedOptions.panelCount = 2;
+    mergedOptions.noVoiceOver = true;
+    mergedOptions.category = mergedOptions.category || 'Giày dép / Footwear';
+  } else if (template === 'template2') {
+    mergedOptions.template = 'template2';
+    mergedOptions.panelCount = 8;
+    mergedOptions.noVoiceOver = true;
+    mergedOptions.videoModelKey = '4s';
+    mergedOptions.category = mergedOptions.category || 'Giày dép / Footwear';
+  } else if (template === 'template3') {
+    mergedOptions.template = 'template3';
+    mergedOptions.panelCount = 2;
+    mergedOptions.noVoiceOver = true;
+    mergedOptions.category = mergedOptions.category || 'Giày dép / Footwear';
+  }
 
   return {
     options: mergedOptions,
@@ -171,6 +226,9 @@ function buildRequest(filePayloads, options, baseDir) {
       mimeType: file.mimeType || 'image/png',
       base64: Buffer.from(file.buffer).toString('base64'),
     })),
+    referenceAssets: template === 'template3'
+      ? buildTemplate3ReferenceAssets(baseDir)
+      : [],
   };
 }
 
@@ -208,6 +266,148 @@ function buildCopiedPromptText(panels) {
     .join('\n\n');
 }
 
+function makeArchiveRunId(options = {}) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const template = getTemplateName(options) || 'default';
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${stamp}-${template}-${suffix}`;
+}
+
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+}
+
+function saveBase64File(filePath, base64) {
+  if (!base64) return false;
+  fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
+  return true;
+}
+
+function buildReviewPromptMarkdown(bridgeResult) {
+  const debugPrompts = bridgeResult.debugPrompts || {};
+  const panelImagePrompts = Array.isArray(debugPrompts.panelImagePrompts)
+    ? debugPrompts.panelImagePrompts
+    : [];
+  const veo3Prompts = Array.isArray(debugPrompts.veo3Prompts)
+    ? debugPrompts.veo3Prompts
+    : (Array.isArray(bridgeResult.veo3Prompts) ? bridgeResult.veo3Prompts : []);
+
+  const sections = [
+    '# Storyboard Review Prompts',
+    '',
+    '## Analysis Prompt',
+    '',
+    '```text',
+    debugPrompts.analysisPrompt || '',
+    '```',
+    '',
+    '## Storyboard Image Prompt',
+    '',
+    '```text',
+    debugPrompts.storyboardPrompt || '',
+    '```',
+  ];
+
+  panelImagePrompts.forEach((prompt, index) => {
+    sections.push(
+      '',
+      `## Panel ${index + 1} Image Prompt`,
+      '',
+      '```text',
+      prompt || '',
+      '```'
+    );
+  });
+
+  veo3Prompts.forEach((prompt, index) => {
+    sections.push(
+      '',
+      `## Panel ${index + 1} Veo Prompt`,
+      '',
+      '```text',
+      prompt || '',
+      '```'
+    );
+  });
+
+  return `${sections.join('\n')}\n`;
+}
+
+function archiveStoryboardReview(baseDir, filePayloads, request, bridgeResult, panels) {
+  const archiveRoot = path.join(baseDir, 'storyboard-review-runs');
+  ensureDir(archiveRoot);
+
+  const archiveDir = path.join(archiveRoot, makeArchiveRunId(request.options || {}));
+  ensureDir(archiveDir);
+
+  const inputDir = path.join(archiveDir, 'inputs');
+  const panelDir = path.join(archiveDir, 'panels');
+  const referenceDir = path.join(archiveDir, 'references');
+  ensureDir(inputDir);
+  ensureDir(panelDir);
+
+  for (let index = 0; index < filePayloads.length; index++) {
+    const file = filePayloads[index];
+    const ext = getMimeExt(file.mimeType);
+    const name = safeFileStem(file.name || `input-${index + 1}`, `input-${index + 1}`);
+    fs.writeFileSync(path.join(inputDir, `${String(index + 1).padStart(2, '0')}-${name}${ext}`), file.buffer);
+  }
+
+  const storyboardBase64 = bridgeResult.storyboard?.imageBase64 || null;
+  const storyboardPath = path.join(archiveDir, 'storyboard.png');
+  saveBase64File(storyboardPath, storyboardBase64);
+
+  for (const panel of panels || []) {
+    if (panel.image) {
+      saveBase64File(path.join(panelDir, `panel-${panel.index}.png`), panel.image);
+    }
+  }
+
+  const referenceAssets = Array.isArray(request.referenceAssets) ? request.referenceAssets : [];
+  if (referenceAssets.length > 0) {
+    ensureDir(referenceDir);
+    for (const asset of referenceAssets) {
+      const ext = getMimeExt(asset.mimeType || '');
+      const name = safeFileStem(asset.name || asset.role || 'reference', 'reference');
+      saveBase64File(path.join(referenceDir, `${name}${path.extname(name) ? '' : ext}`), asset.base64);
+    }
+  }
+
+  const reviewData = {
+    createdAt: new Date().toISOString(),
+    options: request.options || {},
+    analysis: bridgeResult.analysis || null,
+    sceneContext: bridgeResult.sceneContext || null,
+    productSupportPlan: bridgeResult.productSupportPlan || null,
+    outfitPlan: bridgeResult.outfitPlan || null,
+    script: bridgeResult.script || null,
+    frameData: bridgeResult.frameData || '',
+    cropTemplate: bridgeResult.cropTemplate || '',
+    veo3Prompts: bridgeResult.veo3Prompts || [],
+    debugPrompts: bridgeResult.debugPrompts || {},
+    files: {
+      root: archiveDir,
+      storyboard: storyboardBase64 ? storyboardPath : null,
+      inputs: inputDir,
+      panels: panelDir,
+      references: referenceAssets.length > 0 ? referenceDir : null,
+    },
+  };
+
+  writeJson(path.join(archiveDir, 'review-data.json'), reviewData);
+  fs.writeFileSync(path.join(archiveDir, 'prompts.md'), buildReviewPromptMarkdown(bridgeResult), 'utf8');
+
+  console.log(`[GeminiWebAPI] Storyboard review archive saved: ${archiveDir}`);
+  return {
+    root: archiveDir,
+    storyboardPath: storyboardBase64 ? storyboardPath : null,
+    promptsPath: path.join(archiveDir, 'prompts.md'),
+    dataPath: path.join(archiveDir, 'review-data.json'),
+    inputsDir: inputDir,
+    panelsDir: panelDir,
+  };
+}
+
 function buildFilePayloadFromPanel(panel) {
   if (!panel.imagePath || !fs.existsSync(panel.imagePath)) return null;
   const ext = path.extname(panel.imagePath).toLowerCase();
@@ -229,53 +429,60 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     return [];
   }
 
-  const page = await getBrowserPage(baseDir);
+  // Each flow gets its own browser tab for isolation.
+  // This allows multiple flows to run video generation concurrently.
+  const page = await createFlowPage(baseDir);
   const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos');
   ensureDir(videoDir);
 
-  const preparedJobs = [];
-  for (const job of jobs) {
-    const { panel, filePayload } = job;
-    console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length}...`);
-    const prepared = await prepareVideoGeneration(
-      page,
-      panel.prompt,
-      null,
-      [filePayload],
-      {
-        imageSelection: [`name:${filePayload.name}`],
-        aspectRatio: options.aspectRatio || '9:16',
-        videoModelKey: options.videoModelKey || null,
-      },
-      baseDir
-    );
-    preparedJobs.push({ panel, prepared });
-  }
-
-  console.log(`[GeminiWebAPI->Flow] Polling ${preparedJobs.length} video job(s) in parallel...`);
-  const settled = await Promise.allSettled(preparedJobs.map(async ({ panel, prepared }) => {
-    const base64 = await executeVideoGeneration(prepared);
-    const videoPath = path.join(videoDir, `panel-${panel.index}-video-${Date.now()}.mp4`);
-    fs.writeFileSync(videoPath, Buffer.from(base64, 'base64'));
-    const item = {
-      panelIndex: panel.index,
-      prompt: panel.prompt,
-      videoPath,
-    };
-    if (options.includeVideoBase64) {
-      item.video = { base64, mimeType: 'video/mp4' };
+  try {
+    const preparedJobs = [];
+    for (const job of jobs) {
+      const { panel, filePayload } = job;
+      console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length}...`);
+      const prepared = await prepareVideoGeneration(
+        page,
+        panel.prompt,
+        null,
+        [filePayload],
+        {
+          imageSelection: [`name:${filePayload.name}`],
+          aspectRatio: options.aspectRatio || '9:16',
+          videoModelKey: options.videoModelKey || null,
+        },
+        baseDir
+      );
+      preparedJobs.push({ panel, prepared });
     }
-    return item;
-  }));
 
-  return settled.map((result, index) => {
-    const panelIndex = preparedJobs[index].panel.index;
-    if (result.status === 'fulfilled') return result.value;
-    return {
-      panelIndex,
-      error: result.reason?.message || String(result.reason),
-    };
-  });
+    console.log(`[GeminiWebAPI->Flow] Polling ${preparedJobs.length} video job(s) in parallel...`);
+    const settled = await Promise.allSettled(preparedJobs.map(async ({ panel, prepared }) => {
+      const base64 = await executeVideoGeneration(prepared);
+      const videoPath = path.join(videoDir, `panel-${panel.index}-video-${Date.now()}.mp4`);
+      fs.writeFileSync(videoPath, Buffer.from(base64, 'base64'));
+      const item = {
+        panelIndex: panel.index,
+        prompt: panel.prompt,
+        videoPath,
+      };
+      if (options.includeVideoBase64) {
+        item.video = { base64, mimeType: 'video/mp4' };
+      }
+      return item;
+    }));
+
+    return settled.map((result, index) => {
+      const panelIndex = preparedJobs[index].panel.index;
+      if (result.status === 'fulfilled') return result.value;
+      return {
+        panelIndex,
+        error: result.reason?.message || String(result.reason),
+      };
+    });
+  } finally {
+    // Close the per-flow tab when done
+    await closeFlowPage(page);
+  }
 }
 
 function cleanupGeneratedFiles(result, options = {}) {
@@ -313,6 +520,8 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     throw new Error('Gemini WebAPI bridge returned no panels');
   }
 
+  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, request, bridgeResult, panels);
+
   let videos = [];
   if (options.generateVideos !== false) {
     videos = await generateVideosFromPanelsDirect(baseDir, panels, {
@@ -331,9 +540,13 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     storyboard: bridgeResult.storyboard || null,
     analysis: bridgeResult.analysis || null,
     script: bridgeResult.script || null,
+    sceneContext: bridgeResult.sceneContext || null,
+    productSupportPlan: bridgeResult.productSupportPlan || null,
+    outfitPlan: bridgeResult.outfitPlan || null,
     frameData: bridgeResult.frameData || '',
     cropTemplate: bridgeResult.cropTemplate || '',
     copiedPromptText: buildCopiedPromptText(panels),
+    reviewArchive,
   };
 
   cleanupGeneratedFiles(result, options);

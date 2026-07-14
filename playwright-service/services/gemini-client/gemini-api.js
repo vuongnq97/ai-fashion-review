@@ -853,28 +853,40 @@ class GeminiApiClient {
       fetchUrl = fetchUrl.replace('=s1024-rj', '=s2048-rj');
     }
 
-    const response = await this._apiContext.get(fetchUrl, {
-      headers: {
-        'Origin': 'https://gemini.google.com',
-        'Referer': 'https://gemini.google.com/',
-      },
-    });
+    const urls = [...new Set([fetchUrl, url])];
+    const headers = {
+      'Origin': 'https://gemini.google.com',
+      'Referer': 'https://gemini.google.com/',
+    };
+    const attempts = Math.max(1, parseInt(process.env.GEMINI_IMAGE_DOWNLOAD_RETRIES || '5', 10));
+    const timeout = Math.max(10000, parseInt(process.env.GEMINI_IMAGE_DOWNLOAD_TIMEOUT_MS || '60000', 10));
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    let lastError = null;
 
-    if (!response.ok()) {
-      // Fallback: try original URL
-      const fallback = await this._apiContext.get(url, {
-        headers: {
-          'Origin': 'https://gemini.google.com',
-          'Referer': 'https://gemini.google.com/',
-        },
-      });
-      if (!fallback.ok()) {
-        throw new Error(`[GeminiAPI] Image download failed: HTTP ${response.status()}`);
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      for (const candidateUrl of urls) {
+        try {
+          const response = await this._apiContext.get(candidateUrl, { headers, timeout });
+          if (response.ok()) {
+            return Buffer.from(await response.body());
+          }
+          lastError = new Error(`HTTP ${response.status()}`);
+        } catch (error) {
+          lastError = error;
+        }
       }
-      return Buffer.from(await fallback.body());
+
+      if (attempt < attempts) {
+        const waitMs = Math.min(1500 * attempt + Math.floor(Math.random() * 500), 8000);
+        console.warn(
+          `[GeminiAPI] Image download attempt ${attempt}/${attempts} failed: ` +
+          `${lastError?.message || lastError}. Retrying in ${Math.round(waitMs / 1000)}s...`
+        );
+        await delay(waitMs);
+      }
     }
 
-    return Buffer.from(await response.body());
+    throw new Error(`[GeminiAPI] Image download failed after ${attempts} attempt(s): ${lastError?.message || lastError}`);
   }
 
   // ── Batch Execute (bard settings warmup) ──────────────────────────────────

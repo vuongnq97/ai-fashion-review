@@ -29,7 +29,23 @@ function removeEmptyDirs(dir, rootDir) {
   }
 }
 
-function cleanupUploadsMedia(baseDir) {
+function cleanupUploadsMedia(baseDir, runId) {
+  // If a runId is provided, only clean that specific run's subdirectory.
+  // This prevents concurrent runs from deleting each other's files.
+  if (runId) {
+    const runDir = path.join(baseDir, 'uploads', runId);
+    if (fs.existsSync(runDir)) {
+      try {
+        fs.rmSync(runDir, { recursive: true, force: true });
+        console.log(`[FullFlow] Cleaned run directory: ${runDir}`);
+      } catch (error) {
+        console.warn(`[FullFlow] Could not clean run directory ${runDir}: ${error.message}`);
+      }
+    }
+    return;
+  }
+
+  // Fallback: clean all media in uploads (legacy behavior when no runId)
   const uploadsDir = path.join(baseDir, 'uploads');
   if (!fs.existsSync(uploadsDir)) return;
 
@@ -90,12 +106,18 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
     throw new Error('At least one product image is required');
   }
 
+  const runId = options.runId || null;
+  if (runId) {
+    console.log(`[FullFlow] Starting run ${runId} for chat ${chatId} with ${filePayloads.length} image(s)`);
+  }
+
   try {
     const provider = getStoryboardProvider(baseDir);
     console.log(`[FullFlow] Storyboard provider: ${provider.name}`);
     await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
 
     const result = await provider.generateStoryboard(baseDir, filePayloads, {
+      ...options,
       generateVideos: true,
       includeVideoBase64: true,
       aspectRatio: options.aspectRatio || '9:16',
@@ -108,6 +130,9 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       throw new Error('No videos returned from storyboard/video generation.');
     }
     const productInfo = buildProductTelegramText(result.analysis);
+    if (result.reviewArchive?.root) {
+      await sendTelegramMessage(chatId, `Đã lưu prompt + storyboard để review:\n${result.reviewArchive.root}`);
+    }
 
     let sentCount = 0;
     for (const video of videos) {
@@ -128,11 +153,11 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       if (ok) sentCount++;
     }
 
-    await sendTelegramMessage(chatId, `Hoàn tất full flow: đã gửi ${sentCount}/${videos.length} video.\n${productInfo.summary}`);
+    await sendTelegramMessage(chatId, `${sentCount}/${videos.length} video.\n${productInfo.summary}`);
     return { ...result, sentCount, productInfo };
   } finally {
     if (options.cleanupUploads !== false) {
-      cleanupUploadsMedia(baseDir);
+      cleanupUploadsMedia(baseDir, runId);
     }
   }
 }

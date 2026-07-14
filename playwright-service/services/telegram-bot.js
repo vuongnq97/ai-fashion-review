@@ -2,17 +2,23 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
-const { runFromDriveFolder } = require('./drive-folder');
+const {
+  runFromDriveFolder,
+  extractDriveFolderId,
+  listDriveChildFolders,
+} = require('./drive-folder');
 const { handleDailyVlogCommand, handleDailyVlogPhoto, isWaitingForDailyVlogPhoto } = require('./dailyvlog-flow');
+const { flowQueue } = require('./flow-queue');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
+const pendingTemplateByChat = new Map();
 const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-// Prevent concurrent folder-command runs per chat
-const activePRuns = new Set();
+const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'status']);
+const driveFolderByCommand = new Map();
 
 /**
  * Sends a text message to a specific Telegram Chat ID
@@ -56,37 +62,111 @@ async function downloadTelegramFile(botToken, fileId) {
  * Triggers the same drive-folder flow as `node server.js -p <n>` would.
  */
 async function handleFolderCommand(botToken, chatId, folderName) {
-  const commandName = String(folderName || '').trim().toLowerCase();
-  const runKey = `${chatId}:${commandName}`;
+  const commandName = String(folderName || '').trim().replace(/^\/+/, '').toLowerCase();
+  const driveFolderName = driveFolderByCommand.get(commandName) || commandName;
 
-  if (activePRuns.has(runKey)) {
-    await sendTelegramMessage(botToken, chatId,
-      `⏳ Đang chạy /${commandName} rồi, vui lòng chờ hoàn thành trước khi gửi lại.`);
-    return;
+  const selectedTemplate = pendingTemplateByChat.get(chatId) || null;
+  if (selectedTemplate) pendingTemplateByChat.delete(chatId);
+  const templateOptions = buildTemplateOptions(selectedTemplate);
+  let templateMessage = '';
+  if (selectedTemplate === 'template1') {
+    templateMessage = ' bằng /template1 faceless 2 cảnh';
+  } else if (selectedTemplate === 'template2') {
+    templateMessage = ' bằng /template2 review 8 cảnh (video 4s)';
+  } else if (selectedTemplate === 'template3') {
+    templateMessage = ' bằng /template3 shop top-down 2 cảnh';
   }
 
-  activePRuns.add(runKey);
   await sendTelegramMessage(botToken, chatId,
-    `📂 Đang khởi động luồng /${commandName} — tìm folder, tải ảnh và tạo video...`);
+    `📂 Đang khởi động luồng /${commandName}${templateMessage} — tìm folder, tải ảnh và tạo video...`);
 
   const baseDir = path.resolve(__dirname, '..');
 
-  runFromDriveFolder(commandName, baseDir)
-    .then((result) => {
+  // Enqueue through FlowQueue instead of running directly
+  flowQueue.enqueue({
+    chatId: String(chatId),
+    photos: [],  // folder commands load their own images
+    baseDir,
+    templateOptions,
+    label: `Folder /${commandName}`,
+    execute: async (runId) => {
+      const result = await runFromDriveFolder(driveFolderName, baseDir, { ...templateOptions, runId });
       const sent = result && result.sentCount != null ? result.sentCount : '?';
       const summary = result?.productInfo?.summary ? `\n${result.productInfo.summary}` : '';
       console.log(`[Telegram Bot] /${commandName} flow completed for chat ${chatId}. Sent: ${sent}`);
-      sendTelegramMessage(botToken, chatId,
-        `${summary}`).catch(() => { });
-    })
-    .catch((err) => {
-      console.error(`[Telegram Bot] /${commandName} flow error for chat ${chatId}:`, err.message);
-      sendTelegramMessage(botToken, chatId,
-        `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => { });
-    })
-    .finally(() => {
-      activePRuns.delete(runKey);
-    });
+      await sendTelegramMessage(botToken, chatId, `${summary}`).catch(() => {});
+      return result;
+    },
+  }).catch((err) => {
+    console.error(`[Telegram Bot] /${commandName} flow error for chat ${chatId}:`, err.message);
+    sendTelegramMessage(botToken, chatId,
+      `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => {});
+  });
+}
+
+async function handleTemplate1Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template1';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template1 cho album ảnh đang gom: review faceless 2 cảnh, không voice-over.');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template1');
+  await sendTelegramMessage(botToken, chatId,
+    '✅ Đã bật /template1 cho lượt ảnh kế tiếp: review faceless 2 cảnh, chung bối cảnh random, không voice-over.');
+}
+
+async function handleTemplate2Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template2';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template2 cho album ảnh đang gom: review 8 cảnh, mỗi cảnh 4s, không voice-over.');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template2');
+  await sendTelegramMessage(botToken, chatId,
+    '✅ Đã bật /template2 cho lượt ảnh kế tiếp: review 8 cảnh, mỗi cảnh 4s, chung bối cảnh random, không voice-over.');
+}
+
+async function handleTemplate3Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template3';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template3 cho album ảnh đang gom: cảnh 1 top-down shop, cảnh 2 POV faceless, không voice-over.');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template3');
+  await sendTelegramMessage(botToken, chatId,
+    '✅ Đã bật /template3 cho lượt ảnh kế tiếp: cảnh 1 top-down shop, cảnh 2 POV faceless, không voice-over.');
+}
+
+function buildTemplateOptions(template) {
+  if (template === 'template1') {
+    return {
+      template: 'template1',
+      panelCount: 2,
+    };
+  }
+  if (template === 'template2') {
+    return {
+      template: 'template2',
+      panelCount: 8,
+      videoModelKey: '4s',
+    };
+  }
+  if (template === 'template3') {
+    return {
+      template: 'template3',
+      panelCount: 2,
+    };
+  }
+  return {};
 }
 
 /**
@@ -106,9 +186,42 @@ async function handleUpdate(botToken, update) {
     if (text.startsWith('/start')) {
       await sendTelegramMessage(botToken, chatId,
         '👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang cho bạn.\n\n' +
-        '📂 Hoặc dùng lệnh như /p1 /p2 /m1 /m2 để tải ảnh từ thư mục Drive/local cùng tên.\n' +
-        '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.'
+        '📂 Hoặc dùng các lệnh folder trong menu bot để tải ảnh từ thư mục Drive cùng tên.\n' +
+        '👟 Dùng /template1 rồi gửi ảnh để tạo review faceless 2 cảnh, không voice-over.\n' +
+        '🥿 Dùng /template2 rồi gửi ảnh để tạo review 8 cảnh, mỗi cảnh 4s, không voice-over.\n' +
+        '🏬 Dùng /template3 rồi gửi ảnh để tạo review shop top-down 2 cảnh, không voice-over.\n' +
+        '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.\n' +
+        '📊 Dùng /status để xem hàng đợi xử lý.'
       );
+      return;
+    }
+
+    // ── Status command ───────────────────────────────────────────────────────
+    if (text === '/status' || text.startsWith('/status@')) {
+      console.log(`[Telegram Bot] Received /status command from chat ${chatId}`);
+      const { summary } = flowQueue.getStatus();
+      await sendTelegramMessage(botToken, chatId, `📊 Trạng thái hàng đợi:\n${summary}`);
+      return;
+    }
+
+    // ── Template 1 command ───────────────────────────────────────────────────
+    if (text === '/template1' || text.startsWith('/template1@')) {
+      console.log(`[Telegram Bot] Received /template1 command from chat ${chatId}`);
+      await handleTemplate1Command(botToken, chatId);
+      return;
+    }
+
+    // ── Template 2 command ───────────────────────────────────────────────────
+    if (text === '/template2' || text.startsWith('/template2@')) {
+      console.log(`[Telegram Bot] Received /template2 command from chat ${chatId}`);
+      await handleTemplate2Command(botToken, chatId);
+      return;
+    }
+
+    // ── Template 3 command ───────────────────────────────────────────────────
+    if (text === '/template3' || text.startsWith('/template3@')) {
+      console.log(`[Telegram Bot] Received /template3 command from chat ${chatId}`);
+      await handleTemplate3Command(botToken, chatId);
       return;
     }
 
@@ -122,7 +235,7 @@ async function handleUpdate(botToken, update) {
     // Folder commands (also handles e.g. /p1@botname sent in groups).
     // Keep /start and /dailyvlog reserved; any other alphanumeric command maps to a folder name.
     const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
-    if (folderMatch && !['start', 'dailyvlog'].includes(folderMatch[1].toLowerCase())) {
+    if (folderMatch && !RESERVED_COMMANDS.has(folderMatch[1].toLowerCase())) {
       const folderName = folderMatch[1].toLowerCase();
       console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
       await handleFolderCommand(botToken, chatId, folderName);
@@ -156,12 +269,23 @@ async function handleUpdate(botToken, update) {
 
     // If it's a new batch for this chat, notify user and set up map entry
     if (!botBatches.has(chatId)) {
+      const selectedTemplate = pendingTemplateByChat.get(chatId) || null;
+      if (selectedTemplate) pendingTemplateByChat.delete(chatId);
+
       botBatches.set(chatId, {
         photos: [],
-        timer: null
+        timer: null,
+        template: selectedTemplate
       });
-      await sendTelegramMessage(botToken, chatId,
-        '📥 Đã nhận được hình ảnh. Đang chuẩn bị tải và gom album...');
+      let receiveMsg = '📥 Đã nhận được hình ảnh. Đang chuẩn bị tải và gom album...';
+      if (selectedTemplate === 'template1') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template1 faceless 2 cảnh...';
+      } else if (selectedTemplate === 'template2') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template2 review 8 cảnh (video 4s)...';
+      } else if (selectedTemplate === 'template3') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template3 shop top-down 2 cảnh...';
+      }
+      await sendTelegramMessage(botToken, chatId, receiveMsg);
     }
 
     const batch = botBatches.get(chatId);
@@ -184,7 +308,7 @@ async function handleUpdate(botToken, update) {
     if (batch.timer) clearTimeout(batch.timer);
 
     batch.timer = setTimeout(async () => {
-      // Clean up the batch map entry
+      // Clean up the batch map entry immediately so new photos create a new batch
       botBatches.delete(chatId);
 
       console.log(`[Telegram Bot] Batch timed out for chat ${chatId}. Checking downloads...`);
@@ -198,51 +322,136 @@ async function handleUpdate(botToken, update) {
         return;
       }
 
-      await sendTelegramMessage(botToken, chatId,
-        `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang tạo storyboard và video...`);
+      const templateOptions = buildTemplateOptions(batch.template);
+      let templateMessage = '';
+      if (batch.template === 'template1') {
+        templateMessage = ' theo /template1 faceless 2 cảnh';
+      } else if (batch.template === 'template2') {
+        templateMessage = ' theo /template2 review 8 cảnh (video 4s)';
+      } else if (batch.template === 'template3') {
+        templateMessage = ' theo /template3 shop top-down 2 cảnh';
+      }
 
-      // Trigger the provider-based full flow in the background.
+      await sendTelegramMessage(botToken, chatId,
+        `🚀 Đã nhận đủ ${batch.photos.length} ảnh. Đang tạo storyboard và video${templateMessage}...`);
+
+      // Snapshot the photos — batch map entry is already deleted so user can
+      // send a new album immediately. The job is enqueued and will run when
+      // a slot opens up.
+      const photosCopy = [...batch.photos];
       const baseDir = path.resolve(__dirname, '..');
-      runStoryboardFullFlow(chatId, batch.photos, baseDir)
+
+      flowQueue.enqueue({
+        chatId: String(chatId),
+        photos: photosCopy,
+        baseDir,
+        templateOptions,
+        label: `Album ${photosCopy.length} ảnh${templateMessage}`,
+        execute: async (runId) => {
+          return runStoryboardFullFlow(chatId, photosCopy, baseDir, { ...templateOptions, runId });
+        },
+      })
         .then(() => {
           console.log(`[Telegram Bot] Storyboard full flow completed for chat ${chatId}`);
         })
         .catch(err => {
           console.error(`[Telegram Bot] Full flow error for chat ${chatId}:`, err.message);
           sendTelegramMessage(botToken, chatId,
-            `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => { });
+            `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => {});
         });
 
     }, BATCH_WINDOW_MS);
   }
 }
 
+function getDriveParentFolderIdFromEnv() {
+  const parentFolder = (
+    process.env.DRIVE_PARENT_FOLDER_ID ||
+    process.env.DRIVE_PARENT_FOLDER_URL ||
+    process.env.DRIVE_PARENT_FOLDER ||
+    ''
+  ).trim();
+  return extractDriveFolderId(parentFolder);
+}
+
+function folderNameToTelegramCommand(folderName) {
+  const command = String(folderName || '')
+    .trim()
+    .replace(/^\/+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 32);
+
+  // Telegram bot commands support lowercase letters, digits and underscores.
+  if (!/^[a-z][a-z0-9_]{0,31}$/.test(command)) return null;
+  if (RESERVED_COMMANDS.has(command)) return null;
+  return command;
+}
+
+async function buildTelegramCommandsFromDrive() {
+  const commands = [
+    { command: 'status', description: '📊 Xem trạng thái hàng đợi xử lý' },
+    { command: 'template1', description: '👟 Review faceless 2 cảnh, không voice-over' },
+    { command: 'template2', description: '🥿 Review 8 cảnh, mỗi cảnh 4s, không voice-over' },
+    { command: 'template3', description: '🏬 Review shop top-down 2 cảnh, không voice-over' },
+    { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
+  ];
+
+  const parentFolderId = getDriveParentFolderIdFromEnv();
+  if (!parentFolderId) {
+    console.warn('[Telegram Bot] DRIVE_PARENT_FOLDER_ID/URL is not configured; folder command menu will only include built-in commands.');
+    return commands;
+  }
+
+  try {
+    const folders = await listDriveChildFolders(parentFolderId);
+    const seen = new Set(commands.map(item => item.command));
+    driveFolderByCommand.clear();
+
+    for (const folder of folders) {
+      const command = folderNameToTelegramCommand(folder.name);
+      if (!command) {
+        console.warn(`[Telegram Bot] Skipping Drive folder "${folder.name}" because it is not a valid Telegram command name.`);
+        continue;
+      }
+      if (seen.has(command)) continue;
+
+      commands.push({
+        command,
+        description: `Chạy luồng folder ${folder.name}`,
+      });
+      seen.add(command);
+      driveFolderByCommand.set(command, folder.name);
+
+      // Telegram Bot API allows up to 100 commands. Keep room for /start below.
+      if (commands.length >= 99) {
+        console.warn('[Telegram Bot] Command menu reached Telegram limit; remaining Drive folders are not shown.');
+        break;
+      }
+    }
+
+    console.log(`[Telegram Bot] Loaded ${Math.max(0, commands.length - 2)} folder command(s) from Drive parent ${parentFolderId}.`);
+  } catch (err) {
+    console.warn('[Telegram Bot] ⚠️ Could not load Drive folder commands:', err.message);
+  }
+
+  return commands;
+}
+
 /**
- * Register sample bot commands so Telegram shows common folder names as tappable buttons.
+ * Register bot commands so Telegram shows Drive folder names as tappable buttons.
  * Uses the setMyCommands API — called once on startup.
  */
 async function registerBotCommands(botToken) {
-  const commands = [
-    { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
-    { command: 'p1', description: 'Chạy luồng folder p1' },
-    { command: 'p2', description: 'Chạy luồng folder p2' },
-    { command: 'p3', description: 'Chạy luồng folder p3' },
-    { command: 'p4', description: 'Chạy luồng folder p4' },
-    { command: 'p5', description: 'Chạy luồng folder p5' },
-    { command: 'p6', description: 'Chạy luồng folder p6' },
-    { command: 'p7', description: 'Chạy luồng folder p7' },
-    { command: 'p8', description: 'Chạy luồng folder p8' },
-    { command: 'p9', description: 'Chạy luồng folder p9' },
-    { command: 'p10', description: 'Chạy luồng folder p10' },
-    { command: 'm1', description: 'Chạy luồng folder m1' },
-    { command: 'm2', description: 'Chạy luồng folder m2' },
-    { command: 'start', description: 'Bắt đầu / Xem hướng dẫn' },
-  ];
+  const commands = await buildTelegramCommandsFromDrive();
+  commands.push({ command: 'start', description: 'Bắt đầu / Xem hướng dẫn' });
+
   try {
     await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
       timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
     });
-    console.log('[Telegram Bot] ✅ Bot commands registered (menu buttons ready).');
+    console.log(`[Telegram Bot] ✅ Bot commands registered (${commands.length} command(s), menu buttons ready).`);
   } catch (err) {
     console.warn('[Telegram Bot] ⚠️ Failed to register bot commands:', err.message);
   }

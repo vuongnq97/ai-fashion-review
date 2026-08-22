@@ -66,9 +66,10 @@ Requirements:
   2. "subtexts": Array of 1-3 concise bullet points / key features / specs / performance highlights / direct benefits (3-7 words each).
   CRITICAL: Every headline and subtext MUST HAVE 100% ACCURATE VIETNAMESE SPELLING AND DIACRITICS (chuẩn 100% chính tả tiếng Việt có dấu).
 
-- TECHNOLOGY VISUAL EFFECTS & INFOGRAPHIC CUES (HIỆU ỨNG CÔNG NGHỆ ĐẶC SẮC):
-  * Carefully inspect the uploaded product images for any technology demonstration cues, functional diagrams, or visual effects (e.g. water droplet splash / repel, microfiber absorption waves, 360° rotation spin, air-cushion elasticity bounce, cooling/hydrating mist, steam, sparkling clean shine reflection, suction vortex, shock-absorption layers, etc.).
-  * In the "script" array, provide a vivid, detailed "techVFX" string for each panel so that both the panel imagery and the Veo 3 video animation feature dynamic, high-converting visual effects in motion.
+- REALISTIC FUNCTIONAL INTERACTIONS (THAO TÁC THỰC TẾ, KHÔNG ẢO CGI):
+  * Observe the product images for authentic functional features (e.g. pulling a tissue smoothly from wall-mounted dispenser, wipe cleaning a table with authentic reflection, tactile finger press on sole, smooth 360 rotation).
+  * In the "script" array, provide a "techVFX" string describing REAL, NATURAL physical demonstrations (e.g., "Thao tác tay rút nhẹ tờ khăn giấy từ đáy một cách mượt mà, giấy dai mịn không bị rách", "Bàn tay miết nhẹ bề mặt khoe độ dày dặn và vân dập nổi tự nhiên").
+  * STRICTLY FORBID fantasy CGI, glowing neon arrows, cartoon magnifying glasses, floating 3D graphics, or fairy sparkles. Keep everything looking like a real authentic smartphone video.
 
 - All 4 panels share the exact same setting, lighting, surface, and smartphone camera realism.
 - Faceless only: no visible faces, no talking presenter.
@@ -86,7 +87,7 @@ Return ONLY valid JSON matching this schema:
   "sceneContext": {
     "location": "detailed description of setting and surface",
     "lighting": "natural daylight / warm interior lighting",
-    "mood": "aesthetic, modern, authentic review"
+    "mood": "aesthetic, modern, 100% authentic realism"
   },
   "panelOverlays": [
     {
@@ -128,7 +129,7 @@ Return ONLY valid JSON matching this schema:
       "duration": "00:00-00:06",
       "goal": "Hero showcase & exterior",
       "visualDescription": "clean hero shot of product held naturally or displayed on surface",
-      "techVFX": "Hiệu ứng ánh sáng tinh tế quét qua viền thân sản phẩm tôn bật chất lượng hoàn thiện cao cấp",
+      "techVFX": "Ánh sáng tự nhiên chiếu nhẹ tôn lên kiểu dáng chân thực và bao bì trang nhã",
       "cameraAction": "close-up front angle with natural lighting"
     },
     {
@@ -136,7 +137,7 @@ Return ONLY valid JSON matching this schema:
       "duration": "00:06-00:12",
       "goal": "Key feature / material detail",
       "visualDescription": "macro close-up focusing on key functional detail, texture, or finish",
-      "techVFX": "Hiệu ứng đặc tả công nghệ vật liệu (VD: sợi dệt microfiber hút nước tức thì, đệm lót EVA đàn hồi nhún êm, hạt dưỡng chất căng mọng)",
+      "techVFX": "Ngón tay miết nhẹ đặc tả chất liệu dày dặn, kết cấu bề mặt thực tế",
       "cameraAction": "extreme close-up macro"
     },
     {
@@ -144,7 +145,7 @@ Return ONLY valid JSON matching this schema:
       "duration": "00:12-00:18",
       "goal": "In-action user experience",
       "visualDescription": "hands-on authentic human interaction using the product smoothly",
-      "techVFX": "Hiệu ứng chuyển động công năng thực tế (VD: tia nước vắt xoáy khô ráo, khớp xoay 360 độ linh hoạt, độ bám sàn chống trượt)",
+      "techVFX": "Thao tác sử dụng thực tế mượt mà, chân thực không kỹ xảo ảo",
       "cameraAction": "medium close-up in-action"
     },
     {
@@ -152,7 +153,7 @@ Return ONLY valid JSON matching this schema:
       "duration": "00:18-00:24",
       "goal": "Overall benefit & lifestyle",
       "visualDescription": "overall scene showing product integrated into daily lifestyle",
-      "techVFX": "Hiệu ứng kết quả hoàn hảo (VD: bề mặt sáng bóng sạch bong phản chiếu ánh sáng trong trẻo, diện mạo tự tin)",
+      "techVFX": "Không gian sinh hoạt ngăn nắp, gọn gàng và tiện nghi",
       "cameraAction": "medium lifestyle shot"
     }
   ]
@@ -334,25 +335,26 @@ function buildTemplate5MasterPrompt(analysisData) {
 
   const sequenceInstructions = overlays.map(p => {
     const subtextLines = (p.subtexts || []).join(' | ');
-    return `  Panel ${p.id}: Render neat, compact typography overlay in the upper safe zone with bold uppercase headline "${p.headline}" and key details: "${subtextLines}".`;
+    return `  Panel ${p.id}: Render a single small rounded caption badge (placed 18% below top edge) containing: "${p.headline}" and "${subtextLines}".`;
   }).join('\n');
 
   return `Generate one product review storyboard image (still photo collage, NOT a video) from the uploaded product reference images for ${prodName}.
 
-CRITICAL VISUAL DIRECTION — SMARTPHONE REALISM:
-- Aesthetics: Authentic smartphone camera snapshot (main lens ~26mm), natural window light, subtle realistic depth of field, real materials (matte, fabric grain, metallic brush or leather texture). No 3D render, no plastic CGI.
+CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (KHÔNG ẢO CGI):
+- Aesthetics: Authentic smartphone camera snapshot (main lens ~26mm), natural window light, subtle realistic depth of field, real materials (matte, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot. No 3D render, no plastic CGI.
 - Strictly faceless: No visible human faces, no presenter face. Only hands, body limbs or cropped outfit in frame.
+- NO CARTOON GRAPHICS: Absolutely NO glowing neon arrows, NO cartoon magnifying glasses, NO floating 3D icons, NO fake fairy sparkles.
 
 Storyboard requirements:
 - Exactly 4 panels arranged side by side in one single still image (horizontal 16:9 collage composed of 4 vertical 9:16 frames).
 - Setting: All 4 panels share the exact same location (${loc}) and lighting (${lighting}).
-- Sequence & Compact Typography Overlays:
+- Sequence & Single Caption Badges:
 ${sequenceInstructions}
-- Typography Rules & Safe Margin (QUAN TRỌNG: Kích thước chữ nhỏ gọn, an toàn viền):
-  * Font Size: Compact, medium-small, elegant typography (kích thước chữ nhỏ gọn vừa phải, tinh tế, không in quá to).
-  * Safe Margin / Padding: Leave generous inner padding of at least 15% from left, right, and top borders of each panel. Text must NEVER stretch edge-to-edge or touch the borders, ensuring text is never cropped when resized or converted to video.
-  * Clean minimalist modern sans-serif font with 100% ACCURATE VIETNAMESE DIACRITICS (đúng chính tả tiếng Việt có dấu). Text should be placed neatly with high contrast and sleek aesthetic layout.
-- Technology / Functional Visual Cues: If the product reference images include technology demonstration cues (e.g. water droplet repel, microfiber suction absorption, clean shine reflection, shock absorption flex, 360° spin capability), naturally incorporate subtle, aesthetic, realistic visual cues into the photography.
+- Typography Rules & Safe Margin (QUAN TRỌNG: Cỡ chữ nhỏ gọn, an toàn 100% viền, không vẽ chữ rác):
+  * EXACTLY ONE SINGLE COMPACT BADGE PER PANEL: Render only ONE small, elegant, semi-transparent rounded pill card in the upper safe area.
+  * POSITION: Leave at least 18% empty margin from top edge (DO NOT touch top border y=0). Leave at least 15% margin from left and right borders.
+  * Clean minimalist modern sans-serif font with 100% ACCURATE VIETNAMESE DIACRITICS (đúng chính tả tiếng Việt có dấu).
+  * STRICT NEGATIVE RULE: Absolutely NO other text, words, floating letters, gibberish English/Vietnamese anywhere in the scene, background, walls, or ceilings. The single caption card is the ONLY text in each panel.
 - Output must be a still photograph collage. Do NOT generate or describe a video.
 
 Scene plan:
@@ -379,15 +381,26 @@ VISUAL INSTRUCTIONS:
 - Aspect Ratio: 9:16 vertical.
 - Setting: ${loc}.
 - Product Identity: Match the EXACT design, colors, textures, and details from the product reference images.
-- Compact Typography Overlay & Safe Zone (QUAN TRỌNG: Kích thước chữ nhỏ gọn, không cắt mép):
-  * Font Size & Scale: Compact, elegant, medium-small typography overlay positioned at the upper center. Headline is bold uppercase in moderate scale (do NOT make text oversized or giant). Subtexts are neat small bullet points.
-  * Safe Margins: Generous padding (at least 15% margin from top, left, and right borders). Text must be well-contained inside the safe zone, never touching or extending close to the image edges to avoid any cutoff during video resizing/cropping.
-  * Headline (Uppercase): "${current.headline}"
-  * Key Details / Highlights: "${subtextStr}"
-  * Ensure 100% ACCURATE VIETNAMESE SPELLING AND DIACRITICS (đúng 100% chính tả tiếng Việt có dấu, tuyệt đối không sai dấu).
-- Technology / Functional Cues: If input product images show technology/functional demonstrations (e.g. water repel, microfiber absorption, elastic cushion bounce, clean shine, 360° rotation), reflect these subtle, realistic visual elements cleanly in the scene.
-- Realism: Smartphone camera snapshot, natural lighting, realistic material finishes, authentic skin pores if hands/limbs are shown.
-- Faceless only: No visible human faces, no watermarks, no price tags.
+
+- SINGLE CAPTION BADGE & SAFE ZONE (QUAN TRỌNG: Cỡ chữ nhỏ gọn tinh tế, 100% không cắt viền, không vẽ chữ rác):
+  * EXACTLY ONE SINGLE COMPACT CARD: Render only ONE small, elegant, semi-transparent white/glassmorphism rounded pill card (kích thước nhỏ gọn, chiếm tối đa 10-12% chiều cao ảnh) floating in the upper safe area.
+  * PRECISE POSITION & MARGINS:
+    - Top margin: Must have at least 18% empty margin from the top edge of the frame (DO NOT touch or overlap the top border).
+    - Side margins: Must have at least 15% empty margin from left and right borders.
+    - Card must be horizontally centered and fully contained inside the safe area.
+  * INSIDE THE SINGLE CARD ONLY:
+    - Line 1 (Headline): "${current.headline}" (small bold uppercase, modern clean sans-serif font).
+    - Line 2 (Highlights): "${subtextStr}" (compact, small bullet points).
+    - 100% ACCURATE VIETNAMESE SPELLING (đúng chính tả tiếng Việt có dấu).
+  * CRITICAL NEGATIVE RULES FOR TEXT & GRAPHICS:
+    - Absolutely NO other floating text, NO secondary words, NO background letters, NO gibberish English/Vietnamese anywhere in the scene, on walls, on ceilings, or in the air.
+    - The ONLY text allowed in the entire image is inside the single caption card.
+    - STRICTLY NO cartoon graphics, NO glowing neon arrows, NO floating magnifying glasses, NO fake fairy sparkles, NO 3D CGI props, NO speech bubble pointers.
+
+- 100% PHOTOREALISM (THỰC TẾ 100%, KHÔNG ẢO CGI):
+  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room lighting, genuine soft contact shadows and textures.
+  * Real human hands and authentic everyday living spaces. Must look 100% real and authentic, NOT like an AI-generated image.
+  * Faceless only: No visible human faces, no watermarks, no price tags.
 - Output must be a still photo. Do NOT generate a video.
 
 Generate exactly one still image now.`.trim();
@@ -403,22 +416,22 @@ function getTemplate5VideoPrompts(analysisData) {
   const script = analysisData?.script || [];
 
   const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
-  const vfx1 = script[0]?.techVFX ? ` HIỆU ỨNG CÔNG NGHỆ: ${script[0].techVFX}.` : '';
+  const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
 
   const desc2 = script[1]?.visualDescription || 'Góc quay cận cảnh đặc tả chất liệu, cấu tạo và hoàn thiện tinh xảo';
-  const vfx2 = script[1]?.techVFX ? ` HIỆU ỨNG CÔNG NGHỆ: ${script[1].techVFX}.` : '';
+  const vfx2 = script[1]?.techVFX ? ` Thao tác thực tế: ${script[1].techVFX}.` : '';
 
   const desc3 = script[2]?.visualDescription || 'Trải nghiệm sử dụng thực tế của người dùng với sản phẩm trong không gian';
-  const vfx3 = script[2]?.techVFX ? ` HIỆU ỨNG CÔNG NGHỆ: ${script[2].techVFX}.` : '';
+  const vfx3 = script[2]?.techVFX ? ` Thao tác thực tế: ${script[2].techVFX}.` : '';
 
   const desc4 = script[3]?.visualDescription || 'Toàn cảnh sản phẩm trong không gian phong cách sống hiện đại';
-  const vfx4 = script[3]?.techVFX ? ` HIỆU ỨNG CÔNG NGHỆ: ${script[3].techVFX}.` : '';
+  const vfx4 = script[3]?.techVFX ? ` Thao tác thực tế: ${script[3].techVFX}.` : '';
 
   return [
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO HAY OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO HAY OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO HAY OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO HAY OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
   ];
 }
 

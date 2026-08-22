@@ -103,3 +103,8 @@ playwright-service/test-*.sh
 # Old/generated workflow exports
 workflows/local_*/
 workflows/n8n_*/
+
+# Storyboard runs & scratch
+playwright-service/storyboard-review-runs/
+playwright-service/scratch/
+

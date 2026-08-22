@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
+const { sendVideoToTelegramDirect } = require('./telegram-send');
 const {
   runFromDriveFolder,
   extractDriveFolderId,
@@ -13,11 +14,12 @@ const { flowQueue } = require('./flow-queue');
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
 const pendingTemplateByChat = new Map();
+const lastRunByChat = new Map();
 const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'status']);
+const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'status', 'again']);
 const driveFolderByCommand = new Map();
 
 /**
@@ -74,7 +76,9 @@ async function handleFolderCommand(botToken, chatId, folderName) {
   } else if (selectedTemplate === 'template2') {
     templateMessage = ' bằng /template2 review 8 cảnh (video 4s)';
   } else if (selectedTemplate === 'template3') {
-    templateMessage = ' bằng /template3 shop top-down 2 cảnh';
+    templateMessage = ' bằng /template3 shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s)';
+  } else if (selectedTemplate === 'template4') {
+    templateMessage = ' bằng /template4 shop pastel nữ 4 cảnh (cận cảnh 8s + POV váy 6s + góc nệm 4s + đứng thử dáng 8s)';
   }
 
   await sendTelegramMessage(botToken, chatId,
@@ -91,6 +95,16 @@ async function handleFolderCommand(botToken, chatId, folderName) {
     label: `Folder /${commandName}`,
     execute: async (runId) => {
       const result = await runFromDriveFolder(driveFolderName, baseDir, { ...templateOptions, runId });
+      if (result && result.reviewArchive?.root) {
+        lastRunByChat.set(String(chatId), {
+          runDir: result.reviewArchive.root,
+          panelsDir: result.reviewArchive.panelsDir || path.join(result.reviewArchive.root, 'panels'),
+          videosDir: path.join(result.reviewArchive.root, 'videos'),
+          panels: result.panels,
+          template: selectedTemplate,
+          baseDir,
+        });
+      }
       const sent = result && result.sentCount != null ? result.sentCount : '?';
       const summary = result?.productInfo?.summary ? `\n${result.productInfo.summary}` : '';
       console.log(`[Telegram Bot] /${commandName} flow completed for chat ${chatId}. Sent: ${sent}`);
@@ -137,13 +151,27 @@ async function handleTemplate3Command(botToken, chatId) {
   if (activeBatch) {
     activeBatch.template = 'template3';
     await sendTelegramMessage(botToken, chatId,
-      '✅ Đã áp dụng /template3 cho album ảnh đang gom: cảnh 1 top-down shop, cảnh 2 POV faceless, không voice-over.');
+      '✅ Đã áp dụng /template3 cho album ảnh đang gom: 4 cảnh shop — top-down 8s, POV ngực 6s, góc hông 4s, đứng thử giày 8s.');
     return;
   }
 
   pendingTemplateByChat.set(chatId, 'template3');
   await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template3 cho lượt ảnh kế tiếp: cảnh 1 top-down shop, cảnh 2 POV faceless, không voice-over.');
+    '✅ Đã bật /template3 cho lượt ảnh kế tiếp: 4 cảnh shop — top-down 8s, POV ngực 6s, góc hông 4s, đứng thử giày 8s.');
+}
+
+async function handleTemplate4Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template4';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template4 cho album ảnh đang gom: review giày/dép nữ 4 cảnh boutique pastel — cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s.');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template4');
+  await sendTelegramMessage(botToken, chatId,
+    '✅ Đã bật /template4 cho lượt ảnh kế tiếp: review giày/dép nữ 4 cảnh boutique pastel — cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s.');
 }
 
 function buildTemplateOptions(template) {
@@ -163,10 +191,170 @@ function buildTemplateOptions(template) {
   if (template === 'template3') {
     return {
       template: 'template3',
-      panelCount: 2,
+      panelCount: 4,
+    };
+  }
+  if (template === 'template4') {
+    return {
+      template: 'template4',
+      panelCount: 4,
     };
   }
   return {};
+}
+
+function getLatestRunDirectory(baseDir) {
+  const runsDir = path.join(baseDir, 'storyboard-review-runs');
+  if (!fs.existsSync(runsDir)) return null;
+  const entries = fs.readdirSync(runsDir, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => ({
+      name: d.name,
+      path: path.join(runsDir, d.name),
+      mtime: fs.statSync(path.join(runsDir, d.name)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  return entries.length > 0 ? entries[0].path : null;
+}
+
+function getLastRunForChat(chatId, baseDir) {
+  const mem = lastRunByChat.get(String(chatId));
+  if (mem && mem.panelsDir && fs.existsSync(mem.panelsDir)) {
+    return mem;
+  }
+
+  const latestDir = getLatestRunDirectory(baseDir);
+  if (latestDir) {
+    const panelsDir = path.join(latestDir, 'panels');
+    const videosDir = path.join(latestDir, 'videos');
+    if (fs.existsSync(panelsDir)) {
+      return {
+        runDir: latestDir,
+        panelsDir,
+        videosDir,
+      };
+    }
+  }
+  return null;
+}
+
+async function handleAgainCommand(botToken, chatId, text, baseDir) {
+  const numbers = (text.replace(/^\/again(?:@\S+)?/i, '').match(/\d+/g) || []).map(Number);
+
+  if (numbers.length === 0) {
+    await sendTelegramMessage(botToken, chatId,
+      '💡 Cú pháp dùng lệnh /again để tạo lại video:\n' +
+      '• /again 1 — Tạo lại video cảnh 1 (Cận cảnh cầm tay 8s)\n' +
+      '• /again 2 — Tạo lại video cảnh 2 (POV nhìn 2 chân 6s)\n' +
+      '• /again 3 — Tạo lại video cảnh 3 (Góc bên hông 4s)\n' +
+      '• /again 4 — Tạo lại video cảnh 4 (Đứng thử giày lối đi 8s)\n' +
+      '• /again 2 4 — Tạo lại nhiều video cùng lúc (VD: cảnh 2 và 4)'
+    );
+    return;
+  }
+
+  const runInfo = getLastRunForChat(chatId, baseDir);
+  if (!runInfo || !runInfo.panelsDir || !fs.existsSync(runInfo.panelsDir)) {
+    await sendTelegramMessage(botToken, chatId,
+      '⚠️ Chưa có dữ liệu video nào được tạo trước đó để chạy lại. Hãy gửi ảnh hoặc dùng lệnh folder để tạo mới trước nhé!');
+    return;
+  }
+
+  const template = runInfo.template || (runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3');
+  const { getPanelPrompts, generateVideosFromPanelsDirect } = require('./google-flow-storyboard');
+  const panelPrompts = getPanelPrompts(template);
+  const validPanels = [];
+  const invalidIndices = [];
+
+  for (const idx of numbers) {
+    const pPath = path.join(runInfo.panelsDir, `panel-${idx}.png`);
+    if (fs.existsSync(pPath)) {
+      const buf = fs.readFileSync(pPath);
+      validPanels.push({
+        index: idx,
+        imagePath: pPath,
+        imageBase64: buf.toString('base64'),
+        mimeType: 'image/png',
+        prompt: panelPrompts[idx - 1] || `Tạo video review giày dép faceless cảnh ${idx}`,
+      });
+    } else {
+      invalidIndices.push(idx);
+    }
+  }
+
+  if (validPanels.length === 0) {
+    await sendTelegramMessage(botToken, chatId,
+      `⚠️ Không tìm thấy ảnh panel cho cảnh: ${invalidIndices.join(', ')}. Lượt tạo gần nhất không có các cảnh này.`);
+    return;
+  }
+
+  const panelListStr = validPanels.map(p => `cảnh ${p.index}`).join(', ');
+  if (invalidIndices.length > 0) {
+    await sendTelegramMessage(botToken, chatId,
+      `⚠️ Bỏ qua số cảnh không tồn tại: ${invalidIndices.join(', ')}.`);
+  }
+
+  await sendTelegramMessage(botToken, chatId,
+    `🔄 Đang đưa yêu cầu tạo lại video cho ${panelListStr} vào hàng đợi xử lý...`);
+
+  flowQueue.enqueue({
+    chatId: String(chatId),
+    photos: [],
+    baseDir,
+    label: `Tạo lại video ${panelListStr}`,
+    execute: async (runId) => {
+      await sendTelegramMessage(botToken, chatId,
+        `🎬 Đang khởi tạo video cho ${panelListStr} bằng Google Flow Veo 3...`);
+
+      const startTime = Date.now();
+      const videos = await generateVideosFromPanelsDirect(baseDir, validPanels, {
+        aspectRatio: '9:16',
+        includeVideoBase64: true,
+      });
+
+      const videosDir = runInfo.videosDir || path.join(runInfo.runDir, 'videos');
+      if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+
+      let successCount = 0;
+      for (const v of videos) {
+        if (v.error) {
+          await sendTelegramMessage(botToken, chatId,
+            `❌ Lỗi tạo lại video cảnh ${v.panelIndex}: ${v.error}`);
+          continue;
+        }
+
+        const base64 = v.video?.base64 || (v.videoPath && fs.existsSync(v.videoPath) ? fs.readFileSync(v.videoPath).toString('base64') : null);
+        if (!base64) {
+          await sendTelegramMessage(botToken, chatId,
+            `❌ Không trích xuất được dữ liệu video cảnh ${v.panelIndex}`);
+          continue;
+        }
+
+        // Overwrite video in videosDir
+        const targetVideoPath = path.join(videosDir, `panel-${v.panelIndex}.mp4`);
+        if (v.videoPath && fs.existsSync(v.videoPath)) {
+          fs.copyFileSync(v.videoPath, targetVideoPath);
+        } else {
+          fs.writeFileSync(targetVideoPath, Buffer.from(base64, 'base64'));
+        }
+
+        const caption = `🎬 Video cảnh ${v.panelIndex} đã được tạo lại thành công!`;
+        const ok = await sendVideoToTelegramDirect(chatId, base64, v.panelIndex, `Panel ${v.panelIndex}`, caption);
+        if (ok) successCount++;
+      }
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      if (successCount > 0) {
+        await sendTelegramMessage(botToken, chatId,
+          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /again <số_cảnh> bất cứ lúc nào nếu muốn đổi lại video khác.`);
+      }
+      return { successCount, videos };
+    },
+  }).catch(err => {
+    console.error(`[Telegram Bot] /again error for chat ${chatId}:`, err.message);
+    sendTelegramMessage(botToken, chatId, `⚠️ Lỗi xử lý /again: ${err.message}`).catch(() => {});
+  });
 }
 
 /**
@@ -189,7 +377,9 @@ async function handleUpdate(botToken, update) {
         '📂 Hoặc dùng các lệnh folder trong menu bot để tải ảnh từ thư mục Drive cùng tên.\n' +
         '👟 Dùng /template1 rồi gửi ảnh để tạo review faceless 2 cảnh, không voice-over.\n' +
         '🥿 Dùng /template2 rồi gửi ảnh để tạo review 8 cảnh, mỗi cảnh 4s, không voice-over.\n' +
-        '🏬 Dùng /template3 rồi gửi ảnh để tạo review shop top-down 2 cảnh, không voice-over.\n' +
+        '🏬 Dùng /template3 rồi gửi ảnh để tạo review shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s), không voice-over.\n' +
+        '👠 Dùng /template4 rồi gửi ảnh để tạo review giày/dép nữ shop pastel 4 cảnh (cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s), không voice-over.\n' +
+        '🔄 Dùng /again <số_cảnh> (VD: /again 2 hoặc /again 1 4) để tạo lại video cảnh chưa ưng ý.\n' +
         '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.\n' +
         '📊 Dùng /status để xem hàng đợi xử lý.'
       );
@@ -222,6 +412,21 @@ async function handleUpdate(botToken, update) {
     if (text === '/template3' || text.startsWith('/template3@')) {
       console.log(`[Telegram Bot] Received /template3 command from chat ${chatId}`);
       await handleTemplate3Command(botToken, chatId);
+      return;
+    }
+
+    // ── Template 4 command ───────────────────────────────────────────────────
+    if (text === '/template4' || text.startsWith('/template4@')) {
+      console.log(`[Telegram Bot] Received /template4 command from chat ${chatId}`);
+      await handleTemplate4Command(botToken, chatId);
+      return;
+    }
+
+    // ── Again command ─────────────────────────────────────────────────────────
+    if (text === '/again' || text.startsWith('/again ') || text.startsWith('/again@') || /^\/again\d+/i.test(text)) {
+      console.log(`[Telegram Bot] Received /again command from chat ${chatId}: ${text}`);
+      const baseDir = path.resolve(__dirname, '..');
+      await handleAgainCommand(botToken, chatId, text, baseDir);
       return;
     }
 
@@ -283,7 +488,9 @@ async function handleUpdate(botToken, update) {
       } else if (selectedTemplate === 'template2') {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template2 review 8 cảnh (video 4s)...';
       } else if (selectedTemplate === 'template3') {
-        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template3 shop top-down 2 cảnh...';
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template3 shop 4 cảnh...';
+      } else if (selectedTemplate === 'template4') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template4 giày/dép nữ shop pastel 4 cảnh...';
       }
       await sendTelegramMessage(botToken, chatId, receiveMsg);
     }
@@ -329,7 +536,9 @@ async function handleUpdate(botToken, update) {
       } else if (batch.template === 'template2') {
         templateMessage = ' theo /template2 review 8 cảnh (video 4s)';
       } else if (batch.template === 'template3') {
-        templateMessage = ' theo /template3 shop top-down 2 cảnh';
+        templateMessage = ' theo /template3 shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s)';
+      } else if (batch.template === 'template4') {
+        templateMessage = ' theo /template4 shop pastel nữ 4 cảnh (cận cảnh 8s + POV váy 6s + góc nệm 4s + đứng thử dáng 8s)';
       }
 
       await sendTelegramMessage(botToken, chatId,
@@ -348,7 +557,18 @@ async function handleUpdate(botToken, update) {
         templateOptions,
         label: `Album ${photosCopy.length} ảnh${templateMessage}`,
         execute: async (runId) => {
-          return runStoryboardFullFlow(chatId, photosCopy, baseDir, { ...templateOptions, runId });
+          const res = await runStoryboardFullFlow(chatId, photosCopy, baseDir, { ...templateOptions, runId });
+          if (res && res.reviewArchive?.root) {
+            lastRunByChat.set(String(chatId), {
+              runDir: res.reviewArchive.root,
+              panelsDir: res.reviewArchive.panelsDir || path.join(res.reviewArchive.root, 'panels'),
+              videosDir: path.join(res.reviewArchive.root, 'videos'),
+              panels: res.panels,
+              template: batch.template,
+              baseDir,
+            });
+          }
+          return res;
         },
       })
         .then(() => {
@@ -394,7 +614,9 @@ async function buildTelegramCommandsFromDrive() {
     { command: 'status', description: '📊 Xem trạng thái hàng đợi xử lý' },
     { command: 'template1', description: '👟 Review faceless 2 cảnh, không voice-over' },
     { command: 'template2', description: '🥿 Review 8 cảnh, mỗi cảnh 4s, không voice-over' },
-    { command: 'template3', description: '🏬 Review shop top-down 2 cảnh, không voice-over' },
+    { command: 'template3', description: '🏬 Review shop 4 cảnh (8s, 6s, 4s, 8s), không voice-over' },
+    { command: 'template4', description: '👠 Review giày/dép nữ shop pastel 4 cảnh (8s, 6s, 4s, 8s)' },
+    { command: 'again', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /again 2)' },
     { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
   ];
 

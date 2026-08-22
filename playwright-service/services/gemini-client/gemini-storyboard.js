@@ -164,8 +164,8 @@ function isTemplate3(options = {}) {
 function resolvePanelCount(options = {}) {
   if (isTemplate1(options)) return 2;
   if (isTemplate2(options)) return 8;
-  if (isTemplate3(options)) return 2;
-  return parseInt(options.panelCount || 3, 10);
+  if (isTemplate3(options)) return 4;
+  return parseInt(options.panelCount || 4, 10);
 }
 
 // ─── Smartphone Realism Directives (template1 only) ─────────────────────────
@@ -266,11 +266,13 @@ Template3 display support rules:
 
 const TEMPLATE3_SHOP_BACKGROUND_RULES = `
 Template3 shoe shop background reference rules:
-- Use the uploaded reference asset named "shopgiay-background-reference.png" as the primary visual reference for the footwear shop environment, shelf style, retail mood, floor/display logic, and lighting consistency for this channel.
+- All 3 panels MUST share the same shoe shop background style as shown in the provided reference images (template3-scene1-*-reference, canh2-reference, canh3-reference).
+- The shop background includes: warm-toned wooden shelves, orange/blue Nike/New Balance shoe boxes, beige/cream tiled floor, warm ceiling lights, storefront window light, wooden counters/display tables.
 - The shop reference is a background/context reference only. It is NOT the product, NOT a product box, and NOT a foreground prop.
-- Both storyboard panels should feel like they were shot in the same shop from this reference: coherent shelves, shoe displays, floor/counter surfaces, retail density, and mixed shop lighting.
+- All 3 storyboard panels should feel like they were shot in the same shop: coherent shelves, shoe displays, floor/counter surfaces, retail density, and mixed shop lighting.
 - The shop background must remain secondary and clean; do not let shelves, boxes, signs, people, or props cover or compete with the footwear product.
 - Do not copy any watermark, logo, signage text, UI, price tag, or readable store text from the shop reference into the generated image.
+- Only the product (shoe/sandal) changes based on uploaded images; the background, pose, camera angle, and setting remain consistent with the references.
 `.trim();
 
 const TEMPLATE3_PANEL1_HANDHELD_COMPOSITION = `
@@ -295,15 +297,72 @@ Template3 Panel 2 footwear/sock rules:
 `.trim();
 
 const TEMPLATE3_PANEL1_CHOREOGRAPHY = `
-Hành động:
-0.0s-0.7s: Bàn tay đưa nhanh một chiếc giày/dép từ mép khung hình vào trung tâm, nâng lên phía trên chiếc còn lại đang đặt cố định. Mặt trước hoặc mặt trên hướng rõ vào camera và được giữ ngắn trong một nhịp.
-0.7s-1.7s: Xoay cổ tay dứt khoát từ mặt trên sang góc ba phần tư rồi sang mặt bên để khoe thân sản phẩm, quai/dây, độ dày đế và silhouette.
-1.7s-3.1s: Lật sản phẩm để toàn bộ mặt đế hướng thẳng vào camera. Đưa mặt đế gần máy hơn một chút và giữ ổn định khoảng 0.6-0.8 giây để nhìn rõ rãnh đế, logo/chữ và kết cấu.
-3.1s-4.2s: Xoay nhanh từ mặt đế qua phần gót rồi sang mặt bên đối diện, giới thiệu độ cao gót, mép đế và đường cong sản phẩm bằng một chuyển động liên tục có kiểm soát.
-4.2s-5.8s: Đưa sản phẩm nhanh về gần ống kính, đồng thời xoay về góc ba phần tư mặt trước. Kết thúc bằng một cận cảnh rõ nét phần thiết kế nổi bật như quai/dây, charm, họa tiết, logo hoặc phần mũi.
-5.8s-7.0s: Kéo sản phẩm lùi ra xa, xoay về mặt trên và đưa về bên cạnh chiếc còn lại. Cả hai chiếc xuất hiện đầy đủ, đúng kích thước và không chồng méo lên nhau.
-7.0s-8.0s: Nghiêng chiếc đang cầm khoảng 20-30 độ để vừa thấy mặt trên vừa thấy cạnh đế. Giữ pose kết thúc chắc chắn trong 1 giây.
-Nhịp chuyển động: Nhanh, dứt khoát, có chủ đích. Mỗi lần xoay phải kết thúc rõ ràng trước khi chuyển sang góc tiếp theo. Không xoay chậm đều, không rung lắc ngẫu nhiên, không làm sản phẩm mềm, méo hoặc biến hình.
+Hành động cảnh 1 (8 giây — cầm tay trên quầy gỗ, nghiêng cổ tay nhẹ nhàng, tuyệt đối không lật giày):
+Bàn tay luôn giữ chắc cố định ở dưới đế giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh của giày:
+0s-2s: Bàn tay giữ đế, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ góc trên và chi tiết mũi giày.
+2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài và độ cao đế.
+4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong.
+6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc chắc chắn.
+Nhịp chuyển động: Chắc chắn, mượt mà, có chủ đích, không đổi hướng bất ngờ, không biến dạng sản phẩm.
+`.trim();
+
+const TEMPLATE3_PANEL2_SCENE_REFERENCE = `
+CRITICAL — Template3 Panel 2 MUST replicate the uploaded reference image "canh2-reference.jpeg" EXACTLY:
+- Camera: First-person POV from the wearer's own CHEST looking STRAIGHT DOWN at their own legs. The camera is held at chest/upper-belly level, pointing downward at roughly 60-70 degrees. This is NOT a low-angle shot, NOT a side view, NOT a front-facing shot.
+- Legs: MUST be extended STRAIGHT FORWARD, relaxed, NOT bent at 90 degrees, NOT crossed, NOT tucked under the seat. The legs stretch out in front like the person is sitting on a high bench/seat leaning back slightly.
+- Frame composition: Two thighs visible at the LEFT and RIGHT top edges of the frame (forming a V shape). The shop floor tiles fill the middle of the frame. Feet wearing the product are at the BOTTOM CENTER of the frame, resting on the floor.
+- The distance between the chest camera and the feet is significant — roughly 1-1.5 meters of floor visible.
+- Outfit: Blue jeans (or similar casual pants), the product shoes on feet.
+- Background: Shoe store shelves with Nike/Adidas/brand shoe boxes visible in the DISTANCE (far end of the aisle), NOT close behind the feet.
+- FORBIDDEN: Do NOT bend knees at 90 degrees. Do NOT cross legs. Do NOT show a side angle. Do NOT use a low camera angle from the floor. Do NOT show hands in frame. Do NOT show the camera from outside the person.
+- Only replace the shoes with the uploaded product. Everything else (pose, angle, background, distance) must match the reference exactly.
+`.trim();
+
+const TEMPLATE3_PANEL3_SCENE_REFERENCE = `
+CRITICAL — Template3 Panel 3 MUST replicate the uploaded reference image "canh3-reference.jpeg" EXACTLY:
+- Camera: Side-angle view from the LEFT side, roughly at waist/hip height of the seated person. Camera is about 1-1.5 meters away, facing the person's side profile.
+- Person: Sitting on a TALL wooden bar stool (the stool is clearly visible — dark wood, high seat, NO backrest). The person's body from mid-torso down is visible: grey t-shirt, blue jeans, white socks, product shoes.
+- Leg position: One leg hangs down naturally from the tall stool, foot flat on the floor or near the floor. The other leg may be on the stool footrest or also hanging. The stool is HIGH enough that the person's thigh is above the knee level.
+- Face: CROPPED OUT above the frame — only body from approximately chest/shoulders down is visible.
+- Background: Shoe store interior clearly visible BEHIND the person — shelves with shoe boxes (Nike, Adidas branded boxes in red/blue/black), storefront window with daylight, overhead track lighting, grey tiled floor.
+- FORBIDDEN: Do NOT use a front-facing camera angle. Do NOT show a full face. Do NOT use a low-angle from the floor. Do NOT sit on a regular chair or bench (must be a TALL bar stool). Do NOT hide the stool.
+- Only replace the shoes with the uploaded product. Everything else (stool, pose, angle, background, outfit proportions) must match the reference exactly.
+`.trim();
+
+const TEMPLATE3_PANEL2_CHOREOGRAPHY = `
+Hành động cảnh 2 (6 giây — POV từ ngực nhìn xuống, chân trượt ngang trên sàn không nhấc khỏi mặt đất):
+Quy tắc bắt buộc: Camera cố định hoàn toàn. Chân còn lại giữ nguyên 100%. Bàn chân di chuyển LUÔN NẰM PHẲNG TRÊN MẶT SÀN, chỉ trượt ngang trên bề mặt gạch:
+0s-2s: Giữ nguyên tư thế ban đầu. Hai bàn chân nằm yên trên sàn.
+2s-4s: Rê nguyên cả bàn chân (chân phải hoặc chân trái ngẫu nhiên) trượt ngang sang bên khoảng 3–5 centimet, toàn bộ đế giày luôn tiếp xúc trực tiếp với mặt sàn gạch.
+4s-6s: Rê nguyên cả bàn chân trở lại vị trí ban đầu.
+ƯU TIÊN SỐ 1: BÀN CHÂN KHÔNG ĐƯỢC RỜI MẶT SÀN.
+ƯU TIÊN SỐ 2: CHUYỂN ĐỘNG DUY NHẤT LÀ TRƯỢT NGANG TOÀN BỘ BÀN CHÂN TRÊN MẶT SÀN.
+`.trim();
+
+const TEMPLATE3_PANEL3_CHOREOGRAPHY = `
+Hành động cảnh 3 (4 giây — góc bên hông, ngồi ghế bar cao, chuyển động chân dứt khoát):
+0s-1.2s: Chân gần camera duỗi nhẹ tự nhiên từ ghế cao, bàn chân chạm nhẹ sàn gạch, xoay nhẹ cổ chân khoe đường cong thân bên và độ dốc đế.
+1.2s-2.6s: Bàn chân tựa trên sàn gạch nhún nhẹ đệm đế êm ái khi tiếp đất.
+2.6s-4s: Nghiêng nhẹ bàn chân sang cạnh ngoài khoe chi tiết viền đế và gót, rồi thả lỏng chân về tư thế ngồi tự nhiên.
+Tuyệt đối không walking, không đứng dậy, không di chuyển khỏi ghế, không low-angle xuống đất, không tracking shot.
+`.trim();
+
+const TEMPLATE3_PANEL4_SCENE_REFERENCE = `
+CRITICAL — Template3 Panel 4 MUST replicate the standing try-on pose in the shop aisle:
+- Camera: Standing eye/chest level, looking at model from chest/waist down to feet (faceless, no face visible).
+- Model is standing in the middle of the shop aisle, body and feet slightly turned toward the camera/viewer to showcase the footwear silhouette, fit, and outfit.
+- Shoes on feet, clean socks, natural fabric folds on trousers.
+- Shoe store shelves, display columns, shoe boxes, storefront window visible behind.
+- FORBIDDEN: full face, walking, low-angle, watermark, text.
+`.trim();
+
+const TEMPLATE3_PANEL4_CHOREOGRAPHY = `
+Hành động cảnh 4 (8 giây — đứng thử giày trong lối đi shop, hai chân đặt phẳng trên sàn, tuyệt đối cấm nhón chân, cấm nhảy):
+Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy:
+0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và phom quần.
+2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong.
+5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin trước gương shop khoe trực diện tổng thể form dáng giày và outfit.
+Tuyệt đối cấm nhảy, không nhón gót, không jumping, không hopping, không walking rời khung hình, không lộ mặt người.
 `.trim();
 
 // ─── Template2: 8-scene footwear review structure ────────────────────────────
@@ -552,35 +611,37 @@ ${TEMPLATE3_SHOP_BACKGROUND_RULES}
 IMPORTANT — PANEL 1 HANDHELD COMPOSITION:
 ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION}
 
-IMPORTANT — PANEL 2 SOCK / BAREFOOT LOGIC:
+IMPORTANT — PANEL 2/3 SOCK / BAREFOOT LOGIC:
 ${TEMPLATE3_PANEL2_SOCK_RULES}
 
+IMPORTANT — PANEL 2 SCENE REFERENCE (POV from chest):
+${TEMPLATE3_PANEL2_SCENE_REFERENCE}
+
+IMPORTANT — PANEL 3 SCENE REFERENCE (side angle bar stool):
+${TEMPLATE3_PANEL3_SCENE_REFERENCE}
+
 Requirements:
-- Template: template3 faceless footwear shop top-down review.
+- Template: template3 faceless footwear shop review.
 - Category: ${category}
-- Panel count: exactly 2.
+- Panel count: exactly 4.
 - Scene ratio for each panel: ${sceneRatio}.
 - Use the uploaded product reference images as the source of truth for product type, color, material, sole, straps/laces, logo/text, silhouette, charm, pattern, stitching, and styling.
-- Use "shopgiay-background-reference.png" as the shared footwear shop background/style reference for both panels, while keeping the uploaded footwear product as the only product identity source.
-- Scene context must be a real footwear shop / shoe store interior. Do not choose a home, bedroom, living room, cafe, beach, street, or studio.
-- Randomly choose ONE coherent footwear shop area for the whole storyboard, such as a display counter, shoe-box shelf corner, fitting bench area, or retail floor near product shelves.
-- Randomly choose ONE realistic shop time/lighting plan, such as daytime storefront light mixed with ceiling lights, evening shop light, or mall/store lighting.
-- Both panels must share the exact same shop setting, time of day, surface/floor logic, background shelves, color palette, mood, and lighting plan.
-- Randomly choose ONE outfit styling direction for the faceless wearer in Panel 2. The outfit must fit the footwear, shop setting, inferred gender/styling, and retail try-on context.
-- Do not hardcode one default outfit such as cream/beige wide pants. Use that only if it truly fits the product.
-- Faceless only: no visible faces, no talking host, no presenter, no full body. You may show hands, forearms, feet, lower legs, or cropped outfit/body parts only.
-- Panel 1 composition is mandatory: top-down smartphone camera from above, almost fixed; one shoe/sandal is held by a realistic hand/forearm for product rotation, and the matching other shoe/sandal stays stationary below/on the product base.
-- Panel 1 must feel like the provided layout reference: one footwear piece close to camera in the hand, one matching piece below, product base visible, shop background context around the surface.
-- Panel 1 hand pose is mandatory: the hand grips the product firmly at the sole edge and side body, fingers supporting the outsole/side, thumb stabilizing the upper/side edge; the held product is tilted 15-30 degrees so the top/upper, toe/front, straps/laces, side body, and part of the sole edge are all visible.
-- Panel 1 foreground/background scale is mandatory: the held product in hand is larger and dominant in the foreground; the matching other product is smaller in the background/below but fully visible and not blocked.
-- Panel 1 product base rule: if product reference images clearly show a matching shoe box, use that box; otherwise use the display stand reference asset named "giadegiay-display-stand-reference.webp" for the stationary shoe.
-- Panel 2 composition is mandatory: same as template1 Panel 2, top-down POV / first-person camera from above looking at the wearer trying the footwear on feet in the same footwear shop, sitting still or standing still in one place.
-- Panel 2 sock logic is mandatory: if the analyzed product type is sneaker/shoe/loafer/boot/closed-toe footwear, the wearer must wear appropriate socks; if it is sandal/slide/slipper/open-toe dép, the wearer should normally be barefoot.
-- Panel 2 must not show walking, stepping forward, low-angle shot, tracking shot, or body movement through space.
+- All 4 panels MUST share the same shoe shop background style as the reference images. Only the product (shoe/sandal) changes based on uploaded images.
+- Scene context must be a real footwear shop / shoe store interior matching the reference images. Do not choose a home, bedroom, living room, cafe, beach, street, or studio.
+- All 4 panels must share the exact same shop setting, surface/floor logic, background shelves, color palette, mood, and lighting plan.
+- Randomly choose ONE outfit styling direction for the faceless wearer in Panel 2, Panel 3, and Panel 4. The outfit must fit the footwear, shop setting, inferred gender/styling, and retail try-on context.
+- Faceless only: no visible faces, no talking host, no presenter. You may show hands, forearms, feet, lower legs, torso, or cropped outfit/body parts only.
+- Panel 1 (8 seconds) composition: top-down smartphone camera from above, one shoe/sandal held by a realistic hand, the matching other stationary below/on the product base. Use "template3-scene1-shoebox-reference.png" if shoe box visible, or "template3-scene1-stand-reference.png" if not.
+- Panel 1 hand pose is mandatory: the hand grips the product firmly at the sole edge and side body, tilted 15-30 degrees.
+- Panel 1 product base rule: if product reference images clearly show a matching shoe box, use that box; otherwise use the display stand reference.
+- Panel 2 (4 seconds) composition: POV from the wearer's own chest looking down at their legs; sitting on an elevated seat in the same shop; legs extended straight forward, relaxed; feet wearing the product. Match reference "canh2-reference.jpeg" exactly for composition, pose, and camera angle. Only replace the product.
+- Panel 2 sock logic is mandatory: if closed-toe footwear, wear appropriate socks; if open sandal/slide/slipper, barefoot.
+- Panel 3 (4 seconds) composition: side-angle camera view; person sitting on a tall bar stool in the same shop; camera from the side captures leg, shoe, stool, and part of body; faceless. Match reference "canh3-reference.jpeg" exactly for composition, pose, and camera angle. Only replace the product.
+- Panel 3 sock logic same as Panel 2.
+- Panel 4 (4 seconds) composition: standing try-on pose in shop aisle; model standing with body and feet turned toward camera to show footwear fit and outfit; faceless from chest/waist down. Match shop aisle context.
+- Panel 4 sock logic same as Panel 2/3.
 - No voice-over, no dialogue, no subtitles, no captions, no UI, no price, no rating, no watermark.
-- Do not add text. Preserve only real existing product logo/text from the product reference if visible.
-- Product identity must remain consistent across both panels.
-- When writing visualDescription for each panel, embed the smartphone/shop realism details: normal phone camera, mixed shop lighting, real material texture, hand/skin pores, floor/shelf imperfections, not plastic/AI-looking.
+- Product identity must remain consistent across all 4 panels.
 - Return ONLY valid JSON. No markdown, no commentary.
 
 JSON schema:
@@ -598,15 +659,16 @@ JSON schema:
     "shoeBoxEvidence": "what visible product box/packaging was detected, or 'not visible'"
   },
   "sceneContext": {
-    "location": "one random shared FOOTWEAR SHOP location for both panels",
-    "timeOfDay": "random shared shop time/lighting condition",
+    "location": "footwear shop matching the reference images",
+    "timeOfDay": "shop time/lighting condition matching references",
     "lighting": "mixed shop/store lighting plan with realistic shadows and no studio look",
     "mood": "authentic, fast, commercial shop review",
-    "cameraCharacteristics": "smartphone 1x lens 24-28mm, Auto mode, top-down/POV, slight hand shake, no fake bokeh",
-    "continuityRules": "how both panels keep the same shop setting, lighting, shelf/floor logic, and product identity"
+    "cameraCharacteristics": "smartphone 1x lens 24-28mm, Auto mode, various angles per panel, slight hand shake, no fake bokeh",
+    "continuityRules": "how all 4 panels keep the same shop setting, lighting, shelf/floor logic, and product identity"
   },
   "productSupportPlan": {
     "panel1StationaryBase": "use visible matching shoe box from reference OR use giadegiay-display-stand-reference.webp if no box is visible",
+    "panel1ReferenceImage": "template3-scene1-shoebox-reference.png OR template3-scene1-stand-reference.png",
     "reason": "why this support choice was selected from product references",
     "propSafety": "display stand is a prop only; product remains exactly the Telegram uploaded footwear"
   },
@@ -621,44 +683,66 @@ JSON schema:
       "id": 1,
       "duration": "00:00-00:08",
       "goal": "Top-down hand rotation hero review",
-      "visualDescription": "top-down smartphone shop-review layout: one shoe/sandal held large in the foreground by a realistic hand gripping the sole edge and side body, tilted 15-30 degrees so the top/upper, toe/front, straps/laces, side body, and part of the sole edge are visible; the matching stationary shoe stays smaller below/background on the product base but fully visible; footwear shop shelves/floor visible around the surface, product material looks real",
+      "visualDescription": "top-down smartphone shop-review layout matching scene1 reference: one shoe/sandal held large in the foreground by a realistic hand gripping the sole edge and side body, tilted 15-30 degrees; the matching stationary shoe stays smaller below/background on the product base; footwear shop shelves/floor visible around the surface",
       "cameraAction": "almost fixed top-down smartphone camera; movement comes from the hand: lift, wrist rotation, sole flip, close push-in, return to pair",
       "productFocus": "upper/top, side silhouette, sole tread, heel/edge, straps/laces, logo/text, charm/pattern/stitching, material texture"
     },
     {
       "id": 2,
-      "duration": "00:08-00:16",
-      "goal": "Stationary POV on-foot proof in shop",
-      "visualDescription": "top-down first-person POV in the same footwear shop, wearer trying the product on feet while sitting or standing still in one place; if the product is a closed shoe/sneaker/loafer/boot the wearer has appropriate socks, if open sandal/slide/slipper/dép then barefoot; cropped outfit visible, floor/shelves consistent",
-      "cameraAction": "stationary top-down POV with only tiny handheld drift and a short push-in; no walking, no tracking",
-      "productFocus": "on-foot shape, fit, strap/lace/detail visibility, outsole thickness, outfit pairing, realistic try-on value"
+      "duration": "00:08-00:12",
+      "goal": "POV chest-down seated try-on proof",
+      "visualDescription": "POV from wearer's chest looking down at own legs matching canh2-reference.jpeg: sitting on elevated seat in same shop, legs extended straight forward relaxed, feet wearing the product at bottom center of frame, thighs at top edges, same shop background with shelves/shoe boxes/tiled floor visible",
+      "cameraAction": "first-person smartphone held at chest level, looking down; tiny handheld drift only; no top-down 90°, no side angle, no orbit, no tracking",
+      "productFocus": "on-foot shape, fit, product visibility from above, outfit pairing, shop try-on value"
+    },
+    {
+      "id": 3,
+      "duration": "00:12-00:16",
+      "goal": "Side-angle bar stool try-on showcase",
+      "visualDescription": "side-angle view matching canh3-reference.jpeg: person sitting on tall bar stool in same shop, camera from the side captures waist-down (t-shirt, thigh, full leg, shoe on foot), leg hangs naturally, foot touching or near floor, same shop background visible behind, faceless",
+      "cameraAction": "side-angle medium shot at sitting height; slight natural camera sway; no low-angle, no orbit, no tracking, no walking",
+      "productFocus": "side profile on foot, leg silhouette, shoe form during natural movement, outfit pairing, bar stool lifestyle context"
+    },
+    {
+      "id": 4,
+      "duration": "00:16-00:20",
+      "goal": "Standing try-on showcase in shop aisle",
+      "visualDescription": "standing try-on pose in shop aisle, camera from waist down, model standing with body and feet turned toward viewer showcasing shoe silhouette and outfit, faceless",
+      "cameraAction": "straight medium shot from standing eye/chest level pointing down slightly, slight handheld natural drift",
+      "productFocus": "standing profile on foot, overall footwear silhouette and proportions, outfit matching"
     }
   ],
-  "frameData": "Combined detailed visual plan for exactly 2 panels, including the shared shop sceneContext, productSupportPlan, and realism direction.",
-  "cropTemplate": "How to extract each panel cleanly while preserving the shop setting, top-down/POV composition, product support, lighting, and product identity.",
+  "frameData": "Combined detailed visual plan for exactly 4 panels, including the shared shop sceneContext, productSupportPlan, and realism direction.",
+  "cropTemplate": "How to extract each panel cleanly while preserving the shop setting, composition, product support, lighting, and product identity.",
   "veo3Prompts": [
     "One single-line Vietnamese Veo 3 prompt for panel 1 without voice-over, exactly 8 seconds, top-down shop hand rotation, using the mandatory choreography.",
-    "One single-line Vietnamese Veo 3 prompt for panel 2 without voice-over, exactly 8 seconds, template1-style POV on-foot proof in the same shop."
+    "One single-line Vietnamese Veo 3 prompt for panel 2 without voice-over, exactly 4 seconds, POV from chest looking down at legs in the same shop, matching canh2-reference.jpeg composition.",
+    "One single-line Vietnamese Veo 3 prompt for panel 3 without voice-over, exactly 4 seconds, side-angle bar stool try-on in the same shop, matching canh3-reference.jpeg composition.",
+    "One single-line Vietnamese Veo 3 prompt for panel 4 without voice-over, exactly 8 seconds, standing try-on in shop aisle, faceless."
   ]
 }
 
 Important:
 - Do not include a voiceOver field anywhere in the JSON.
-- "script" and "veo3Prompts" must contain exactly 2 items.
+- "script" and "veo3Prompts" must contain exactly 4 items.
 - Each veo3 prompt must be one line, with no newline characters.
 - Each veo3 prompt must include VISUAL, Tone & Mood.
 - Each veo3 prompt must explicitly say: "Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark."
 - Each veo3 prompt must include realism cues: "quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da tay/chân thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI."
-- Panel 1 veo3 prompt MUST use this exact action choreography and must not replace it with generic product rotation:
+- Panel 1 veo3 prompt MUST use this exact action choreography:
 ${TEMPLATE3_PANEL1_CHOREOGRAPHY}
-- Panel 1 storyboard and panel image prompts MUST follow this hand-held composition exactly:
+- Panel 1 MUST follow this hand-held composition:
 ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION}
-- Panel 1 must explicitly say: if no shoe box appears in the product reference, the stationary shoe is placed on the giadegiay display stand reference, while the moving hand-held product remains exactly the Telegram uploaded product.
-- Panel 2 storyboard and video prompts MUST follow this footwear/sock rule:
+- Panel 1 must use the correct scene1 reference image based on shoe box presence.
+- Panel 2 veo3 prompt MUST match the composition of canh2-reference.jpeg and use this choreography:
+${TEMPLATE3_PANEL2_CHOREOGRAPHY}
+- Panel 2, Panel 3, and Panel 4 MUST follow this footwear/sock rule:
 ${TEMPLATE3_PANEL2_SOCK_RULES}
-- Panel 2 veo3 prompt MUST use the same stationary POV choreography style as template1 Panel 2:
-${TEMPLATE1_PANEL2_CHOREOGRAPHY}
-- Panel 2 must be top-down POV from above in a footwear shop, with the wearer standing still or sitting still in one place. Do not write walking, stepping forward, low-angle, or tracking movement.
+- Panel 3 veo3 prompt MUST match the composition of canh3-reference.jpeg and use this choreography:
+${TEMPLATE3_PANEL3_CHOREOGRAPHY}
+- Panel 4 veo3 prompt MUST match the standing try-on composition and use this choreography:
+${TEMPLATE3_PANEL4_CHOREOGRAPHY}
+- All 4 panels must share the same shop background. Only the product changes.
 - Do not ask follow-up questions. Return ONLY valid JSON.`.trim();
   }
 
@@ -815,7 +899,8 @@ Important:
 - "analysis.hashtags" must contain exactly 5 unique hashtags, each starting with "#".
 - "script" and "veo3Prompts" must contain exactly ${panelCount} items.
 - Each veo3 prompt must be one line, with no newline characters.
-- Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and vietnamese voice Script.`.trim();
+- Each veo3 prompt must include VISUAL, Tone & Mood, Action timing 0s-4s and 5s-8s, and vietnamese voice Script.
+- Each veo3 prompt MUST include smartphone realism cues: "quay bằng điện thoại, ánh sáng tự nhiên cửa sổ, bề mặt sản phẩm lì có vân khuôn, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI."`.trim();
 }
 
 function buildStoryboardPrompt(analysis, options = {}) {
@@ -902,25 +987,57 @@ ${TEMPLATE3_SHOP_BACKGROUND_RULES}
 PANEL 1 HANDHELD COMPOSITION RULES:
 ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION}
 
-PANEL 2 SOCK / BAREFOOT RULES:
+PANEL 2/3/4 SOCK / BAREFOOT RULES:
 ${TEMPLATE3_PANEL2_SOCK_RULES}
 
+PANEL 2 SCENE REFERENCE (POV from chest):
+${TEMPLATE3_PANEL2_SCENE_REFERENCE}
+
+PANEL 3 SCENE REFERENCE (side angle bar stool):
+${TEMPLATE3_PANEL3_SCENE_REFERENCE}
+
+PANEL 4 SCENE REFERENCE (standing try-on in aisle):
+${TEMPLATE3_PANEL4_SCENE_REFERENCE}
+
 Storyboard requirements:
-- Exactly 2 panels arranged side by side in one single still image.
+- Exactly 4 panels arranged side by side in one single still image.
 - Each panel frame is optimized for ${sceneRatio} aspect ratio.
-- Use uploaded reference asset "shopgiay-background-reference.png" as the shared shop environment reference for both panels, including shelves/display mood/floor/counter/lighting. Keep it secondary behind the product.
-- Both panels must share the same real footwear shop setting, time of day, surface/floor logic, shelves/display background, mood, and lighting plan from Scene plan.
-- Panel 1 is mandatory: top-down smartphone shot from above, almost fixed camera, one shoe/sandal held by a realistic hand in the foreground, larger than everything else, the matching other shoe/sandal stationary below/background on the product base.
-- Panel 1 must match the reference layout idea: held product in foreground occupying about 55-70% of panel height, matching stationary pair below/background still fully visible, product support visible, shop context around the table/counter/floor.
-- Panel 1 hand pose must look correct: fingers support under/along the outsole and side body, thumb stabilizes the side/upper edge, product tilted 15-30 degrees, top/upper, toe/front, straps/laces, side body, and a portion of the sole edge visible at once.
-- Panel 1 must not show a pinch-only grip, heel-only grip, covered laces/straps/logo, hidden top surface, horizontal side-view camera, low-angle camera, or orbit-style composition.
-- If the uploaded product references show a matching shoe box, use that box. If not, use uploaded reference asset "giadegiay-display-stand-reference.webp" only as the shoe display stand for the stationary shoe.
-- Panel 2 is mandatory: template1-style top-down POV on-foot proof in the exact same shop. The wearer is sitting still or standing still in one place, no walking and no tracking.
-- Panel 2 sock/barefoot logic is mandatory: if the product is a closed shoe/sneaker/loafer/boot, show appropriate socks; if the product is open sandal/slide/slipper/dép, keep the wearer barefoot unless styling clearly supports socks.
+- All 4 panels MUST share the same shoe shop background matching the reference images.
+
+CRITICAL — Panel 1 MUST match scene1 reference image EXACTLY:
+- Camera: TOP-DOWN angle from ABOVE looking straight down at the products on a surface/table. NOT a side view, NOT a horizontal shot.
+- One shoe/sandal held by a realistic hand in the FOREGROUND (larger, closer to camera, occupying 55-70% of frame height).
+- The matching OTHER shoe/sandal placed STATIONARY on: the shoe box if product reference has a box, OR on the giadegiay display stand if no box. Do NOT place it flat on a bare table/surface without the box or stand.
+- The giadegiay display stand is a metal T-shaped shoe holder. Use it exactly as shown in the reference "giadegiay-display-stand-reference.webp" or "template3-scene1-stand-reference.png".
+- Hand grip: fingers support outsole/side body, thumb on upper/side edge, product tilted 15-30 degrees.
+
+CRITICAL — Panel 2 MUST match "canh2-reference.jpeg" EXACTLY:
+- Camera: POV from the wearer's own CHEST looking STRAIGHT DOWN at their own legs. Camera angle approximately 60-70 degrees downward.
+- Legs: Extended STRAIGHT FORWARD, NOT bent at 90 degrees, NOT crossed, NOT tucked.
+- Two thighs at LEFT and RIGHT top edges of frame (V shape). Floor tiles visible in middle. Feet at BOTTOM CENTER.
+- 1-1.5 meters of floor tiles visible between camera and feet.
+- FORBIDDEN: bent knees, crossed legs, side angle, low camera angle, hands in frame.
+
+CRITICAL — Panel 3 MUST match "canh3-reference.jpeg" EXACTLY:
+- Camera: SIDE-ANGLE view from the LEFT side, at waist/hip height.
+- Person sitting on a TALL wooden bar stool (dark wood, high seat, visible in frame).
+- Visible body: grey t-shirt, blue jeans, white socks, product shoes. From mid-torso down.
+- Leg hangs NATURALLY from the tall stool, foot on or near the floor.
+- Face CROPPED OUT above the frame.
+- Shoe store shelves, shoe boxes, storefront window visible behind.
+- FORBIDDEN: front-facing angle, full face, regular chair, hidden stool.
+
+CRITICAL — Panel 4 MUST match standing try-on pose in aisle:
+- Camera: Eye/chest level looking down slightly at model from waist down to feet (faceless, no face visible).
+- Model standing in shop aisle, body and feet turned toward viewer to show footwear fit and outfit.
+- Natural standing pose on shop floor tiles, background display columns and shoe boxes visible.
+- FORBIDDEN: full face, walking, low-angle from floor.
+
+Additional rules:
+- Panel 2, 3, and 4 sock/barefoot logic: closed shoes require socks, open sandals/slides should be barefoot.
 - Preserve product design, color, material, silhouette, logo/text, sole, straps/laces, charm, pattern, stitching, and identity from the product reference photos.
-- The stationary shoe and hand-held shoe must be the same pair, identical in size, color, design, and material.
-- No visible faces. Only hands, forearms, feet, lower legs, or cropped outfit/body parts are allowed when useful.
-- Do not create a home, bedroom, living room, cafe, beach, street, studio, low-angle shot, or movement-through-space scene.
+- No visible faces. Only hands, forearms, feet, lower legs, torso, or cropped outfit/body parts allowed.
+- Only the product changes across panels — background, pose, camera angle remain as in references.
 - ${textRule} Preserve only real product logo/text that exists on the reference product.
 - Output must be a still photo collage. Do NOT generate or describe a video.
 
@@ -986,12 +1103,17 @@ Generate one still storyboard image now.`.trim();
 
   return `Generate one clean fashion storyboard image (still photo collage, NOT a video) from the uploaded product reference images.
 
+CRITICAL VISUAL DIRECTION — SMARTPHONE REALISM:
+${SMARTPHONE_REALISM_FULL}
+
 Storyboard requirements:
 - Exactly ${panelCount} panels arranged side by side in one single image.
 - Each panel frame is optimized for ${sceneRatio} aspect ratio.
 - Show one coherent Vietnamese fashion product review photo sequence.
 - Preserve product design, color, material, and identity from the reference photos.
-- Use cinematic commercial lighting, realistic fashion photography, clean composition.
+- Use natural smartphone camera aesthetics: natural window light with gradient falloff, slight overexposure near window, realistic shadow contact. No studio lighting, no cinematic color grading.
+- Product material: matte texture with visible grain, mold seam lines, stitching. NEVER glossy porcelain or smooth 3D-render finish.
+- Human skin: visible pores, knuckle creases, natural tone variation. NEVER waxy/plastic skin.
 - ${textRule}
 - Output must be a still photograph/illustration. Do NOT generate or describe a video.
 
@@ -1044,19 +1166,43 @@ Generate exactly one still image now.`.trim();
   }
 
   if (isTemplate3(options)) {
-    const panelSpecificRules = panelIndex === 1
-      ? `- Panel 1 mandatory composition: top-down smartphone camera from above, almost fixed; one shoe/sandal is held by a realistic hand close to the camera in the foreground and is clearly larger than the matching other shoe/sandal.
-- The held product should occupy about 55-70% of the panel height. The matching other shoe/sandal stays below or in the background, smaller but still fully visible with complete form.
-- Hand grip must be realistic and stable: fingers support the outsole/sole edge and side body, thumb stabilizes the side/upper edge. Do not pinch only the toe, hold only the heel, cover the laces/straps/logo/front design, or hide the top surface.
-- The held product must be tilted about 15-30 degrees, showing the top/upper, toe/front, straps/laces, side body, and part of the sole edge in the same image.
-- If a matching shoe box appears in the product reference/storyboard, keep it as the base. If no shoe box is visible, use "giadegiay-display-stand-reference.webp" only as the shoe display stand prop for the stationary shoe.
-- Show the start frame for the hand-rotation hero review: the held product is entering/raised above the stationary pair, with top/upper facing camera clearly.
-- Do not show a face, full body, horizontal side-view camera, low-angle camera, orbit composition, TikTok UI, caption, watermark, or added logo/text.`
-      : `- Panel 2 mandatory composition: top-down POV / first-person camera from above, wearer trying the footwear on feet in the exact same footwear shop.
-- The wearer is sitting still or standing still in one place. Do not show walking, stepping forward, low-angle tracking, or movement through space.
-- Footwear/sock logic is mandatory: if product is a closed shoe/sneaker/loafer/boot, show appropriate clean socks; if product is open sandal/slide/slipper/dép, show natural bare feet unless styling clearly supports socks.
-- Use the randomized outfit direction from the storyboard/shot concept; do not force cream/beige wide pants unless outfitPlan selected it.
-- Show realistic shop floor, fitting bench/shelf context, and natural foot/ankle asymmetry.`;
+    let panelSpecificRules;
+    if (panelIndex === 1) {
+      panelSpecificRules = `CRITICAL — Panel 1 MUST match scene1 reference image:
+- Camera: TOP-DOWN from ABOVE, looking straight down at the products on a surface/counter. NOT a side view, NOT a horizontal shot.
+- One shoe/sandal held by a realistic hand in the FOREGROUND, occupying 55-70% of panel height.
+- The OTHER shoe/sandal placed STATIONARY on: shoe box (if reference has one) OR on the giadegiay metal T-shaped display stand. Do NOT place it flat on a bare surface.
+- Hand grip: fingers on outsole/side body, thumb on upper/side, product tilted 15-30 degrees.
+- Background: warm wooden shelves, orange/blue shoe boxes, beige tiled floor, warm ceiling lights — matching scene1 reference.
+- FORBIDDEN: side-view camera, horizontal shot, face, full body, orbit composition, watermark, added text, bare table without box or stand.`;
+    } else if (panelIndex === 2) {
+      panelSpecificRules = `CRITICAL — Panel 2 MUST replicate "canh2-reference.jpeg" EXACTLY:
+- Camera: POV from wearer's CHEST looking STRAIGHT DOWN at own legs. Camera at chest level, pointing down 60-70 degrees.
+- Legs EXTENDED STRAIGHT FORWARD, relaxed, NOT bent at 90 degrees, NOT crossed.
+- Frame: Two thighs at LEFT/RIGHT top edges (V shape). Floor tiles in middle. Feet with product at BOTTOM CENTER.
+- 1-1.5 meters of floor tiles visible between camera and feet.
+- Blue jeans or similar casual pants. Socks if closed-toe shoes; barefoot if sandals.
+- Shoe store shelves with brand boxes visible in the DISTANCE.
+- FORBIDDEN: bent knees at 90°, crossed legs, side angle, low camera, hands in frame, walking, standing up, front-facing camera.`;
+    } else if (panelIndex === 3) {
+      panelSpecificRules = `CRITICAL — Panel 3 MUST replicate "canh3-reference.jpeg" EXACTLY:
+- Camera: SIDE-ANGLE from the LEFT side, at waist/hip height, 1-1.5m away.
+- Person sitting on a TALL wooden bar stool (dark wood, high seat, NO backrest, stool clearly visible).
+- Visible body from mid-torso down: grey t-shirt, blue jeans, socks, product shoes.
+- Leg hangs NATURALLY from the tall stool, foot flat on or near floor.
+- Face CROPPED OUT above frame.
+- Shoe store shelves, shoe boxes, storefront window, track lighting visible behind.
+- FORBIDDEN: front-facing angle, full face, regular chair/bench, hidden stool, low-angle from floor, walking.`;
+    } else if (panelIndex === 4) {
+      panelSpecificRules = `CRITICAL — Panel 4 MUST replicate the standing try-on pose in the shop aisle:
+- Camera: Standing eye/chest level, looking at model from chest/waist down to feet (faceless, no face visible).
+- Model is standing in the middle of the shop aisle, body and feet slightly turned toward the camera/viewer to showcase the footwear silhouette, fit, and outfit.
+- Shoes on feet, clean socks, natural fabric folds on trousers.
+- Shoe store shelves, display columns, shoe boxes, storefront window visible behind.
+- FORBIDDEN: full face, walking, low-angle, watermark, text.`;
+    } else {
+      panelSpecificRules = `- Unknown panel index ${panelIndex}, use default shop try-on composition.`;
+    }
 
     return `Generate a single faceless footwear shop-review photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
 
@@ -1072,20 +1218,18 @@ ${TEMPLATE3_SHOP_BACKGROUND_RULES}
 PANEL 1 HANDHELD COMPOSITION RULES:
 ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION}
 
-PANEL 2 SOCK / BAREFOOT RULES:
+PANEL 2/3 SOCK / BAREFOOT RULES:
 ${TEMPLATE3_PANEL2_SOCK_RULES}
 
 Panel: ${panelIndex} of ${panelCount}
 Aspect ratio: ${sceneRatio}
 Instructions:
 - ${source}
-- Keep the product identity exactly consistent with the product reference photo(s), including color, material, silhouette, sole, straps/laces, logo/text, charm, pattern, stitching, and proportions.
-- Use "shopgiay-background-reference.png" as the shop environment reference for shelves/display/floor/counter/lighting, but keep it secondary and do not copy any text/watermark/signage.
-- Keep the shared footwear shop setting, time of day, mixed shop lighting, floor/shelf logic, and mood consistent with the storyboard scene.
+- Keep the product identity exactly consistent with the product reference photo(s).
+- Keep the shared footwear shop setting, mixed shop lighting, floor/shelf logic, and mood consistent with the reference images and storyboard scene.
 - The photo must look like it was casually taken with a normal smartphone camera, not a professional studio photo or AI render.
 - Product material must show real texture/grain/weave/seams/scuffs/fingerprints where appropriate. Never make it glossy porcelain, waxy plastic, melted, or deformed.
-- Human skin must show visible pores, knuckle creases, light veins, natural skin tone variation, and correct anatomy. No extra fingers.
-- Framing can be slightly off-center; shop shelves/floor/counter details should feel real but not distract from the product.
+- Human skin must show visible pores, knuckle creases, light veins, natural skin tone variation, and correct anatomy.
 ${panelSpecificRules}
 - Make it a vertical start frame suitable for image-to-video, maintaining the same shop smartphone aesthetic.
 
@@ -1136,7 +1280,10 @@ Generate exactly one still image now.`.trim();
 
   // Keep the panel prompt focused on still image generation.
   // Do NOT mention Veo 3 / video by name to avoid triggering video mode.
-  return `Generate a single polished fashion photograph (still image, NOT a video).
+  return `Generate a single polished fashion photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
+
+CRITICAL VISUAL DIRECTION — SMARTPHONE REALISM:
+${SMARTPHONE_REALISM_FULL}
 
 Panel: ${panelIndex} of ${panelCount}
 Aspect ratio: ${sceneRatio}
@@ -1144,7 +1291,13 @@ Instructions:
 - ${source}
 - Keep the product identity exactly consistent with the reference photo(s).
 - Do not include text, labels, captions, UI, or watermarks.
-- Cinematic commercial lighting, vertical frame, clean background.
+- Natural smartphone camera aesthetics: natural light with gradient falloff, slight overexposure, realistic shadows. No studio lights, no cinematic color grading.
+- Product surface: matte texture with visible grain, seam lines, fingerprint marks. NEVER glossy porcelain or smooth render finish.
+- Human skin: visible pores, knuckle creases, natural skin tone variation. NEVER waxy/plastic skin.
+- Socks (if visible): slight wrinkles, compression, off-white not pure white.
+- Fabric/clothing: visible weave texture, stitching, natural creases.
+- Framing: slightly off-center, not perfectly aligned. Background has real-world details.
+- Faint sensor noise in shadow areas, light sharpening artifacts near edges.
 
 Scene description:
 - Visual: ${scriptItem.visualDescription || ''}
@@ -1198,8 +1351,6 @@ function normalizeAnalysis(data, panelCount, options = {}) {
             `${prompt} Quy tắc bắt buộc Panel 1: tay nữ đẹp cầm một chiếc dép sát camera, móng nude/hồng bóng nhẹ, đúng giải phẫu, chiếc dép còn lại ở phía sau cùng bối cảnh.`
           );
         } else if (idx === 1) {
-          // Replace Gemini's generic Panel 2 choreography with the exact choreography from 2.video.md
-          // Strip Gemini's action timing ("Hành động 0s-4s:..." / "Hanh dong...") and inject ours
           prompt = prompt
             .replace(/H[aà]nh\s+[đd][oộ]ng\s+\d+s[^.]*\./giu, '')
             .replace(/Action\s+\d+s[^.]*\./gi, '');
@@ -1210,14 +1361,28 @@ function normalizeAnalysis(data, panelCount, options = {}) {
       } else if (useTemplate3) {
         if (idx === 0) {
           prompt = normalizePrompt(
-            `${prompt} Quy tắc bắt buộc Panel 1 / Template3: Cảnh shop giày dép, camera smartphone top-down cố định từ trên xuống, một chiếc giày/dép được tay cầm để giới thiệu, chiếc còn lại đặt cố định trên hộp giày nếu ảnh tham chiếu có hộp; nếu không có hộp thì đặt trên giá đỡ theo reference giadegiay-display-stand-reference.webp. Sản phẩm di chuyển luôn là sản phẩm đã upload từ Telegram; giá đỡ chỉ là prop. ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION} ${TEMPLATE3_PANEL1_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da tay thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+            `${prompt} Quy tắc bắt buộc Panel 1 / Template3: Cảnh shop giày dép, camera smartphone top-down cố định từ trên xuống, một chiếc giày/dép được tay cầm để giới thiệu, chiếc còn lại đặt cố định trên hộp giày nếu ảnh tham chiếu có hộp; nếu không có hộp thì đặt trên giá đỡ theo reference giadegiay-display-stand-reference.webp. Sản phẩm di chuyển luôn là sản phẩm đã upload từ Telegram; giá đỡ chỉ là prop. Background phải khớp hình reference scene1. ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION} ${TEMPLATE3_PANEL1_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da tay thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
           );
         } else if (idx === 1) {
           prompt = prompt
             .replace(/H[aà]nh\s+[đd][oộ]ng\s+\d+s[^.]*\./giu, '')
             .replace(/Action\s+\d+s[^.]*\./gi, '');
           prompt = normalizePrompt(
-            `${prompt} Quy tắc bắt buộc Panel 2 / Template3: POV top-down từ trên xuống trong cùng shop giày dép, người mẫu đứng im hoặc ngồi im một chỗ, không walking, không stepping forward, không low-angle, không tracking shot. ${TEMPLATE3_PANEL2_SOCK_RULES} ${TEMPLATE1_PANEL2_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+            `${prompt} Quy tắc bắt buộc Panel 2 / Template3 (4 giây): POV từ ngực nhìn xuống đôi chân trong cùng shop giày dép; bố cục PHẢI khớp hình reference canh2-reference.jpeg: ngồi trên ghế cao, chân duỗi thẳng ra phía trước thoải mái, camera cầm tay từ ngực nhìn thẳng xuống; chỉ thay sản phẩm giày/dép, giữ nguyên background shop. ${TEMPLATE3_PANEL2_SOCK_RULES} ${TEMPLATE3_PANEL2_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+          );
+        } else if (idx === 2) {
+          prompt = prompt
+            .replace(/H[aà]nh\s+[đd][oộ]ng\s+\d+s[^.]*\./giu, '')
+            .replace(/Action\s+\d+s[^.]*\./gi, '');
+          prompt = normalizePrompt(
+            `${prompt} Quy tắc bắt buộc Panel 3 / Template3 (4 giây): Góc camera từ bên hông trong cùng shop giày dép; bố cục PHẢI khớp hình reference canh3-reference.jpeg: ngồi trên ghế bar cao, camera từ bên cạnh, thấy phần thân dưới từ eo xuống (áo, đùi, chân, giày), chân thả lỏng tự nhiên, faceless. Chỉ thay sản phẩm giày/dép, giữ nguyên background shop. ${TEMPLATE3_PANEL2_SOCK_RULES} ${TEMPLATE3_PANEL3_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, nếp gấp quần tự nhiên, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+          );
+        } else if (idx === 3) {
+          prompt = prompt
+            .replace(/H[aà]nh\s+[đd][oộ]ng\s+\d+s[^.]*\./giu, '')
+            .replace(/Action\s+\d+s[^.]*\./gi, '');
+          prompt = normalizePrompt(
+            `${prompt} Quy tắc bắt buộc Panel 4 / Template3 (4 giây): Người mẫu đứng tạo dáng thử giày trong lối đi shop, góc máy từ thắt lưng trở xuống thấy toàn bộ chân và giày (faceless). Xoay nhẹ người và bàn chân về hướng camera khoe dáng. ${TEMPLATE3_PANEL2_SOCK_RULES} ${TEMPLATE3_PANEL4_CHOREOGRAPHY} Quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, nếp gấp quần tự nhiên, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
           );
         }
       } else if (useTemplate2) {
@@ -1226,10 +1391,10 @@ function normalizeAnalysis(data, panelCount, options = {}) {
           `${prompt} Quy tắc bắt buộc Panel ${idx + 1}: ${sceneDef.goal}. ${sceneDef.choreography} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark.`
         );
       }
-        normalizedPrompts.push(prompt);
-      } else {
-        const item = normalizedScript[idx];
-        if (useTemplate1) {
+      normalizedPrompts.push(prompt);
+    } else {
+      const item = normalizedScript[idx];
+      if (useTemplate1) {
         const fallbackChoreography = idx === 1
           ? TEMPLATE1_PANEL2_CHOREOGRAPHY
           : `Hành động: 0s-4s ${item.cameraAction}; 5s-8s giữ đúng bố cục cảnh, chỉ chuyển động nhỏ tại chỗ để nhấn chi tiết sản phẩm.`;
@@ -1238,16 +1403,24 @@ function normalizeAnalysis(data, panelCount, options = {}) {
           `Tone & Mood: chân thực, thời trang, sạch, thương mại. ` +
           `${fallbackChoreography} ` +
           `Nếu là cảnh POV thì nhân vật phải đứng im hoặc ngồi im một chỗ, không đi lại, không tracking shot. ` +
-            `Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark.`
-          ));
+          `Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark.`
+        ));
       } else if (useTemplate3) {
         if (idx === 0) {
           normalizedPrompts.push(normalizePrompt(
-            `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Camera smartphone top-down nhìn từ trên xuống trong shop giày dép chân thực; ${item.visualDescription}; một chiếc được tay cầm giới thiệu, chiếc còn lại đặt cố định trên hộp giày nếu ảnh tham chiếu có hộp, nếu không có hộp thì đặt trên giá đỡ theo reference giadegiay-display-stand-reference.webp; giữ chính xác 100% màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm, họa tiết, đường may và tỉ lệ sản phẩm theo ảnh tham chiếu. Yêu cầu bố cục tay cầm: ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION} Tone & Mood: nhanh, chân thực, thương mại, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da tay thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE3_PANEL1_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+            `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Camera smartphone top-down nhìn từ trên xuống trong shop giày dép chân thực; ${item.visualDescription}; background phải khớp hình reference scene1; một chiếc được tay cầm giới thiệu, chiếc còn lại đặt cố định trên hộp giày nếu ảnh tham chiếu có hộp, nếu không có hộp thì đặt trên giá đỡ; giữ chính xác 100% màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm, họa tiết, đường may và tỉ lệ sản phẩm theo ảnh tham chiếu. Yêu cầu bố cục tay cầm: ${TEMPLATE3_PANEL1_HANDHELD_COMPOSITION} Tone & Mood: nhanh, chân thực, thương mại, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da tay thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE3_PANEL1_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
           ));
-        } else {
+        } else if (idx === 1) {
           normalizedPrompts.push(normalizePrompt(
-            `Tạo video review giày dép faceless 8 giây. VISUAL: Cảnh POV top-down / first-person nhìn từ trên xuống đôi chân đang mang sản phẩm trong đúng cùng shop giày dép, ${item.visualDescription}; người mẫu đang ngồi yên hoặc đứng yên một chỗ, tuyệt đối không đi lại; giữ đúng màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm/chi tiết trang trí và tỉ lệ sản phẩm 100% theo ảnh tham chiếu. Quy tắc tất/chân trần: ${TEMPLATE3_PANEL2_SOCK_RULES} Tone & Mood: tự nhiên, shop try-on, thời trang, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE1_PANEL2_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+            `Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: POV từ ngực người đang ngồi nhìn xuống đôi chân mình trong shop giày dép; bố cục PHẢI khớp hình reference canh2-reference.jpeg: ngồi trên ghế/băng cao, camera cầm tay từ ngực nhìn thẳng xuống, thấy hai đùi ở hai góc trên khung hình, chân duỗi thẳng ra phía trước thoải mái, bàn chân mang sản phẩm ở giữa-dưới khung hình; ${item.visualDescription}; chỉ thay sản phẩm giày/dép, giữ nguyên background shop; giữ đúng màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm/chi tiết trang trí và tỉ lệ sản phẩm 100% theo ảnh tham chiếu. Quy tắc tất/chân trần: ${TEMPLATE3_PANEL2_SOCK_RULES} Tone & Mood: tự nhiên, shop try-on, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE3_PANEL2_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+          ));
+        } else if (idx === 2) {
+          normalizedPrompts.push(normalizePrompt(
+            `Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: Góc camera từ bên hông/cạnh trong shop giày dép; bố cục PHẢI khớp hình reference canh3-reference.jpeg: ngồi trên ghế bar/stool cao, camera từ bên cạnh, thấy phần thân dưới từ eo xuống (áo, đùi, chân, giày), chân thả lỏng tự nhiên, faceless; ${item.visualDescription}; chỉ thay sản phẩm giày/dép, giữ nguyên background shop; giữ đúng màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm/chi tiết trang trí và tỉ lệ sản phẩm 100% theo ảnh tham chiếu. Quy tắc tất/chân trần: ${TEMPLATE3_PANEL2_SOCK_RULES} Tone & Mood: tự nhiên, shop try-on, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, nếp gấp quần tự nhiên, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE3_PANEL3_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
+          ));
+        } else if (idx === 3) {
+          normalizedPrompts.push(normalizePrompt(
+            `Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: Người mẫu đứng tạo dáng thử giày trong lối đi shop; thấy phần thân dưới từ thắt lưng trở xuống (áo, quần, chân, giày), faceless; ${item.visualDescription}; chỉ thay sản phẩm giày/dép, giữ nguyên background shop; giữ đúng màu sắc, form dáng, chất liệu, đế, quai/dây, logo/chữ có sẵn, charm/chi tiết trang trí và tỉ lệ sản phẩm 100% theo ảnh tham chiếu. Quy tắc tất/chân trần: ${TEMPLATE3_PANEL2_SOCK_RULES} Tone & Mood: tự nhiên, shop try-on, quay bằng điện thoại, ánh sáng shop giày dép chân thực, chất liệu sản phẩm có texture tự nhiên, da chân thật, nếp gấp quần tự nhiên, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI. ${TEMPLATE3_PANEL4_CHOREOGRAPHY} Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark, không lộ mặt người.`
           ));
         }
       } else if (useTemplate2) {
@@ -1261,7 +1434,8 @@ function normalizeAnalysis(data, panelCount, options = {}) {
       } else {
         normalizedPrompts.push(normalizePrompt(
           `Create an 8-second Vietnamese fashion review video. VISUAL: ${item.visualDescription}. ` +
-          `Tone & Mood: premium, clear, engaging. Action: 0s-4s ${item.cameraAction}; ` +
+          `Tone & Mood: chân thực, thời trang, sạch, thương mại, quay bằng điện thoại, ánh sáng tự nhiên, không bokeh giả, không ánh sáng studio, không nhựa bóng kiểu AI, chất liệu sản phẩm có texture tự nhiên. ` +
+          `Action: 0s-4s ${item.cameraAction}; ` +
           `5s-8s show product detail and model reaction. Script nhan vat: "${item.voiceOver}"`
         ));
       }

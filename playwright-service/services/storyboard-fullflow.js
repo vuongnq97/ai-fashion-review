@@ -112,7 +112,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
   }
 
   try {
-    const provider = getStoryboardProvider(baseDir);
+    const provider = getStoryboardProvider(baseDir, options);
     console.log(`[FullFlow] Storyboard provider: ${provider.name}`);
     await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
 
@@ -153,7 +153,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       if (ok) sentCount++;
     }
 
-    await sendTelegramMessage(chatId, `${sentCount}/${videos.length} video.\n${productInfo.summary}`);
+    await sendTelegramMessage(chatId, `${productInfo.summary}`);
     return { ...result, sentCount, productInfo };
   } finally {
     if (options.cleanupUploads !== false) {

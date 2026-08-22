@@ -351,7 +351,34 @@ class GeminiApiClient {
       }
     }
 
-    return cookies;
+    // ── Filter to ONLY essential cookies needed for gemini.google.com ──
+    // Non-essential cookies (NID, COMPASS, _ga*, _gcl*, accounts.google.com cookies, etc.)
+    // are huge (several KB) and cause Google's response headers to exceed Node.js's
+    // 16 KB default limit, triggering "Parse Error: Header overflow".
+    const ESSENTIAL_COOKIE_NAMES = new Set([
+      '__Secure-1PSID',
+      '__Secure-1PSIDTS',
+      '__Secure-1PSIDCC',
+      '__Secure-1PAPISID',
+      'SAPISID',
+      'SID',
+      'HSID',
+      'SSID',
+      'APISID',
+      'SIDCC',
+    ]);
+
+    const filtered = cookies.filter(c => {
+      if (!ESSENTIAL_COOKIE_NAMES.has(c.name)) return false;
+      if (c.domain && c.domain.includes('accounts.google.com')) return false;
+      return true;
+    });
+
+    if (filtered.length < cookies.length) {
+      console.log(`[GeminiAPI] Filtered cookies: ${cookies.length} → ${filtered.length} (kept only essential auth cookies: ${filtered.map(c => c.name).join(', ')})`);
+    }
+
+    return filtered;
   }
 
   /**
@@ -412,18 +439,43 @@ class GeminiApiClient {
 
   /**
    * GET gemini.google.com/app to extract SNlM0e and session identifiers.
-   * Mirrors gemini_webapi/utils/get_access_token.py
+   * Uses the Playwright browser page to navigate directly, which bypasses Node.js HTTP
+   * parser header size limits (avoiding "Parse Error: Header overflow" on large Google Set-Cookie headers).
    */
   async _fetchAccessToken() {
-    const response = await this._apiContext.get(ENDPOINT_INIT, {
-      headers: GEMINI_HEADERS,
-    });
+    let html = '';
 
-    if (!response.ok()) {
-      throw new Error(`[GeminiAPI] Init failed: HTTP ${response.status()}`);
+    // Primary method: Navigate using Playwright browser page (immune to Node.js HTTP header overflow)
+    if (this._browserCtx) {
+      try {
+        const page = await this._browserCtx.newPage();
+        try {
+          await page.goto(ENDPOINT_INIT, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          html = await page.content();
+        } finally {
+          await page.close().catch(() => {});
+        }
+      } catch (pageErr) {
+        console.warn(`[GeminiAPI] Page navigation attempt failed (${pageErr.message}) — falling back to apiContext.get...`);
+      }
     }
 
-    const html = await response.text();
+    // Fallback: APIRequestContext GET
+    if (!html && this._apiContext) {
+      const response = await this._apiContext.get(ENDPOINT_INIT, {
+        headers: GEMINI_HEADERS,
+      });
+
+      if (!response.ok()) {
+        throw new Error(`[GeminiAPI] Init failed: HTTP ${response.status()}`);
+      }
+
+      html = await response.text();
+    }
+
+    if (!html) {
+      throw new Error('[GeminiAPI] Could not retrieve HTML from Gemini page.');
+    }
 
     const match = (pattern) => {
       const m = html.match(pattern);

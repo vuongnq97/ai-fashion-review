@@ -37,6 +37,10 @@ function getTemplateName(options = {}) {
 function buildTemplate3ReferenceAssets(baseDir) {
   const standPath = path.join(baseDir, 'assets', 'giadegiay.webp');
   const shopPath = path.join(baseDir, 'assets', 'shopgiay.png');
+  const scene1ShoeboxPath = path.join(baseDir, 'assets', 'template3-scene1-shoebox-reference.png');
+  const scene1StandPath = path.join(baseDir, 'assets', 'template3-scene1-stand-reference.png');
+  const scene2Path = path.join(baseDir, 'assets', 'cảnh2.jpeg');
+  const scene3Path = path.join(baseDir, 'assets', 'canhr3.jpeg');
   const assets = [];
 
   if (!fs.existsSync(standPath)) {
@@ -59,6 +63,53 @@ function buildTemplate3ReferenceAssets(baseDir) {
       mimeType: 'image/png',
       base64: fs.readFileSync(shopPath).toString('base64'),
     });
+  }
+
+  // Scene 1 reference images (conditional: shoebox or stand)
+  if (fs.existsSync(scene1ShoeboxPath)) {
+    assets.push({
+      name: 'template3-scene1-shoebox-reference.png',
+      role: 'template3_scene1_shoebox_reference',
+      mimeType: 'image/png',
+      base64: fs.readFileSync(scene1ShoeboxPath).toString('base64'),
+    });
+  } else {
+    console.warn(`[GeminiWebAPI] Template3 scene1 shoebox reference not found: ${scene1ShoeboxPath}`);
+  }
+
+  if (fs.existsSync(scene1StandPath)) {
+    assets.push({
+      name: 'template3-scene1-stand-reference.png',
+      role: 'template3_scene1_stand_reference',
+      mimeType: 'image/png',
+      base64: fs.readFileSync(scene1StandPath).toString('base64'),
+    });
+  } else {
+    console.warn(`[GeminiWebAPI] Template3 scene1 stand reference not found: ${scene1StandPath}`);
+  }
+
+  // Scene 2 reference: POV from chest looking down at legs
+  if (fs.existsSync(scene2Path)) {
+    assets.push({
+      name: 'canh2-reference.jpeg',
+      role: 'template3_scene2_pov_chest_reference',
+      mimeType: 'image/jpeg',
+      base64: fs.readFileSync(scene2Path).toString('base64'),
+    });
+  } else {
+    console.warn(`[GeminiWebAPI] Template3 scene2 reference not found: ${scene2Path}`);
+  }
+
+  // Scene 3 reference: side-angle bar stool
+  if (fs.existsSync(scene3Path)) {
+    assets.push({
+      name: 'canh3-reference.jpeg',
+      role: 'template3_scene3_side_angle_reference',
+      mimeType: 'image/jpeg',
+      base64: fs.readFileSync(scene3Path).toString('base64'),
+    });
+  } else {
+    console.warn(`[GeminiWebAPI] Template3 scene3 reference not found: ${scene3Path}`);
   }
 
   return assets;
@@ -439,7 +490,10 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     const preparedJobs = [];
     for (const job of jobs) {
       const { panel, filePayload } = job;
-      console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length}...`);
+      const resolvedModelKey = panel.videoModelKey
+        || (panel.prompt?.includes('8 giây') ? 'veo_3_1_i2v_lite_low_priority' : (panel.prompt?.includes('4 giây') ? 'veo_3_1_i2v_s_lite_4s_low_priority' : (options.videoModelKey || null)));
+
+      console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length} (model: ${resolvedModelKey || 'default'})...`);
       const prepared = await prepareVideoGeneration(
         page,
         panel.prompt,
@@ -448,7 +502,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
         {
           imageSelection: [`name:${filePayload.name}`],
           aspectRatio: options.aspectRatio || '9:16',
-          videoModelKey: options.videoModelKey || null,
+          videoModelKey: resolvedModelKey,
         },
         baseDir
       );

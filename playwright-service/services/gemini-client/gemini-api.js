@@ -534,11 +534,6 @@ class GeminiApiClient {
     const items = Array.isArray(fileData) ? fileData : [fileData];
 
     return items.map((item) => {
-      if (!uiImageShape) {
-        if (Array.isArray(item)) return item;
-        return [[item.url], item.filename || item.name || 'upload.png'];
-      }
-
       if (Array.isArray(item)) {
         const url = Array.isArray(item[0]) ? item[0][0] : item[0];
         const filename = item[1] || 'upload.png';
@@ -789,6 +784,8 @@ class GeminiApiClient {
 
     // Guard: text-only requests should not return completely empty
     if (!expectImages && !result.text && result.images.length === 0) {
+      console.error('[GeminiAPI] ⚠️  Text-only request returned empty. Raw snippet:');
+      console.error(rawText.slice(0, 1000));
       throw new Error('[GeminiAPI] Empty response received (temporary error, will retry)');
     }
 

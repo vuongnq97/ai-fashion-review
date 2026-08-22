@@ -3,11 +3,19 @@ const path = require('path');
 const aistudio = require('./aistudio');
 const geminiWebapi = require('./gemini-webapi-storyboard');
 const googleFlow = require('./google-flow-storyboard');
+const template5 = require('./template5-storyboard');
 const { getConfig } = require('../utils/config-manager');
 
 function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options = {}) {
   const config = getConfig(baseDir);
   const template = String(options.template || options.storyboardTemplate || '').trim().toLowerCase();
+
+  if (template === 'template5') {
+    return {
+      name: 'template5',
+      generateStoryboard: template5.generateStoryboard,
+    };
+  }
 
   const provider = String(
     process.env.STORYBOARD_PROVIDER ||

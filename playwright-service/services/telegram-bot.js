@@ -361,7 +361,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
     const { getPanelPrompts } = require('./google-flow-storyboard');
     panelPrompts = getPanelPrompts(template);
   }
-  const { generateVideosFromPanelsDirect } = require('./google-flow-storyboard');
+  const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
   const validPanels = [];
   const invalidIndices = [];
 
@@ -388,7 +388,9 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
       }
 
       validPanels.push({
+        index: idx,
         panelIndex: idx,
+        imagePath: pPath,
         buffer: buf,
         prompt: prompt,
         videoModelKey: template === 'template2' ? '4s' : ((template === 'template3' || template === 'template4') ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s'),
@@ -406,7 +408,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
 
   const customInfo = customInstruction ? `\n🎯 Yêu cầu tùy biến: "${customInstruction}"` : '';
   await sendTelegramMessage(botToken, chatId,
-    `🔄 Đang tạo lại ${validPanels.length} video cho cảnh ${validPanels.map(p => p.panelIndex).join(', ')}...${customInfo}`);
+    `🔄 Đang tạo lại ${validPanels.length} video cho cảnh ${validPanels.map(p => p.index).join(', ')}...${customInfo}`);
 
   const startTime = Date.now();
 
@@ -415,20 +417,36 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
     photos: [],
     baseDir,
     templateOptions: buildTemplateOptions(template),
-    label: `Remake cảnh ${validPanels.map(p => p.panelIndex).join(', ')}`,
+    label: `Remake cảnh ${validPanels.map(p => p.index).join(', ')}`,
     execute: async () => {
-      const videos = await generateVideosFromPanelsDirect(validPanels, {
-        outputDir: runInfo.videosDir || path.join(runInfo.runDir, 'videos'),
-        concurrency: 2,
+      const videos = await generateVideosFromPanelsDirect(baseDir, validPanels, {
+        aspectRatio: '9:16',
+        includeVideoBase64: true,
       });
 
       let successCount = 0;
       for (const v of videos) {
-        if (!v || !v.videoBuffer) continue;
-        const base64 = v.videoBuffer.toString('base64');
+        if (!v || v.error) {
+          if (v && v.error) {
+            console.error(`[Telegram Bot] /remake video error for panel ${v.panelIndex}:`, v.error);
+          }
+          continue;
+        }
+
+        const base64 = v.video?.base64 || (v.videoPath && fs.existsSync(v.videoPath) ? fs.readFileSync(v.videoPath).toString('base64') : null);
+        if (!base64) continue;
+
+        // Copy video into run's videosDir
+        const targetVideosDir = runInfo.videosDir || path.join(runInfo.runDir, 'videos');
+        if (!fs.existsSync(targetVideosDir)) fs.mkdirSync(targetVideosDir, { recursive: true });
+        const targetVideoPath = path.join(targetVideosDir, `panel-${v.panelIndex}.mp4`);
+        if (v.videoPath && fs.existsSync(v.videoPath)) {
+          try { fs.copyFileSync(v.videoPath, targetVideoPath); } catch (_) {}
+        }
+
         const caption = `🎬 Video Cảnh ${v.panelIndex} (Tạo lại / Remake)\n` +
           `• Template: ${template}\n` +
-          `• Thời lượng: ${validPanels.find(p => p.panelIndex === v.panelIndex)?.videoModelKey || '6s'}\n` +
+          `• Thời lượng: ${validPanels.find(p => p.index === v.panelIndex)?.videoModelKey || '6s'}\n` +
           (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '');
 
         const ok = await sendVideoToTelegramDirect(chatId, base64, v.panelIndex, `Panel ${v.panelIndex}`, caption);

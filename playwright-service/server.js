@@ -30,14 +30,27 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Ensure uploads dir exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
-
 const path = require('path');
 const https = require('https');
 const http = require('http');
+
+// ─── Dọn dẹp thư mục chạy cũ khi khởi động server ───────────────────────────
+const storyboardRunsDir = path.join(__dirname, 'storyboard-review-runs');
+if (fs.existsSync(storyboardRunsDir)) {
+  try {
+    fs.rmSync(storyboardRunsDir, { recursive: true, force: true });
+    console.log('🧹 [Startup] Đã xóa dọn sạch thư mục storyboard-review-runs cũ.');
+  } catch (err) {
+    console.warn('⚠️ [Startup] Không thể xóa storyboard-review-runs:', err.message);
+  }
+}
+fs.mkdirSync(storyboardRunsDir, { recursive: true });
+
+// Ensure uploads dir exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 app.use('/api', apiRoutes);
 

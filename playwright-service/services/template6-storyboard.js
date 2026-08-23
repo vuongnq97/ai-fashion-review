@@ -21,9 +21,56 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+ffmpeg.setFfmpegPath(ffmpegPath);
+
 const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
 const { GeminiApiClient } = require('./gemini-client/gemini-api');
+
+/**
+ * Tách chính xác 2 panel 9:16 từ Master Storyboard (nửa trái = Panel 1, nửa phải = Panel 2)
+ * Đảm bảo 100% đồng nhất về sản phẩm, góc máy, bàn tay và ánh sáng giữa Storyboard và Panel
+ */
+async function sliceStoryboardIntoPanels(storyboardBuffer) {
+  const tmpDir = os.tmpdir();
+  const tmpSbPath = path.join(tmpDir, `sb_master_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`);
+  fs.writeFileSync(tmpSbPath, storyboardBuffer);
+
+  const panel1Path = path.join(tmpDir, `panel_1_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`);
+  const panel2Path = path.join(tmpDir, `panel_2_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.png`);
+
+  try {
+    await new Promise((resolve, reject) => {
+      ffmpeg(tmpSbPath)
+        .videoFilters(['crop=iw/2:ih:0:0', 'scale=1080:1920:flags=lanczos'])
+        .output(panel1Path)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+
+    await new Promise((resolve, reject) => {
+      ffmpeg(tmpSbPath)
+        .videoFilters(['crop=iw/2:ih:iw/2:0', 'scale=1080:1920:flags=lanczos'])
+        .output(panel2Path)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+
+    const p1Buf = fs.readFileSync(panel1Path);
+    const p2Buf = fs.readFileSync(panel2Path);
+
+    return [p1Buf, p2Buf];
+  } finally {
+    try { fs.unlinkSync(tmpSbPath); } catch (_) {}
+    try { fs.unlinkSync(panel1Path); } catch (_) {}
+    try { fs.unlinkSync(panel2Path); } catch (_) {}
+  }
+}
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -464,58 +511,30 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       throw new Error(`Failed to generate Master Storyboard: ${lastMasterErr?.message || 'Unknown error'}`);
     }
 
-    // Upload storyboard image for panel reference
-    const sbUploadUrl = await geminiClient.uploadFile(storyboardBuf, 'master_storyboard.png', 'image/png');
-    const panelCombinedFiles = [
-      { url: sbUploadUrl, filename: 'master_storyboard.png', mimeType: 'image/png' },
-      ...uploadedFiles
-    ];
-
-    // ── Bước 3: Sinh 2 Panel 9:16 riêng biệt ─────────────────────────────────
+    // ── Bước 3: Tách chính xác 2 Panel 9:16 trực tiếp từ Master Storyboard ──
+    console.log('[Template 6] ✂️  Step 3: Slicing 2 exact 9:16 panels directly from Master Storyboard...');
     const videoPrompts = getTemplate6VideoPrompts(analysis, options);
-    for (let i = 1; i <= 2; i++) {
-      console.log(`[Template 6] Step 3: Generating Panel ${i}/2 (9:16) via Gemini API...`);
-      const panelPrompt = buildTemplate6PanelPrompt(i, analysis, elements);
+    const [p1Buf, p2Buf] = await sliceStoryboardIntoPanels(storyboardBuf);
 
-      let panelBuf = null;
-      let lastPanelErr = null;
+    panels.push({
+      index: 1,
+      panelIndex: 1,
+      imagePath: null, // will be populated in archive
+      imageBase64: p1Buf.toString('base64'),
+      mimeType: 'image/png',
+      prompt: videoPrompts[0],
+    });
 
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const panelRes = await geminiClient.generateContent({
-            prompt: panelPrompt,
-            fileData: panelCombinedFiles,
-            temporary: true,
-            expectImages: true,
-          });
+    panels.push({
+      index: 2,
+      panelIndex: 2,
+      imagePath: null, // will be populated in archive
+      imageBase64: p2Buf.toString('base64'),
+      mimeType: 'image/png',
+      prompt: videoPrompts[1],
+    });
 
-          if (!panelRes.images || panelRes.images.length === 0) {
-            throw new Error(`Gemini API did not return image for Panel ${i}`);
-          }
-
-          panelBuf = await geminiClient.downloadImage(panelRes.images[0].url);
-          console.log(`[Template 6] ✅ Panel ${i}/2 generated successfully!`);
-          break;
-        } catch (err) {
-          lastPanelErr = err;
-          console.warn(`[Template 6] Panel ${i}/2 Attempt ${attempt}/3 failed: ${err.message}. Retrying in 4s...`);
-          if (attempt === 3) throw err;
-          await new Promise(r => setTimeout(r, 4000));
-        }
-      }
-
-      if (!panelBuf) {
-        throw new Error(`Failed to generate Panel ${i}: ${lastPanelErr?.message || 'Unknown error'}`);
-      }
-
-      panels.push({
-        index: i,
-        imagePath: null, // will be populated in archive
-        imageBase64: panelBuf.toString('base64'),
-        mimeType: 'image/png',
-        prompt: videoPrompts[i - 1],
-      });
-    }
+    console.log('[Template 6] ✅ 2 Panels sliced with 100% pixel-perfect consistency from Master Storyboard!');
   } finally {
     try { await geminiClient.close(); } catch (_) {}
   }

@@ -10,7 +10,8 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
   const config = getConfig(baseDir);
   const template = String(options.template || options.storyboardTemplate || '').trim().toLowerCase();
 
-  if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51') {
+  if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
+      template === 'template5_2' || template === 'template5.2' || template === 'template52') {
     return {
       name: template,
       generateStoryboard: (baseDir, filePayloads, opts = {}) =>

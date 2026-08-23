@@ -130,6 +130,7 @@ node server.js
 |---|---|
 | `/template5` | **Review Đa Ngành Hàng 4 cảnh 6s** (Thời trang, Mỹ phẩm, Gia dụng... tự động phân tích qua Gemini API, có thẻ chữ tiếng Việt nhỏ gọn trong safe-zone, không tiếng review). |
 | `/template5_1` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ / No Text $100\%$)** — Storyboard, 4 Panel và 4 Video đều sạch hoàn toàn không chữ, tập trung góc quay thực tế. |
+| `/template5_2` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ + GIỌNG NÓI VOICE-OVER)** — Storyboard & Panel sạch không chữ, video có giọng đọc review tiếng Việt chuẩn nam/nữ theo sản phẩm, faceless $100\%$. |
 | `/template1` | Review giày dép/thời trang faceless 2 cảnh (không voice-over). |
 | `/template2` | Review giày dép 8 cảnh x 4s (không voice-over). |
 | `/template3` | Review shop giày dép 4 cảnh (Top-down 8s, POV 6s, góc hông 4s, đứng thử 8s). |

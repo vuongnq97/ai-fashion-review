@@ -71,6 +71,20 @@ Requirements:
   * In the "script" array, provide a "techVFX" string describing REAL, NATURAL physical demonstrations (e.g., "Thao tác tay rút nhẹ tờ khăn giấy từ đáy một cách mượt mà, giấy dai mịn không bị rách", "Bàn tay miết nhẹ bề mặt khoe độ dày dặn và vân dập nổi tự nhiên").
   * STRICTLY FORBID fantasy CGI, glowing neon arrows, cartoon magnifying glasses, floating 3D graphics, or fairy sparkles. Keep everything looking like a real authentic smartphone video.
 
+- VOICE PERSONA & VIETNAMESE SCRIPT (GIỌNG NÓI REVIEW THEO TỪNG SẢN PHẨM):
+  * Infer the best voice gender and tone based on product category & target audience:
+    - Products for women, skincare, cosmetics, lifestyle, household, kitchenware, soft fashion -> "nu" (giọng nữ miền Nam hoặc miền Bắc ngọt ngào, tự nhiên, duyên dáng, gần gũi như bạn bè chia sẻ).
+    - Products for men, tech gadgets, automotive, mechanical tools, heavy gear, masculine fashion -> "nam" (giọng nam miền Nam hoặc miền Bắc trầm ấm, tự tin, cuốn hút, đáng tin cậy).
+    - Unisex products -> choose the most engaging tone for the product.
+  * For each of the 4 panels in "script", write a natural, conversational "voiceOver" line in Vietnamese:
+    - Pacing: exactly 14 to 22 Vietnamese words (matched for 6 seconds pacing).
+    - Content:
+      * Panel 1: Catchy opening hook + product introduction.
+      * Panel 2: Material finish & standout technological / design feature.
+      * Panel 3: In-action user experience & practical everyday benefit.
+      * Panel 4: Concluding verdict & authentic recommendation.
+    - 100% ACCURATE VIETNAMESE DIACRITICS (đúng chính tả tiếng Việt có dấu).
+
 - All 4 panels share the exact same setting, lighting, surface, and smartphone camera realism.
 - Faceless only: no visible faces, no talking presenter.
 
@@ -83,6 +97,11 @@ Return ONLY valid JSON matching this schema:
     "materials": "materials or ingredients description",
     "highlights": ["highlight 1", "highlight 2", "highlight 3"],
     "targetAudience": "target user description"
+  },
+  "voicePersona": {
+    "gender": "nu|nam",
+    "voiceDescription": "nữ miền Nam ngọt ngào tự nhiên | nam miền Nam trầm ấm tự tin",
+    "tone": "thân thiện, duyên dáng, cuốn hút, review chân thực"
   },
   "sceneContext": {
     "location": "detailed description of setting and surface",
@@ -128,6 +147,7 @@ Return ONLY valid JSON matching this schema:
       "id": 1,
       "duration": "00:00-00:06",
       "goal": "Hero showcase & exterior",
+      "voiceOver": "Một câu lời thoại review tiếng Việt mở đầu ngắn gọn 14-22 từ, đúng 6 giây, chuẩn chính tả có dấu 100%.",
       "visualDescription": "clean hero shot of product held naturally or displayed on surface",
       "techVFX": "Ánh sáng tự nhiên chiếu nhẹ tôn lên kiểu dáng chân thực và bao bì trang nhã",
       "cameraAction": "close-up front angle with natural lighting"
@@ -136,6 +156,7 @@ Return ONLY valid JSON matching this schema:
       "id": 2,
       "duration": "00:06-00:12",
       "goal": "Key feature / material detail",
+      "voiceOver": "Một câu đặc tả chất liệu và công nghệ nổi bật 14-22 từ, tự nhiên và cuốn hút.",
       "visualDescription": "macro close-up focusing on key functional detail, texture, or finish",
       "techVFX": "Ngón tay miết nhẹ đặc tả chất liệu dày dặn, kết cấu bề mặt thực tế",
       "cameraAction": "extreme close-up macro"
@@ -144,6 +165,7 @@ Return ONLY valid JSON matching this schema:
       "id": 3,
       "duration": "00:12-00:18",
       "goal": "In-action user experience",
+      "voiceOver": "Một câu chia sẻ trải nghiệm sử dụng thực tế tiện dụng 14-22 từ.",
       "visualDescription": "hands-on authentic human interaction using the product smoothly",
       "techVFX": "Thao tác sử dụng thực tế mượt mà, chân thực không kỹ xảo ảo",
       "cameraAction": "medium close-up in-action"
@@ -152,6 +174,7 @@ Return ONLY valid JSON matching this schema:
       "id": 4,
       "duration": "00:18-00:24",
       "goal": "Overall benefit & lifestyle",
+      "voiceOver": "Một câu đánh giá kết luận và khuyên dùng nhiệt tình 14-22 từ.",
       "visualDescription": "overall scene showing product integrated into daily lifestyle",
       "techVFX": "Không gian sinh hoạt ngăn nắp, gọn gàng và tiện nghi",
       "cameraAction": "medium lifestyle shot"
@@ -316,7 +339,11 @@ async function analyzeProductTemplate5(geminiClient, filePayloads) {
  * Xây dựng prompt Master Storyboard (4 panel horizontal split 16:9)
  */
 function buildTemplate5MasterPrompt(analysisData, options = {}) {
-  const isNoText = !!(options.noText || options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51');
+  const isNoText = !!(
+    options.noText ||
+    options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51' ||
+    options.template === 'template5_2' || options.template === 'template5.2' || options.template === 'template52'
+  );
   const a = analysisData || {};
   const overlays = a.panelOverlays || normalizePanelOverlays(a);
   const loc = a.sceneContext?.location || 'a bright modern lifestyle setting';
@@ -391,7 +418,11 @@ Generate one still storyboard image now.`.trim();
  * Xây dựng prompt cho từng Panel 9:16 riêng biệt (Gemini API)
  */
 function buildTemplate5PanelPrompt(panelIndex, analysisData, options = {}) {
-  const isNoText = !!(options.noText || options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51');
+  const isNoText = !!(
+    options.noText ||
+    options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51' ||
+    options.template === 'template5_2' || options.template === 'template5.2' || options.template === 'template52'
+  );
   const a = analysisData || {};
   const overlays = a.panelOverlays || normalizePanelOverlays(a);
   const current = overlays[panelIndex - 1] || { id: panelIndex, headline: `PANEL ${panelIndex}`, subtexts: [] };
@@ -455,13 +486,17 @@ Generate exactly one still image now.`.trim();
 }
 
 /**
- * Lấy danh sách 4 Prompt Veo 3 chuẩn 6s tiếng Việt cho Template 5 / Template 5.1
+ * Lấy danh sách 4 Prompt Veo 3 chuẩn 6s tiếng Việt cho Template 5 / Template 5.1 / Template 5.2
  * TUYỆT ĐỐI KHÔNG truyền chuỗi text trong ngoặc kép cho Veo vì Veo sẽ tự vẽ thêm chữ lỗi font.
- * Veo chỉ animate hình ảnh gốc và giữ nguyên chữ đã có sẵn trên panel ảnh.
+ * Veo chỉ animate hình ảnh gốc.
  */
 function getTemplate5VideoPrompts(analysisData, options = {}) {
   const prodName = analysisData?.productName || 'sản phẩm';
   const script = analysisData?.script || [];
+  const hasVoice = !!(
+    options.hasVoice ||
+    options.template === 'template5_2' || options.template === 'template5.2' || options.template === 'template52'
+  );
 
   const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
   const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
@@ -475,6 +510,28 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
   const desc4 = script[3]?.visualDescription || 'Toàn cảnh sản phẩm trong không gian phong cách sống hiện đại';
   const vfx4 = script[3]?.techVFX ? ` Thao tác thực tế: ${script[3].techVFX}.` : '';
 
+  if (hasVoice) {
+    const isMale = analysisData?.voicePersona?.gender === 'nam' ||
+      analysisData?.category === 'gadgets' ||
+      (analysisData?.targetAudience && /nam|men|đàn ông/i.test(analysisData.targetAudience));
+    const defaultVoice = isMale
+      ? 'nam miền Nam trầm ấm, tự tin, cuốn hút'
+      : 'nữ miền Nam ngọt ngào, tự nhiên, gần gũi';
+    const voiceDesc = analysisData?.voicePersona?.voiceDescription || defaultVoice;
+
+    const vo1 = script[0]?.voiceOver || `Một món đồ không thể thiếu giúp nâng tầm không gian sống và trải nghiệm mỗi ngày.`;
+    const vo2 = script[1]?.voiceOver || `Từng chi tiết được hoàn thiện tỉ mỉ với chất liệu cao cấp và độ bền vượt trội.`;
+    const vo3 = script[2]?.voiceOver || `Thao tác sử dụng cực kỳ mượt mà và tiện lợi, mang lại cảm giác vô cùng hài lòng.`;
+    const vo4 = script[3]?.voiceOver || `Một sự lựa chọn hoàn hảo đáp ứng trọn vẹn cả tính thẩm mỹ lẫn công năng thực tế.`;
+
+    return [
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo1}". VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo2}". VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo3}". VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo4}". VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`
+    ];
+  }
+
   return [
     `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
     `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
@@ -487,7 +544,7 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
  * Lưu trữ metadata và kết quả vào thư mục storyboard-review-runs
  */
 function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, analysis, options = {}) {
-  const template = options.template || (options.noText ? 'template5_1' : 'template5');
+  const template = options.template || (options.noText ? (options.hasVoice ? 'template5_2' : 'template5_1') : 'template5');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runId = Math.random().toString(36).substring(2, 8);
   const runDir = path.join(baseDir, 'storyboard-review-runs', `${timestamp}-${template}-flow-${runId}`);
@@ -514,66 +571,66 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
   });
 
   const videoPrompts = getTemplate5VideoPrompts(analysis, options);
-  const isNoText = !!(options.noText || template === 'template5_1' || template === 'template5.1' || template === 'template51');
+  const isNoText = !!(
+    options.noText ||
+    template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
+    template === 'template5_2' || template === 'template5.2' || template === 'template52'
+  );
   const overlays = analysis?.panelOverlays || normalizePanelOverlays(analysis || {});
   const overlaysSummary = isNoText
-    ? 'NO TEXT MODE: All panels and storyboard generated without text overlays.'
-    : overlays.map(p => `Panel ${p.id}: [${p.headline}] ${p.subtexts.join(' / ')}`).join('\n');
+    ? (template.includes('5_2') || template.includes('5.2') || template.includes('52')
+      ? 'NO TEXT + VOICE-OVER MODE: All panels and storyboard generated without text overlays. Videos include Vietnamese review voice-over.'
+      : 'NO TEXT MODE: All panels and storyboard generated without text overlays.')
+    : overlays.map(p => `### Panel ${p.id}: ${p.headline}\n${(p.subtexts || []).map(s => `- ${s}`).join('\n')}`).join('\n\n');
 
-  const promptsMd = [
-    `# ${template.toUpperCase()} Storyboard Run: ${timestamp}`,
-    `Run ID: ${runId}`,
-    `Template: ${template} (${isNoText ? 'No Text' : 'With Text Overlays'})`,
-    `Product Name: ${analysis?.productName || 'N/A'}`,
-    `Category: ${analysis?.category || 'N/A'}`,
-    `Text Mode: ${isNoText ? 'NO TEXT' : 'WITH VIETNAMESE OVERLAYS'}`,
-    `Text Overlays:\n${overlaysSummary}`,
+  const mdContent = [
+    `# Storyboard Run: ${template}`,
+    `Date: ${new Date().toISOString()}`,
+    `Product: ${analysis?.productName || 'Unknown'}`,
+    `Category: ${analysis?.category || 'general'}`,
+    `Voice Persona: ${analysis?.voicePersona?.voiceDescription || 'N/A'} (Gender: ${analysis?.voicePersona?.gender || 'N/A'})`,
     '',
-    '## Master Storyboard Prompt (Gemini API)',
+    '## Master Storyboard Prompt',
     '```text',
     prompt,
     '```',
     '',
-    '## Panel 1 (6s - Hero Showcase)',
-    '```text',
-    videoPrompts[0],
-    '```',
+    '## Panel Overlays',
+    overlaysSummary,
     '',
-    '## Panel 2 (6s - Key Feature / Material Detail)',
-    '```text',
-    videoPrompts[1],
-    '```',
-    '',
-    '## Panel 3 (6s - In-Action / Usage Experience)',
-    '```text',
-    videoPrompts[2],
-    '```',
-    '',
-    '## Panel 4 (6s - Lifestyle Context & Aesthetic Result)',
-    '```text',
-    videoPrompts[3],
-    '```',
+    '## Veo 3 Video Prompts',
+    videoPrompts.map((vp, idx) => `### Panel ${idx + 1} Video Prompt\n\`\`\`text\n${vp}\n\`\`\``).join('\n\n'),
   ].join('\n');
 
-  fs.writeFileSync(path.join(runDir, 'prompts.md'), promptsMd);
+  fs.writeFileSync(path.join(runDir, 'prompts.md'), mdContent, 'utf8');
 
   return {
     root: runDir,
+    inputsDir,
     panelsDir,
     videosDir: path.join(runDir, 'videos'),
     storyboardPath,
+    promptsPath: path.join(runDir, 'prompts.md')
   };
 }
 
 /**
- * Main Storyboard Generator for Template 5 & Template 5.1 (No Text)
+ * Main Storyboard Generator for Template 5, 5.1 (No Text), and 5.2 (No Text + Voice)
  */
 async function generateStoryboard(baseDir, filePayloads, options = {}) {
-  const template = options.template || (options.noText ? 'template5_1' : 'template5');
-  const isNoText = !!(options.noText || template === 'template5_1' || template === 'template5.1' || template === 'template51');
-  const promptOptions = { ...options, template, noText: isNoText };
+  const template = options.template || (options.noText ? (options.hasVoice ? 'template5_2' : 'template5_1') : 'template5');
+  const isNoText = !!(
+    options.noText ||
+    template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
+    template === 'template5_2' || template === 'template5.2' || template === 'template52'
+  );
+  const hasVoice = !!(
+    options.hasVoice ||
+    template === 'template5_2' || template === 'template5.2' || template === 'template52'
+  );
+  const promptOptions = { ...options, template, noText: isNoText, hasVoice };
 
-  console.log(`[Template5] Starting ${template.toUpperCase()} (${isNoText ? 'No Text' : 'With Text'}) review generation for ${filePayloads.length} input image(s)...`);
+  console.log(`[Template5] Starting ${template.toUpperCase()} (${isNoText ? 'No Text' : 'With Text'}${hasVoice ? ' + Voice' : ''}) review generation for ${filePayloads.length} input image(s)...`);
 
   const secure1Psid = process.env.GEMINI_SECURE_1PSID;
   const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;

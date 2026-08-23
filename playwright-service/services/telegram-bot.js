@@ -19,7 +19,7 @@ const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'status', 'again']);
+const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'status', 'again']);
 const driveFolderByCommand = new Map();
 
 /**
@@ -83,6 +83,8 @@ async function handleFolderCommand(botToken, chatId, folderName) {
     templateMessage = ' bằng /template5 đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt, không tiếng review)';
   } else if (selectedTemplate === 'template5_1' || selectedTemplate === 'template5.1' || selectedTemplate === 'template51') {
     templateMessage = ' bằng /template5_1 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ, không tiếng review)';
+  } else if (selectedTemplate === 'template5_2' || selectedTemplate === 'template5.2' || selectedTemplate === 'template52') {
+    templateMessage = ' bằng /template5_2 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
   }
 
   await sendTelegramMessage(botToken, chatId,
@@ -207,6 +209,20 @@ async function handleTemplate5_1Command(botToken, chatId) {
     '✅ Đã bật /template5_1 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s tự động phân tích (KHÔNG CHỮ / No Text trên storyboard & panel, không tiếng review).');
 }
 
+async function handleTemplate5_2Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template5_2';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template5_2 cho album ảnh đang gom: review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ VOICE REVIEW faceless).');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template5_2');
+  await sendTelegramMessage(botToken, chatId,
+    '✅ Đã bật /template5_2 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ trên panel + CÓ VOICE REVIEW nam/nữ theo sản phẩm, faceless 100%).');
+}
+
 function buildTemplateOptions(template) {
   if (template === 'template1') {
     return {
@@ -244,6 +260,14 @@ function buildTemplateOptions(template) {
       template: 'template5_1',
       panelCount: 4,
       noText: true,
+    };
+  }
+  if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
+    return {
+      template: 'template5_2',
+      panelCount: 4,
+      noText: true,
+      hasVoice: true,
     };
   }
   return {};
@@ -318,11 +342,21 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
     return;
   }
 
-  const template = runInfo.template || (runInfo.runDir && (runInfo.runDir.includes('template5_1') || runInfo.runDir.includes('template5.1')) ? 'template5_1' : (runInfo.runDir && runInfo.runDir.includes('template5') ? 'template5' : (runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3')));
+  const template = runInfo.template || (
+    runInfo.runDir && (runInfo.runDir.includes('template5_2') || runInfo.runDir.includes('template5.2')) ? 'template5_2' :
+    runInfo.runDir && (runInfo.runDir.includes('template5_1') || runInfo.runDir.includes('template5.1')) ? 'template5_1' :
+    runInfo.runDir && runInfo.runDir.includes('template5') ? 'template5' :
+    runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3'
+  );
   let panelPrompts = [];
-  if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51') {
+  if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
+      template === 'template5_2' || template === 'template5.2' || template === 'template52') {
     const { getTemplate5VideoPrompts } = require('./template5-storyboard');
-    panelPrompts = getTemplate5VideoPrompts(runInfo.analysis, { template, noText: template.includes('5_1') || template.includes('5.1') || template.includes('51') });
+    panelPrompts = getTemplate5VideoPrompts(runInfo.analysis, {
+      template,
+      noText: template.includes('5_1') || template.includes('5.1') || template.includes('51') || template.includes('5_2') || template.includes('5.2') || template.includes('52'),
+      hasVoice: template.includes('5_2') || template.includes('5.2') || template.includes('52'),
+    });
   } else {
     const { getPanelPrompts } = require('./google-flow-storyboard');
     panelPrompts = getPanelPrompts(template);
@@ -338,7 +372,14 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
       let prompt = panelPrompts[idx - 1] || `Tạo video review sản phẩm faceless cảnh ${idx}`;
 
       if (customInstruction) {
-        if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51') {
+        if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
+          const prodName = runInfo.analysis?.productName || 'sản phẩm';
+          const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
+          const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
+          const vo = runInfo.analysis?.script?.[idx - 1]?.voiceOver;
+          const voiceClause = vo ? ` Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo}".` : ` Giọng đọc review: ${voiceDesc}.`;
+          prompt = `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI.${voiceClause} VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI.`;
+        } else if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51') {
           const prodName = runInfo.analysis?.productName || 'sản phẩm';
           prompt = `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
         } else {
@@ -457,6 +498,7 @@ async function handleUpdate(botToken, update) {
         '👠 Dùng /template4 rồi gửi ảnh để tạo review giày/dép nữ shop pastel 4 cảnh (cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s), không voice-over.\n' +
         '✨ Dùng /template5 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s tự động phân tích (có chữ tiếng Việt trên panel, không tiếng review).\n' +
         '💎 Dùng /template5_1 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text, không tiếng review).\n' +
+        '🎙️ Dùng /template5_2 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ GIỌNG NÓI VOICE-OVER review, faceless 100%).\n' +
         '🔄 Dùng /again <số_cảnh> [yêu cầu] (VD: /again 2 hoặc /again 2 xoay góc 45 độ) để tạo lại video với prompt tùy chỉnh.\n' +
         '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.\n' +
         '📊 Dùng /status để xem hàng đợi xử lý.'
@@ -512,6 +554,14 @@ async function handleUpdate(botToken, update) {
         text.startsWith('/template5_1@') || text.startsWith('/template5.1@') || text.startsWith('/template51@')) {
       console.log(`[Telegram Bot] Received /template5_1 command from chat ${chatId}`);
       await handleTemplate5_1Command(botToken, chatId);
+      return;
+    }
+
+    // ── Template 5.2 command (No Text + Voice) ───────────────────────────────
+    if (text === '/template5_2' || text === '/template5.2' || text === '/template52' ||
+        text.startsWith('/template5_2@') || text.startsWith('/template5.2@') || text.startsWith('/template52@')) {
+      console.log(`[Telegram Bot] Received /template5_2 command from chat ${chatId}`);
+      await handleTemplate5_2Command(botToken, chatId);
       return;
     }
 
@@ -588,6 +638,8 @@ async function handleUpdate(botToken, update) {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template5 review đa ngành hàng 4 cảnh 6s (có chữ)...';
       } else if (selectedTemplate === 'template5_1' || selectedTemplate === 'template5.1' || selectedTemplate === 'template51') {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template5_1 review đa ngành hàng 4 cảnh 6s (không chữ)...';
+      } else if (selectedTemplate === 'template5_2' || selectedTemplate === 'template5.2' || selectedTemplate === 'template52') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template5_2 review đa ngành hàng 4 cảnh 6s (có voice review faceless)...';
       }
       await sendTelegramMessage(botToken, chatId, receiveMsg);
     }
@@ -640,6 +692,8 @@ async function handleUpdate(botToken, update) {
         templateMessage = ' theo /template5 đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt, không tiếng review)';
       } else if (batch.template === 'template5_1' || batch.template === 'template5.1' || batch.template === 'template51') {
         templateMessage = ' theo /template5_1 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ, không tiếng review)';
+      } else if (batch.template === 'template5_2' || batch.template === 'template5.2' || batch.template === 'template52') {
+        templateMessage = ' theo /template5_2 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
       }
 
       await sendTelegramMessage(botToken, chatId,
@@ -720,6 +774,7 @@ async function buildTelegramCommandsFromDrive() {
     { command: 'template4', description: '👠 Review giày/dép nữ shop pastel 4 cảnh (8s, 6s, 4s, 8s)' },
     { command: 'template5', description: '✨ Review đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt)' },
     { command: 'template5_1', description: '💎 Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text)' },
+    { command: 'template5_2', description: '🎙️ Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + VOICE REVIEW faceless)' },
     { command: 'again', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /again 2)' },
     { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
   ];

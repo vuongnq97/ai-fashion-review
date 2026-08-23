@@ -510,23 +510,37 @@ class GeminiApiClient {
   async uploadFile(fileBuffer, filename, mimeType) {
     const { body, contentType } = buildMultipartBody(fileBuffer, filename, mimeType);
 
-    const response = await this._apiContext.post(ENDPOINT_UPLOAD, {
-      headers: {
-        'Origin': 'https://gemini.google.com',
-        'Referer': 'https://gemini.google.com/',
-        'X-Tenant-Id': 'bard-storage',
-        'Push-ID': this.pushId,
-        'Content-Type': contentType,
-      },
-      data: body,
-    });
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await this._apiContext.post(ENDPOINT_UPLOAD, {
+          headers: {
+            'Origin': 'https://gemini.google.com',
+            'Referer': 'https://gemini.google.com/',
+            'X-Tenant-Id': 'bard-storage',
+            'Push-ID': this.pushId,
+            'Content-Type': contentType,
+          },
+          data: body,
+          timeout: 30000,
+        });
 
-    if (!response.ok()) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`[GeminiAPI] Upload failed: HTTP ${response.status()} ${errText.slice(0, 200)}`);
+        if (!response.ok()) {
+          const errText = await response.text().catch(() => '');
+          throw new Error(`[GeminiAPI] Upload failed: HTTP ${response.status()} ${errText.slice(0, 200)}`);
+        }
+
+        return await response.text();
+      } catch (err) {
+        lastError = err;
+        console.warn(`[GeminiAPI] Upload attempt ${attempt}/3 failed (${filename}): ${err.message}`);
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      }
     }
 
-    return await response.text();
+    throw lastError;
   }
 
   _formatFileData(fileData, uiImageShape = false) {

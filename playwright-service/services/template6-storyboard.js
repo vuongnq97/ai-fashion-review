@@ -404,15 +404,19 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     console.log(`[Template 6] 🎨 Step 2: Generating Master Storyboard (2 Panels, Store: ${elements.store}) via Gemini API...`);
     masterPrompt = buildTemplate6StoryboardPrompt(analysis, elements);
 
-    // Sử dụng template reference tương ứng
-    const refAssetPath = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.png' : 'template6_1.png');
+    // Sử dụng template reference tương ứng (ưu tiên JPG tối ưu dung lượng)
+    const baseAssetJpg = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.jpg' : 'template6_1.jpg');
+    const baseAssetPng = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.png' : 'template6_1.png');
+    const refAssetPath = fs.existsSync(baseAssetJpg) ? baseAssetJpg : baseAssetPng;
     const combinedFiles = [...uploadedFiles];
     if (fs.existsSync(refAssetPath)) {
       try {
         const refBuf = fs.readFileSync(refAssetPath);
-        const refName = elements.store === 'winmart' ? 'template6_2_ref.png' : 'template6_1_ref.png';
-        const refUrl = await geminiClient.uploadFile(refBuf, refName, 'image/png');
-        combinedFiles.push({ url: refUrl, filename: refName, mimeType: 'image/png' });
+        const isJpg = refAssetPath.endsWith('.jpg');
+        const refMime = isJpg ? 'image/jpeg' : 'image/png';
+        const refName = elements.store === 'winmart' ? (isJpg ? 'template6_2_ref.jpg' : 'template6_2_ref.png') : (isJpg ? 'template6_1_ref.jpg' : 'template6_1_ref.png');
+        const refUrl = await geminiClient.uploadFile(refBuf, refName, refMime);
+        combinedFiles.push({ url: refUrl, filename: refName, mimeType: refMime });
       } catch (e) {
         console.warn(`[Template 6] Could not upload reference asset: ${e.message}`);
       }

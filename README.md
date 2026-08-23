@@ -128,6 +128,7 @@ node server.js
 
 | Lệnh Telegram | Chức Năng & Đặc Điểm |
 |---|---|
+| `/template6` | **Review Siêu Thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart, Không Chữ, Không Tiếng)** — Tự động xếp gian hàng siêu thị ngẫu nhiên, đổi outfit người review, Cảnh 1 cầm xem ngang ngực, Cảnh 2 đặt vào giỏ hàng dưới sàn. |
 | `/template5` | **Review Đa Ngành Hàng 4 cảnh 6s** (Thời trang, Mỹ phẩm, Gia dụng... tự động phân tích qua Gemini API, có thẻ chữ tiếng Việt nhỏ gọn trong safe-zone, không tiếng review). |
 | `/template5_1` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ / No Text $100\%$)** — Storyboard, 4 Panel và 4 Video đều sạch hoàn toàn không chữ, tập trung góc quay thực tế. |
 | `/template5_2` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ + GIỌNG NÓI VOICE-OVER)** — Storyboard & Panel sạch không chữ, video có giọng đọc review tiếng Việt chuẩn nam/nữ theo sản phẩm, faceless $100\%$. |

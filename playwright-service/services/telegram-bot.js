@@ -19,7 +19,7 @@ const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'status', 'remake', 'again', 'redo']);
+const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'template6', 'status', 'remake', 'again', 'redo']);
 const driveFolderByCommand = new Map();
 
 /**
@@ -223,6 +223,24 @@ async function handleTemplate5_2Command(botToken, chatId) {
     '✅ Đã bật /template5_2 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ trên panel + CÓ VOICE REVIEW nam/nữ theo sản phẩm, faceless 100%).');
 }
 
+async function handleTemplate6Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template6';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /template6 cho album ảnh đang gom: review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart, không chữ, không tiếng).');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template6');
+  await sendTelegramMessage(botToken, chatId,
+    '🛒 Đã bật /template6 cho lượt ảnh kế tiếp: review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart ngẫu nhiên, không chữ, không tiếng).\n\n' +
+    '📸 Hãy gửi ảnh sản phẩm bạn muốn review vào đây! Bot sẽ tự động:\n' +
+    '1. Phân tích sản phẩm để xếp vào đúng gian hàng/kệ hàng siêu thị phù hợp.\n' +
+    '2. Tạo Storyboard 2 cảnh chuẩn iPhone 15 Pro POV (Cảnh 1: Cầm xem ngang ngực, Cảnh 2: Đưa vào giỏ hàng dưới sàn).\n' +
+    '3. Tự động sinh 2 video Veo 3 mộc dài 8 giây (8s), hoàn toàn không chữ và không tiếng.');
+}
+
 function buildTemplateOptions(template) {
   if (template === 'template1') {
     return {
@@ -268,6 +286,13 @@ function buildTemplateOptions(template) {
       panelCount: 4,
       noText: true,
       hasVoice: true,
+    };
+  }
+  if (template === 'template6' || template === 'template_6') {
+    return {
+      template: 'template6',
+      panelCount: 2,
+      noText: true,
     };
   }
   return {};
@@ -343,13 +368,20 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   }
 
   const template = runInfo.template || (
+    runInfo.runDir && runInfo.runDir.includes('template6') ? 'template6' :
     runInfo.runDir && (runInfo.runDir.includes('template5_2') || runInfo.runDir.includes('template5.2')) ? 'template5_2' :
     runInfo.runDir && (runInfo.runDir.includes('template5_1') || runInfo.runDir.includes('template5.1')) ? 'template5_1' :
     runInfo.runDir && runInfo.runDir.includes('template5') ? 'template5' :
     runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3'
   );
   let panelPrompts = [];
-  if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
+  if (template === 'template6' || template === 'template_6') {
+    const { getTemplate6VideoPrompts } = require('./template6-storyboard');
+    panelPrompts = getTemplate6VideoPrompts(runInfo.analysis, {
+      template: 'template6',
+      customInstruction,
+    });
+  } else if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
       template === 'template5_2' || template === 'template5.2' || template === 'template52') {
     const { getTemplate5VideoPrompts } = require('./template5-storyboard');
     panelPrompts = getTemplate5VideoPrompts(runInfo.analysis, {
@@ -372,7 +404,10 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
       let prompt = panelPrompts[idx - 1] || `Tạo video review sản phẩm faceless cảnh ${idx}`;
 
       if (customInstruction) {
-        if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
+        if (template === 'template6' || template === 'template_6') {
+          const prodName = runInfo.analysis?.productName || 'sản phẩm';
+          prompt = `Tạo video review ${prodName} siêu thị góc nhìn thứ nhất (POV) dài đúng 8 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay bằng iPhone 15 Pro ngoài đời thực. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+        } else if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
           const prodName = runInfo.analysis?.productName || 'sản phẩm';
           const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
           const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
@@ -393,7 +428,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
         imagePath: pPath,
         buffer: buf,
         prompt: prompt,
-        videoModelKey: template === 'template2' ? '4s' : ((template === 'template3' || template === 'template4') ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s'),
+        videoModelKey: template === 'template6' ? '8s' : (template === 'template2' ? '4s' : ((template === 'template3' || template === 'template4') ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s')),
       });
     } else {
       invalidIndices.push(idx);
@@ -557,6 +592,13 @@ async function handleUpdate(botToken, update) {
       return;
     }
 
+    // ── Template 6 command (Supermarket POV) ──────────────────────────────────
+    if (text === '/template6' || text === '/template_6' || text.startsWith('/template6@') || text.startsWith('/template_6@')) {
+      console.log(`[Telegram Bot] Received /template6 command from chat ${chatId}`);
+      await handleTemplate6Command(botToken, chatId);
+      return;
+    }
+
     // ── Remake / Again / Redo command ─────────────────────────────────────────
     if (text === '/remake' || text.startsWith('/remake ') || text.startsWith('/remake@') || /^\/remake\d+/i.test(text) ||
         text === '/again' || text.startsWith('/again ') || text.startsWith('/again@') || /^\/again\d+/i.test(text) ||
@@ -638,6 +680,8 @@ async function handleUpdate(botToken, update) {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template5_1 review đa ngành hàng 4 cảnh 6s (không chữ)...';
       } else if (selectedTemplate === 'template5_2' || selectedTemplate === 'template5.2' || selectedTemplate === 'template52') {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template5_2 review đa ngành hàng 4 cảnh 6s (có voice review faceless)...';
+      } else if (selectedTemplate === 'template6' || selectedTemplate === 'template_6') {
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template6 review siêu thị POV 2 cảnh 8s (không chữ, không tiếng)...';
       }
       await sendTelegramMessage(botToken, chatId, receiveMsg);
     }
@@ -775,6 +819,7 @@ async function buildTelegramCommandsFromDrive() {
     { command: 'template5', description: '✨ Review đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt)' },
     { command: 'template5_1', description: '💎 Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text)' },
     { command: 'template5_2', description: '🎙️ Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + VOICE REVIEW faceless)' },
+    { command: 'template6', description: '🛒 Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh/WinMart, không chữ, không tiếng)' },
     { command: 'remake', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /remake 2)' },
     { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
   ];

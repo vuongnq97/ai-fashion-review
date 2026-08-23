@@ -1,17 +1,23 @@
-Video POV chân thực từ góc nhìn người mua, camera đặt ở vị trí ngang ngực, mô phỏng quay bằng iPhone 15 Pro.
+Video POV chân thực từ góc nhìn người mua hàng, camera đặt cố định ở vị trí ngang ngực, mô phỏng camera iPhone 15 Pro.
 
-Chỉ nhìn thấy một bàn tay nữ và cẳng tay nữ, không xuất hiện khuôn mặt hay cơ thể người. Bàn tay nữ đưa về phía kệ hàng, nhẹ nhàng lấy một sản phẩm trên kệ rồi đưa sản phẩm lên trước camera ở khoảng ngang ngực.
+Ngay từ frame đầu tiên, sản phẩm đã được cầm sẵn trên tay nữ. Không có hành động lấy sản phẩm từ kệ. Không đưa tay về phía kệ. Không xuất hiện giỏ mua hàng.
 
-Chuyển động bàn tay chậm, tự nhiên, chính xác như một người đang mua hàng thật. Các ngón tay cử động nhẹ và giữ sản phẩm chắc chắn.
+Chỉ nhìn thấy bàn tay và cẳng tay nữ, không nhìn thấy khuôn mặt hay phần thân trên.
 
-Giỏ mua hàng màu xanh lá, quai màu vàng luôn đặt cố định dưới sàn, nằm ở phần dưới khung hình. Giỏ không được nâng lên, không được di chuyển khỏi mặt đất và không được lơ lửng.
+Bàn tay nữ giữ sản phẩm ở phía trước camera, khoảng ngang ngực. Người mua từ từ xoay nhẹ cổ tay sang trái và sang phải, đồng thời hơi nghiêng sản phẩm về các hướng khác nhau, giống như đang quan sát kỹ bao bì, kiểm tra sản phẩm trước khi quyết định mua.
 
-Camera có chuyển động handheld rất nhẹ theo chuyển động tự nhiên của cơ thể người đang đứng trong siêu thị. Không rung mạnh.
+Chuyển động rất tự nhiên và chậm:
 
-Background là kệ hàng Bách Hóa Xanh hoặc WinMart, các sản phẩm trên kệ giữ nguyên vị trí, không biến dạng.
+giữ sản phẩm → xoay cổ tay nhẹ sang trái → xoay sang phải → hơi nghiêng sản phẩm → giữ lại ở vị trí dễ nhìn.
 
-Ánh sáng ban ngày tự nhiên từ cửa ra vào/cửa sổ, bóng đổ mềm, sàn gạch thật, phản chiếu ánh sáng tự nhiên.
+Có thể lắc sản phẩm rất nhẹ 1 lần, nhưng không được lắc mạnh. Mục đích của chuyển động là tạo cảm giác người mua đang xem xét chi tiết sản phẩm, không phải đang quảng cáo hoặc tạo dáng.
 
-Phong cách quay 100% chân thực, giống footage quay bằng iPhone 15 Pro ngoài đời thực. Da tay tự nhiên, không làm mịn da, không hiệu ứng CGI, không màu sắc quá rực.
+Camera hoàn toàn đứng yên, không pan, không tilt, không zoom, không tiến gần sản phẩm, không lùi ra xa. Góc quay và vị trí camera được khóa cố định trong toàn bộ cảnh.
 
-Không có chữ, không subtitle, không graphic, không hiệu ứng 3D, không cartoon, không CGI, không khuôn mặt, không người khác xuất hiện trong foreground.
+Kệ hàng siêu thị ở background giữ nguyên, không thay đổi bố cục. Sản phẩm trên kệ không tự di chuyển hoặc biến dạng.
+
+Ánh sáng tự nhiên, chân thực như quay trực tiếp bằng iPhone 15 Pro trong siêu thị. Ánh sáng ban ngày từ cửa ra vào/cửa sổ, bóng đổ mềm, sàn gạch thật, màu sắc tự nhiên.
+
+Phong cách 100% live-action photorealistic, giống footage iPhone 15 Pro thật. Da tay nữ có texture tự nhiên, không làm mịn da, không hiệu ứng làm đẹp.
+
+Không có giỏ hàng trong Cảnh 1. Không có text, subtitle, graphic, CGI, 3D, cartoon, filter, hiệu ứng chuyển cảnh. Không thêm người vào foreground. Không thay đổi sản phẩm. Không làm sản phẩm biến dạng.

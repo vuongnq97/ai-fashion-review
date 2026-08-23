@@ -4,11 +4,20 @@ const aistudio = require('./aistudio');
 const geminiWebapi = require('./gemini-webapi-storyboard');
 const googleFlow = require('./google-flow-storyboard');
 const template5 = require('./template5-storyboard');
+const template6 = require('./template6-storyboard');
 const { getConfig } = require('../utils/config-manager');
 
 function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options = {}) {
   const config = getConfig(baseDir);
   const template = String(options.template || options.storyboardTemplate || '').trim().toLowerCase();
+
+  if (template === 'template6' || template === 'template_6') {
+    return {
+      name: 'template6',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) =>
+        template6.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template6' }),
+    };
+  }
 
   if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
       template === 'template5_2' || template === 'template5.2' || template === 'template52') {

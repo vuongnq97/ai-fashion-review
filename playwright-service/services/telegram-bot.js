@@ -460,16 +460,36 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
       });
 
       let successCount = 0;
+      const failedPanels = [];
+
+      if (!videos || !Array.isArray(videos) || videos.length === 0) {
+        const errMsg = 'Server không trả về kết quả video nào.';
+        console.error(`[Telegram Bot] /remake no videos returned for chat ${chatId}`);
+        await sendTelegramMessage(botToken, chatId,
+          `❌ Tạo lại video thất bại: ${errMsg}\n👉 Bạn vui lòng thử lại bằng lệnh: /remake ${validPanels.map(p => p.index).join(' ')}`);
+        return { successCount: 0, failedPanels: validPanels.map(p => ({ panelIndex: p.index, error: errMsg })), videos: [] };
+      }
+
       for (const v of videos) {
+        const pIdx = v?.panelIndex || '?';
         if (!v || v.error) {
-          if (v && v.error) {
-            console.error(`[Telegram Bot] /remake video error for panel ${v.panelIndex}:`, v.error);
-          }
+          const errDetail = v?.error || 'Lỗi không xác định khi tạo video';
+          console.error(`[Telegram Bot] /remake video error for panel ${pIdx}:`, errDetail);
+          failedPanels.push({ panelIndex: pIdx, error: errDetail });
+          await sendTelegramMessage(botToken, chatId,
+            `❌ Lỗi tạo lại video cảnh ${pIdx}: ${errDetail}\n👉 Bạn có thể thử lại ngay bằng lệnh: /remake ${pIdx}`);
           continue;
         }
 
         const base64 = v.video?.base64 || (v.videoPath && fs.existsSync(v.videoPath) ? fs.readFileSync(v.videoPath).toString('base64') : null);
-        if (!base64) continue;
+        if (!base64) {
+          const errDetail = 'Thiếu dữ liệu video đầu ra (base64 rỗng)';
+          console.error(`[Telegram Bot] /remake video missing base64 for panel ${pIdx}`);
+          failedPanels.push({ panelIndex: pIdx, error: errDetail });
+          await sendTelegramMessage(botToken, chatId,
+            `❌ Lỗi video cảnh ${pIdx}: ${errDetail}\n👉 Bạn có thể thử lại bằng lệnh: /remake ${pIdx}`);
+          continue;
+        }
 
         // Copy video into run's videosDir
         const targetVideosDir = runInfo.videosDir || path.join(runInfo.runDir, 'videos');
@@ -485,19 +505,32 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
           (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '');
 
         const ok = await sendVideoToTelegramDirect(chatId, base64, v.panelIndex, `Panel ${v.panelIndex}`, caption);
-        if (ok) successCount++;
+        if (ok) {
+          successCount++;
+        } else {
+          failedPanels.push({ panelIndex: v.panelIndex, error: 'Gửi video qua Telegram thất bại' });
+          await sendTelegramMessage(botToken, chatId,
+            `❌ Gửi video cảnh ${v.panelIndex} qua Telegram thất bại.\n👉 Bạn có thể thử lại bằng lệnh: /remake ${v.panelIndex}`);
+        }
       }
 
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      if (successCount > 0) {
+      if (successCount > 0 && failedPanels.length === 0) {
         await sendTelegramMessage(botToken, chatId,
           `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /remake <số_cảnh> bất cứ lúc nào nếu muốn đổi lại video khác.`);
+      } else if (successCount > 0 && failedPanels.length > 0) {
+        await sendTelegramMessage(botToken, chatId,
+          `⚠️ Đã hoàn thành ${successCount} video, nhưng có ${failedPanels.length} cảnh bị lỗi (${elapsed}s).\n👉 Gõ /remake ${failedPanels.map(f => f.panelIndex).join(' ')} để tạo lại các cảnh lỗi.`);
+      } else {
+        await sendTelegramMessage(botToken, chatId,
+          `❌ Tất cả ${validPanels.length} cảnh remake đều thất bại (${elapsed}s).\n👉 Bạn hãy thử remake lại: /remake ${validPanels.map(p => p.index).join(' ')}`);
       }
-      return { successCount, videos };
+      return { successCount, failedPanels, videos };
     },
   }).catch(err => {
-    console.error(`[Telegram Bot] /remake error for chat ${chatId}:`, err.message);
-    sendTelegramMessage(botToken, chatId, `⚠️ Lỗi xử lý /remake: ${err.message}`).catch(() => {});
+    console.error(`[Telegram Bot] /remake unhandled error for chat ${chatId}:`, err.message);
+    sendTelegramMessage(botToken, chatId,
+      `❌ Lỗi xử lý /remake cảnh ${validPanels.map(p => p.index).join(', ')}: ${err.message}\n👉 Vui lòng thử lại: /remake ${validPanels.map(p => p.index).join(' ')}`).catch(() => {});
   });
 }
 

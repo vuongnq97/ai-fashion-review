@@ -7,59 +7,6 @@ echo  [AI Fashion Review] SETUP TU DONG CHO WINDOWS
 echo ============================================================
 echo.
 
-:: 1. Kiem tra Node.js trong PATH hoac thu muc mac dinh
-set "NODE_CMD="
-where node >nul 2>nul
-if %errorlevel% equ 0 (
-    set "NODE_CMD=node"
-) else if exist "%ProgramFiles%\nodejs\node.exe" (
-    set "NODE_CMD=%ProgramFiles%\nodejs\node.exe"
-    set "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;!PATH!"
-) else if exist "%LocalAppData%\Programs\nodejs\node.exe" (
-    set "NODE_CMD=%LocalAppData%\Programs\nodejs\node.exe"
-    set "PATH=%LocalAppData%\Programs\nodejs;!PATH!"
-)
-
-if "!NODE_CMD!"=="" (
-    echo [!] May cua ban chua cai dat Node.js.
-    echo [*] Dang tu dong tai Node.js v20 LTS cho Windows...
-    
-    set "NODE_MSI=%TEMP%\nodejs_installer.msi"
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi', '%NODE_MSI%')"
-    
-    if exist "%NODE_MSI%" (
-        echo [*] Dang cai dat Node.js v20 (Vui long nhan Yes/Agree neu co hop thoai Windows)...
-        start /wait msiexec.exe /i "%NODE_MSI%" /passive
-        del "%NODE_MSI%" 2>nul
-        
-        set "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;!PATH!"
-        if exist "%ProgramFiles%\nodejs\node.exe" (
-            set "NODE_CMD=%ProgramFiles%\nodejs\node.exe"
-            echo [OK] Da cai dat Node.js thanh cong!
-        )
-    )
-)
-
-:: Kiem tra lai sau khi cai
-if "!NODE_CMD!"=="" (
-    where node >nul 2>nul
-    if %errorlevel% equ 0 set "NODE_CMD=node"
-)
-
-if "!NODE_CMD!"=="" (
-    echo.
-    echo [X] Chua tim thay Node.js. Vui long tai va cai dat Node.js tai: https://nodejs.org/
-    echo     Sau khi cai xong, hay mo lai file setup.bat nay nhe!
-    echo.
-    pause
-    exit /b 1
-)
-
-for /f "tokens=*" %%v in ('!NODE_CMD! -v 2^>nul') do set "NODE_VER=%%v"
-echo [OK] Node.js version: !NODE_VER!
-echo.
-
-:: 2. Chuyen vao thu muc playwright-service va chay setup.js
 cd /d "%~dp0playwright-service"
 if not exist "setup.js" (
     cd /d "%~dp0\playwright-service"
@@ -72,9 +19,47 @@ if not exist "setup.js" (
     exit /b 1
 )
 
+:: Kiem tra Node.js
+where node >nul 2>nul
+if %errorlevel% neq 0 (
+    if exist "%ProgramFiles%\nodejs\node.exe" (
+        set "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;!PATH!"
+    ) else if exist "%LocalAppData%\Programs\nodejs\node.exe" (
+        set "PATH=%LocalAppData%\Programs\nodejs;!PATH!"
+    ) else (
+        echo [!] May cua ban chua cai dat Node.js.
+        echo [*] Dang tu dong tai Node.js v20 LTS cho Windows...
+        
+        set "NODE_MSI=%TEMP%\nodejs_installer.msi"
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi', '%NODE_MSI%')"
+        
+        if exist "%NODE_MSI%" (
+            echo [*] Dang cai dat Node.js v20 (Vui long nhan Yes/Agree neu co hop thoai)...
+            start /wait msiexec.exe /i "%NODE_MSI%" /passive
+            del "%NODE_MSI%" 2>nul
+            set "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;!PATH!"
+        )
+    )
+)
+
+where node >nul 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo [X] Chua tim thay Node.js. Vui long tai va cai dat Node.js tai: https://nodejs.org/
+    echo     Sau khi cai xong, hay mo lai file setup.bat nay nhe!
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [OK] Da tim thay Node.js san sang!
 echo [*] Dang khoi chay qua trinh cai dat thu vien va cau hinh...
-!NODE_CMD! setup.js
+echo.
+
+node setup.js
 
 echo.
+echo ============================================================
 echo [OK] Hoan tat setup. Nhan phim bat ky de thoat...
+echo ============================================================
 pause

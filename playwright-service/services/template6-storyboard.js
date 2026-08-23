@@ -202,13 +202,18 @@ function normalizeTemplate6Hashtags(parsed, elements) {
  */
 function buildTemplate6AnalysisPrompt() {
   return `TEXT-ONLY TASK. Do not generate images. Do not call image generation.
-You are a supermarket retail product analyst, TikTok content strategist, and Veo 3 director.
-Analyze the uploaded product image(s) and determine how this product is merchandised in a Vietnamese modern supermarket (such as Bach Hoa Xanh or WinMart), and generate exactly 5 trending Vietnamese hashtags.
+You are a senior retail merchandising analyst, Vietnamese typography specialist, and Veo 3 director.
+Analyze the uploaded product image(s) with extreme precision. Extract the EXACT Vietnamese text printed on the front label, brand name, and supermarket merchandising context.
 
 Return ONLY valid JSON with this schema:
 {
-  "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác kèm thương hiệu (ví dụ: Nước Rửa Chén Top Gia Hương Chanh)",
-  "brand": "Tên thương hiệu nếu có (ví dụ: Top Gia, Suntory, Lix, Sunlight)",
+  "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác kèm thương hiệu (ví dụ: Nước Rửa Chén Top Gia Hương Bưởi Hồng)",
+  "brand": "Tên thương hiệu chính xác (ví dụ: TOP GIA, Sunlight, Lix, Mỹ Hảo)",
+  "exactLabelText": {
+    "productTitle": "Dòng tiêu đề loại sản phẩm in trên nhãn (ví dụ: NƯỚC RỬA CHÉN)",
+    "brandName": "Tên thương hiệu trên nhãn (ví dụ: TOP GIA)",
+    "taglineOrVariant": "Dòng slogan hoặc đặc tính nổi bật in trên nhãn (ví dụ: SIÊU SẠCH - SIÊU TIẾT KIỆM)"
+  },
   "category": "beverages|snacks|dairy|condiments|instant_food|personal_care|household|baby|cosmetics|other",
   "packagingType": "bottle|box|can|pouch|jar|packet|spray|tub|carton",
   "hashtags": ["#ThuongHieu", "#TenSanPham", "#ReviewSieuThi", "#BachHoaXanh", "#TikTokShopVN"],
@@ -223,14 +228,17 @@ Return ONLY valid JSON with this schema:
  */
 function buildTemplate6StoryboardPrompt(analysis, elements) {
   const prodName = analysis.productName || 'sản phẩm siêu thị';
+  const brandName = analysis.exactLabelText?.brandName || analysis.brand || 'TOP GIA';
+  const labelTitle = analysis.exactLabelText?.productTitle || 'NƯỚC RỬA CHÉN';
+  const labelTagline = analysis.exactLabelText?.taglineOrVariant || 'SIÊU SẠCH - SIÊU TIẾT KIỆM';
   const aisleDesc = analysis.supermarketAisleDescription || 'kệ hàng siêu thị hiện đại ngăn nắp';
   const neighbor = analysis.neighborProducts || 'các sản phẩm cùng loại trên kệ';
   const isWinMart = elements.store === 'winmart';
 
   const storeName = isWinMart ? 'WinMart' : 'Bách Hóa Xanh';
   const shelfStyle = isWinMart
-    ? 'WinMart supermarket aisle with bold red promotional header signs ("WinMart Tươi Ngon Thượng Hạng", "Tiết kiệm mỗi ngày"), red shelf price tags, brightly lit modern supermarket environment, glossy beige tile floor'
-    : 'Bach Hoa Xanh supermarket aisle with signature green shelf headers, white price strips, well-organized retail shelving, bright daylight and ceiling lighting, clean beige tiled floor';
+    ? 'WinMart supermarket aisle with bold red promotional header signs ("WinMart Tươi Ngon Thượng Hạng", "Tiết kiệm mỗi ngày"), red shelf price tags with readable numbers ("25.000đ", "39.000đ"), brightly lit modern supermarket environment, glossy beige tile floor'
+    : 'Bach Hoa Xanh supermarket aisle with signature green shelf headers ("Bách Hóa XANH - Thịt Cá Tươi Ngon", "Giá Rẻ Mỗi Ngày"), white and yellow price tags, well-organized retail shelving, bright daylight and ceiling lighting, clean beige tiled floor';
 
   const basketDesc = isWinMart
     ? 'a classic red WinMart plastic shopping basket resting flat on the tile floor (containing 1-2 snack boxes and a fresh food tray inside)'
@@ -245,6 +253,16 @@ VISUAL REFERENCE INSTRUCTIONS:
 - REPLACE the product from the reference image with the user's uploaded product: ${prodName} (${analysis.packagingType || 'bao bì chuẩn'}), maintaining 100% brand label, colors, and shape consistency.
 - ADAPT the background shelves to naturally merchandise ${aisleDesc} (${neighbor}) while keeping the exact ${storeName} supermarket environment.
 
+MANDATORY VIETNAMESE TYPOGRAPHY & SPELLING RULES:
+- The product label MUST display razor-sharp, 100% accurate Vietnamese spelling with proper diacritics and clean modern font typography:
+  * Product Title: "${labelTitle}"
+  * Brand Name: "${brandName}"
+  * Subtext / Tagline: "${labelTagline}"
+- All supermarket overhead promotional banners and signs MUST use correct Vietnamese spelling with clear diacritic marks (chuẩn 100% tiếng Việt có dấu, không lỗi font, không thiếu dấu sắc, huyền, hỏi, ngã, nặng, mũ â/ê/ô/ơ/ư):
+  * ${isWinMart ? 'Banner text: "WinMart", "TƯƠI NGON THƯỢNG HẠNG", "Tiết kiệm mỗi ngày"' : 'Banner text: "Bách Hóa XANH", "Thịt Cá Tươi Ngon", "Giá Rẻ Mỗi Ngày"'}
+- Shelf price strips and brand labels in background (e.g. Sunlight, Lix, Mỹ Hảo, Net...) must have crisp, realistic letters.
+- STRICTLY FORBIDDEN: misspelled words, missing diacritics, unreadable alien fonts, melted/wobbly characters, or distorted pseudo-text.
+
 STRICT STYLE & REALISM:
 - Shot on iPhone 15 Pro 4K camera, natural handheld eye/chest level POV.
 - 100% live-action realism: natural supermarket lighting, soft ambient daylight, authentic specular reflections on the tiled floor.
@@ -254,14 +272,14 @@ STRICT STYLE & REALISM:
 
 PANEL 1 (Left Panel - Vertical 9:16 ratio):
 - Camera & View: First-person POV standing in the supermarket aisle at chest level looking forward (matching Panel 1 of ${refFileName}).
-- Action & Subject: The female hand (${elements.accessory}, ${elements.sleeve}) holds the ${prodName} upright in the foreground at mid-chest height, observing it closely.
+- Action & Subject: The female hand (${elements.accessory}, ${elements.sleeve}) holds the ${prodName} upright in the foreground at mid-chest height, observing the front label ("${brandName}", "${labelTitle}", "${labelTagline}") clearly.
 - Floor & Background: Clean beige tiled floor extending down the aisle between the retail shelves.
 - CRITICAL RESTRICTION FOR PANEL 1: STRICTLY NO SHOPPING BASKET in Panel 1 (clean floor, no basket, no clutter).
 
 PANEL 2 (Right Panel - Vertical 9:16 ratio):
 - Camera & View: The exact same first-person POV looking downward at an angle from chest height towards the floor (matching Panel 2 of ${refFileName}).
 - Basket on Floor: ${basketDesc}. The basket rests stationary on the floor in front of the reviewer's standing position.
-- Action & Subject: The same female hand holding the ${prodName} is lowered down over the shopping basket, ready to place it inside amongst the groceries.
+- Action & Subject: The same female hand holding the ${prodName} is lowered down over the shopping basket, ready to place it inside amongst the groceries. The bottle label ("${brandName}", "${labelTitle}") remains sharp and legible.
 - Bottom Edge: Reviewer's ${elements.pantsAndShoes} are naturally visible at the bottom edge of the frame.
 
 GLOBAL MANDATORY RULES:
@@ -462,6 +480,7 @@ async function analyzeProductTemplate6(geminiClient, filePayloads, elements) {
         analysis: {
           productName: pName,
           brand: parsed.brand || '',
+          exactLabelText: parsed.exactLabelText || null,
           category: cat,
           packagingType: parsed.packagingType || 'chai/hộp',
           hashtags,
@@ -657,6 +676,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     analysis,
     elements,
     archive,
+    reviewArchive: archive,
   };
 }
 

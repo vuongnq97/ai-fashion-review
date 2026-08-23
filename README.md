@@ -69,15 +69,25 @@ playwright-service/
 
 ### Cách 1: Chạy file Setup tự động (Khuyên dùng)
 
-Trên máy mới, chỉ cần chạy đúng 1 lệnh từ thư mục gốc:
+Sau khi clone repo về máy:
 
-```bash
-git clone https://github.com/vuongnq97/ai-fashion-review.git
-cd ai-fashion-review
-./setup.sh
-```
+- **Trên macOS & Linux**:
+  ```bash
+  git clone https://github.com/vuongnq97/ai-fashion-review.git
+  cd ai-fashion-review
+  ./setup.sh
+  ```
+- **Trên Windows**:
+  - Clone repo hoặc tải ZIP giải nén.
+  - **Click đúp (Double-click) vào file `setup.bat`** (hoặc mở Command Prompt gõ `setup.bat`).
 
-*(Script sẽ tự động: kiểm tra Node.js, chạy `npm install`, tải Playwright Chromium, tạo các thư mục dữ liệu cần thiết, tạo file `.env`, hỗ trợ nhập `TELEGRAM_BOT_TOKEN`, và mở trình duyệt để bạn đăng nhập Google lần đầu).*
+*(Script sẽ tự động kiểm tra Node.js — nếu máy chưa có sẽ tự tải & cài Node.js v20 LTS, chạy `npm install`, tải Playwright Chromium, tạo các thư mục dữ liệu, tạo file `.env` và mở trình duyệt để bạn đăng nhập Google lần đầu).*
+
+---
+
+### Khởi động Server sau khi Setup:
+- **macOS & Linux**: `./start.sh` (hoặc `cd playwright-service && node server.js`)
+- **Windows**: Click đúp vào file `start.bat` (hoặc `cd playwright-service && node server.js`)
 
 ---
 

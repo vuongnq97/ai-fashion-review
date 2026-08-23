@@ -1,25 +1,26 @@
-Video POV chân thực, camera cố định ở vị trí ngang ngực, cùng góc quay và cùng người nữ như Cảnh 1.
+Video POV chân thực, camera iPhone 15 Pro đặt cố định ở vị trí ngang ngực, cùng góc quay và cùng bàn tay nữ như Cảnh 1.
 
-Ngay từ đầu cảnh, bàn tay nữ đang cầm sẵn chính sản phẩm vừa được quan sát ở Cảnh 1.
+Ngay từ frame đầu tiên, bàn tay nữ đang cầm sản phẩm.
 
 Chiếc giỏ mua hàng màu xanh lá, quai màu vàng đã nằm cố định trên mặt đất ở phía dưới khung hình.
 
-Bàn tay nữ từ từ đưa sản phẩm xuống phía dưới, hướng vào bên trong giỏ.
+Bàn tay nữ nhanh chóng đưa sản phẩm xuống phía dưới và đặt trực tiếp vào giỏ.
 
-Khi sản phẩm đến gần đáy giỏ, bàn tay nhẹ nhàng đặt sản phẩm xuống giữa những món hàng có sẵn. Sản phẩm phải tiếp xúc thật với các sản phẩm bên trong giỏ và nằm yên theo trọng lực.
+Động tác phải nhanh, gọn và dứt khoát, giống hành động mua hàng tự nhiên trong siêu thị.
 
-Sau khi đặt sản phẩm xuống, các ngón tay từ từ buông ra. Bàn tay rút nhẹ lên trên và ra khỏi khu vực giỏ.
+Trình tự chuyển động:
+Cầm sản phẩm → hạ tay nhanh xuống → đưa sản phẩm vào giỏ → thả sản phẩm → rút tay nhanh lên.
 
-Trình tự hành động rõ ràng:
+Tổng thể hành động diễn ra khoảng 1–2 giây. Không được kéo dài hoặc chuyển động chậm.
 
-cầm sản phẩm → đưa tay xuống → đưa sản phẩm vào giỏ → đặt xuống → buông tay → rút tay ra.
+Khi sản phẩm chạm các món đồ trong giỏ, sản phẩm phải nằm xuống tự nhiên theo trọng lực. Các ngón tay nhanh chóng buông sản phẩm rồi rút khỏi khung hình.
 
-Giỏ luôn nằm dưới đất trong toàn bộ cảnh. Không được nâng giỏ lên, không được cầm quai, không được kéo giỏ, không được để giỏ bay hoặc tự di chuyển.
+Giỏ mua hàng luôn nằm cố định trên mặt đất trong toàn bộ cảnh quay. Tuyệt đối không nâng giỏ, không cầm quai, không kéo giỏ, không để giỏ bay hoặc tự di chuyển.
 
-Camera không di chuyển, không zoom, không pan, không tilt. Chỉ có bàn tay và sản phẩm chuyển động.
+Camera hoàn toàn đứng yên. Không pan, không tilt, không zoom, không camera tracking. Chỉ có bàn tay và sản phẩm chuyển động.
 
-Giữ nguyên background siêu thị, kệ hàng, sàn gạch và ánh sáng. Vật thể tuân theo trọng lực và vật lý thực tế.
+Giữ nguyên background siêu thị, kệ hàng, sàn gạch và ánh sáng.
 
-Hình ảnh 100% chân thực như quay bằng iPhone 15 Pro, ánh sáng tự nhiên, bóng đổ mềm, màu sắc đời thực, da tay nữ tự nhiên.
+Hình ảnh 100% photorealistic, live-action, giống quay thật bằng iPhone 15 Pro. Chuyển động bàn tay nữ tự nhiên, nhanh nhưng không giật.
 
-Không text, không subtitle, không graphic, không CGI, không 3D, không cartoon, không filter làm đẹp, không thay đổi sản phẩm, không biến dạng bàn tay, không thêm người vào foreground.
+Không text, subtitle, graphic, CGI, 3D, cartoon, filter làm đẹp. Không biến dạng bàn tay. Không biến dạng sản phẩm. Không thêm người vào foreground.

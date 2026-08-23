@@ -33,35 +33,42 @@ Template 6 tái hiện trải nghiệm mua sắm góc nhìn thứ nhất (First-
 
 ## 🎬 Kịch bản Video Veo 3 (8 Giây Mỗi Cảnh)
 
-### Cảnh 1: Cầm xem sản phẩm ngang ngực (8 giây)
+### Cảnh 1: Cầm xem sản phẩm ngang ngực (8 giây - Động tác nhanh, gọn, dứt khoát 1-2s)
 ```text
-Video POV chân thực từ góc nhìn người mua hàng, camera đặt cố định ở vị trí ngang ngực, mô phỏng camera iPhone 15 Pro.
-Ngay từ frame đầu tiên, sản phẩm [Tên sản phẩm] đã được cầm sẵn trên tay nữ. Không có hành động lấy sản phẩm từ kệ. Không đưa tay về phía kệ. Không xuất hiện giỏ mua hàng.
-Chỉ nhìn thấy bàn tay và cẳng tay nữ, không nhìn thấy khuôn mặt hay phần thân trên.
-Bàn tay nữ giữ sản phẩm ở phía trước camera, khoảng ngang ngực. Người mua từ từ xoay nhẹ cổ tay sang trái và sang phải, đồng thời hơi nghiêng sản phẩm về các hướng khác nhau, giống như đang quan sát kỹ bao bì, kiểm tra sản phẩm trước khi quyết định mua.
-Chuyển động rất tự nhiên và chậm: 0s-2s giữ sản phẩm ổn định, 2s-4s xoay cổ tay nhẹ sang trái, 4s-6s xoay sang phải và hơi nghiêng sản phẩm, 6s-8s giữ lại ở vị trí dễ nhìn.
-Camera hoàn toàn đứng yên, không pan, không tilt, không zoom, không tiến gần sản phẩm, không lùi ra xa. Góc quay và vị trí camera được khóa cố định trong toàn bộ cảnh.
-Kệ hàng siêu thị ở background giữ nguyên, không thay đổi bố cục.
-Phong cách 100% live-action photorealistic, giống footage iPhone 15 Pro thật. Da tay nữ có texture tự nhiên, không làm mịn da, không hiệu ứng làm đẹp.
-Không có giỏ hàng trong Cảnh 1. Không có text, subtitle, graphic, CGI, 3D, cartoon, filter, hiệu ứng chuyển cảnh. Video hoàn toàn im lặng, không voice-over, không nhạc nền.
+Video POV chân thực từ góc nhìn người mua hàng, camera iPhone 15 Pro đặt cố định ở vị trí ngang ngực.
+Ngay từ frame đầu tiên, sản phẩm [Tên sản phẩm] đã được cầm sẵn trên tay nữ. Không có hành động lấy sản phẩm từ kệ. Không có giỏ hàng.
+Chỉ nhìn thấy bàn tay và cẳng tay nữ.
+Bàn tay giữ sản phẩm trước camera. Người mua nhanh chóng xoay cổ tay sang trái rồi sang phải để kiểm tra sản phẩm từ các góc khác nhau. Sau đó hơi nghiêng sản phẩm về phía trước và trở lại vị trí ban đầu.
+Chuyển động nhanh, gọn và dứt khoát, giống một người đang xem nhanh sản phẩm trong siêu thị trước khi quyết định mua.
+Trình tự chuyển động:
+Cầm sản phẩm → xoay trái nhanh → xoay phải nhanh → hơi nghiêng sản phẩm → dừng.
+Tổng thể chuyển động diễn ra liên tục và nhanh, khoảng 1–2 giây. Không được chuyển động quá chậm.
+Cổ tay và ngón tay chuyển động tự nhiên, không giật cục. Có một chút chuyển động quán tính tự nhiên của sản phẩm khi xoay cổ tay.
+Camera hoàn toàn đứng yên trong toàn bộ cảnh. Không pan, không tilt, không zoom, không tiến gần, không lùi xa.
+Background là kệ hàng siêu thị Bách Hóa Xanh hoặc WinMart, giữ nguyên bố cục và sản phẩm trên kệ.
+Ánh sáng ban ngày tự nhiên, bóng mềm, sàn gạch thật, màu sắc tự nhiên.
+Phong cách 100% live-action photorealistic, giống footage quay bằng iPhone 15 Pro thật. Da tay nữ tự nhiên, không làm mịn da, không CGI, không 3D, không cartoon.
+Không có text, subtitle, graphic, hiệu ứng chuyển cảnh, filter làm đẹp. Không thêm giỏ hàng. Không thêm người vào foreground. Không thay đổi hoặc biến dạng sản phẩm.
 ```
 
 ---
 
-### Cảnh 2: Đặt sản phẩm vào giỏ hàng dưới sàn (8 giây)
+### Cảnh 2: Đặt sản phẩm vào giỏ hàng dưới sàn (8 giây - Động tác nhanh, dứt khoát 1-2s)
 ```text
-Video POV chân thực, camera cố định ở vị trí ngang ngực, cùng góc quay và cùng người nữ như Cảnh 1.
-Ngay từ đầu cảnh, bàn tay nữ đang cầm sẵn chính sản phẩm [Tên sản phẩm] vừa được quan sát ở Cảnh 1.
-Chiếc giỏ mua hàng đã nằm cố định trên mặt đất ở phía dưới khung hình.
-Bàn tay nữ từ từ đưa sản phẩm xuống phía dưới, hướng vào bên trong giỏ.
-Khi sản phẩm đến gần đáy giỏ, bàn tay nhẹ nhàng đặt sản phẩm xuống giữa những món hàng có sẵn. Sản phẩm phải tiếp xúc thật với các sản phẩm bên trong giỏ và nằm yên theo trọng lực.
-Sau khi đặt sản phẩm xuống, các ngón tay từ từ buông ra. Bàn tay rút nhẹ lên trên và ra khỏi khu vực giỏ.
-Trình tự hành động rõ ràng: 0s-2s cầm sản phẩm và bắt đầu hạ tay xuống, 2s-4s đưa sản phẩm vào trong giỏ và đặt xuống, 4s-6s buông tay nhẹ nhàng, 6s-8s rút tay ra khỏi giỏ.
-Giỏ luôn nằm dưới đất trong toàn bộ cảnh. Không được nâng giỏ lên, không được cầm quai, không được kéo giỏ, không được để giỏ bay hoặc tự di chuyển.
-Camera không di chuyển, không zoom, không pan, không tilt. Chỉ có bàn tay và sản phẩm chuyển động.
-Giữ nguyên background siêu thị, kệ hàng, sàn gạch và ánh sáng. Vật thể tuân theo trọng lực và vật lý thực tế.
-Hình ảnh 100% chân thực như quay bằng iPhone 15 Pro, ánh sáng tự nhiên, bóng đổ mềm, màu sắc đời thực, da tay nữ tự nhiên.
-Không text, không subtitle, không graphic, không CGI, không 3D, không cartoon, không filter làm đẹp. Video hoàn toàn im lặng, không voice-over, không nhạc nền.
+Video POV chân thực, camera iPhone 15 Pro đặt cố định ở vị trí ngang ngực, cùng góc quay và cùng bàn tay nữ như Cảnh 1.
+Ngay từ frame đầu tiên, bàn tay nữ đang cầm sản phẩm.
+Chiếc giỏ mua hàng màu xanh lá, quai màu vàng đã nằm cố định trên mặt đất ở phía dưới khung hình.
+Bàn tay nữ nhanh chóng đưa sản phẩm xuống phía dưới và đặt trực tiếp vào giỏ.
+Động tác phải nhanh, gọn và dứt khoát, giống hành động mua hàng tự nhiên trong siêu thị.
+Trình tự chuyển động:
+Cầm sản phẩm → hạ tay nhanh xuống → đưa sản phẩm vào giỏ → thả sản phẩm → rút tay nhanh lên.
+Tổng thể hành động diễn ra khoảng 1–2 giây. Không được kéo dài hoặc chuyển động chậm.
+Khi sản phẩm chạm các món đồ trong giỏ, sản phẩm phải nằm xuống tự nhiên theo trọng lực. Các ngón tay nhanh chóng buông sản phẩm rồi rút khỏi khung hình.
+Giỏ mua hàng luôn nằm cố định trên mặt đất trong toàn bộ cảnh quay. Tuyệt đối không nâng giỏ, không cầm quai, không kéo giỏ, không để giỏ bay hoặc tự di chuyển.
+Camera hoàn toàn đứng yên. Không pan, không tilt, không zoom, không camera tracking. Chỉ có bàn tay và sản phẩm chuyển động.
+Giữ nguyên background siêu thị, kệ hàng, sàn gạch và ánh sáng.
+Hình ảnh 100% photorealistic, live-action, giống quay thật bằng iPhone 15 Pro. Chuyển động bàn tay nữ tự nhiên, nhanh nhưng không giật.
+Không text, subtitle, graphic, CGI, 3D, cartoon, filter làm đẹp. Không biến dạng bàn tay. Không biến dạng sản phẩm. Không thêm người vào foreground.
 ```
 
 ---

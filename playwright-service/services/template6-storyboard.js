@@ -124,24 +124,30 @@ function buildTemplate6StoryboardPrompt(analysis, elements) {
     ? 'a classic red WinMart plastic shopping basket resting flat on the tile floor (containing 1-2 snack boxes and a fresh food tray inside)'
     : 'a signature green plastic shopping basket with bright yellow handles resting flat on the tile floor (containing 1-2 snack packets and a packaged container inside)';
 
+  const refFileName = isWinMart ? 'template6_2_ref.jpg' : 'template6_1_ref.jpg';
+
   return `Generate a single cohesive 2-panel storyboard photograph layout (side-by-side 2 vertical 9:16 panels, overall approx 18:16 ratio), depicting a 100% photorealistic first-person POV shopping experience in a Vietnamese modern supermarket (${storeName}).
+
+VISUAL REFERENCE INSTRUCTIONS:
+- Use the uploaded reference image (${refFileName}) as the MASTER VISUAL REFERENCE for the 2-panel side-by-side layout, camera POV angles, framing, lighting, supermarket theme, and floor perspective.
+- REPLACE the product from the reference image with the user's uploaded product: ${prodName} (${analysis.packagingType || 'bao bì chuẩn'}), maintaining 100% brand label, colors, and shape consistency.
+- ADAPT the background shelves to naturally merchandise ${aisleDesc} (${neighbor}) while keeping the exact ${storeName} supermarket environment.
 
 STRICT STYLE & REALISM:
 - Shot on iPhone 15 Pro 4K camera, natural handheld eye/chest level POV.
 - 100% live-action realism: natural supermarket lighting, soft ambient daylight, authentic specular reflections on the tiled floor.
 - Slim female reviewer hand and forearm with natural skin texture, visible pores, and knuckle creases.
 - Reviewer outfit: ${elements.sleeve}, ${elements.accessory}.
-- The product featured in both panels is the exact input product: ${prodName} (${analysis.packagingType || 'bao bì chuẩn'}), maintaining 100% brand label, colors, and shape consistency.
-- Background setting: ${shelfStyle}. The shelves are stocked with ${aisleDesc} and ${neighbor}.
+- Background setting: ${shelfStyle}.
 
 PANEL 1 (Left Panel - Vertical 9:16 ratio):
-- Camera & View: First-person POV standing in the supermarket aisle at chest level looking forward.
+- Camera & View: First-person POV standing in the supermarket aisle at chest level looking forward (matching Panel 1 of ${refFileName}).
 - Action & Subject: The female hand (${elements.accessory}, ${elements.sleeve}) holds the ${prodName} upright in the foreground at mid-chest height, observing it closely.
 - Floor & Background: Clean beige tiled floor extending down the aisle between the retail shelves.
 - CRITICAL RESTRICTION FOR PANEL 1: STRICTLY NO SHOPPING BASKET in Panel 1 (clean floor, no basket, no clutter).
 
 PANEL 2 (Right Panel - Vertical 9:16 ratio):
-- Camera & View: The exact same first-person POV looking downward at an angle from chest height towards the floor.
+- Camera & View: The exact same first-person POV looking downward at an angle from chest height towards the floor (matching Panel 2 of ${refFileName}).
 - Basket on Floor: ${basketDesc}. The basket rests stationary on the floor in front of the reviewer's standing position.
 - Action & Subject: The same female hand holding the ${prodName} is lowered down over the shopping basket, ready to place it inside amongst the groceries.
 - Bottom Edge: Reviewer's ${elements.pantsAndShoes} are naturally visible at the bottom edge of the frame.

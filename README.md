@@ -135,7 +135,7 @@ node server.js
 | `/template2` | Review giày dép 8 cảnh x 4s (không voice-over). |
 | `/template3` | Review shop giày dép 4 cảnh (Top-down 8s, POV 6s, góc hông 4s, đứng thử 8s). |
 | `/template4` | Review giày/dép nữ shop pastel 4 cảnh (Cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng dáng 8s). |
-| `/again <cảnh> [yêu cầu]` | **Tạo lại video cảnh chưa ưng ý** (VD: `/again 2` hoặc `/again 2 xoay nhẹ góc 45 độ` để ưu tiên custom prompt). |
+| `/remake <cảnh> [yêu cầu]` | **Tạo lại video cảnh chưa ưng ý** (VD: `/remake 2` hoặc `/remake 2 xoay nhẹ góc 45 độ` để ưu tiên custom prompt). |
 | `/dailyvlog` | Tạo vlog lifestyle cho nhân vật Nhi. |
 | `/status` | Xem trạng thái hàng đợi xử lý video. |
 
@@ -146,10 +146,10 @@ node server.js
 ### Luồng Chính: Review Sản Phẩm (Telegram → Video)
 
 1. Mở Telegram, chat với bot của bạn.
-2. Gõ lệnh chọn template mong muốn (ví dụ: `/template5` hoặc `/template5_1`).
+2. Gõ lệnh chọn template mong muốn (ví dụ: `/template5`, `/template5_1` hoặc `/template5_2`).
 3. Gửi album ảnh sản phẩm (từ 1 đến 11+ ảnh).
 4. Bot tự động gom ảnh, tạo Master Storyboard qua Gemini API, tách 4 Panel 9:16, sinh 4 Video 6s trên Veo 3 và gửi video về Telegram.
-5. Nếu cần làm lại cảnh nào, gõ `/again <số_cảnh> [yêu cầu]`.
+5. Nếu cần làm lại cảnh nào, gõ `/remake <số_cảnh> [yêu cầu]`.
 
 ### Luồng Daily Vlog: Lifestyle cho Nhi (Telegram → Video)
 

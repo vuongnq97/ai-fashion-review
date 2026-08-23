@@ -19,7 +19,7 @@ const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'status', 'again']);
+const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'status', 'remake', 'again', 'redo']);
 const driveFolderByCommand = new Map();
 
 /**
@@ -288,29 +288,8 @@ function getLatestRunDirectory(baseDir) {
   return entries.length > 0 ? entries[0].path : null;
 }
 
-function getLastRunForChat(chatId, baseDir) {
-  const mem = lastRunByChat.get(String(chatId));
-  if (mem && mem.panelsDir && fs.existsSync(mem.panelsDir)) {
-    return mem;
-  }
-
-  const latestDir = getLatestRunDirectory(baseDir);
-  if (latestDir) {
-    const panelsDir = path.join(latestDir, 'panels');
-    const videosDir = path.join(latestDir, 'videos');
-    if (fs.existsSync(panelsDir)) {
-      return {
-        runDir: latestDir,
-        panelsDir,
-        videosDir,
-      };
-    }
-  }
-  return null;
-}
-
-async function handleAgainCommand(botToken, chatId, text, baseDir) {
-  const rawArgs = text.replace(/^\/again(?:@\S+)?/i, '').trim();
+async function handleRemakeCommand(botToken, chatId, text, baseDir) {
+  const rawArgs = text.replace(/^\/(?:remake|again|redo)(?:@\S+)?/i, '').trim();
 
   const match = rawArgs.match(/^((?:\d+[\s,]*)+)(.*)$/s);
   let numbers = [];
@@ -326,11 +305,11 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
 
   if (numbers.length === 0) {
     await sendTelegramMessage(botToken, chatId,
-      '💡 Cú pháp dùng lệnh /again để tạo lại video:\n' +
-      '• /again 1 — Tạo lại video cảnh 1 (sử dụng prompt chuẩn)\n' +
-      '• /again 2 tạo lại cảnh khác cho panel — Tạo lại cảnh 2 với yêu cầu tùy chỉnh ưu tiên\n' +
-      '• /again 2 4 — Tạo lại nhiều video cùng lúc (VD: cảnh 2 và 4)\n' +
-      '• /again 3 xoay nhẹ góc 45 độ — Tùy biến góc máy / hành động theo ý muốn'
+      '💡 Cú pháp dùng lệnh /remake để tạo lại video:\n' +
+      '• /remake 1 — Tạo lại video cảnh 1 (sử dụng prompt chuẩn)\n' +
+      '• /remake 2 tạo lại cảnh khác cho panel — Tạo lại cảnh 2 với yêu cầu tùy chỉnh ưu tiên\n' +
+      '• /remake 2 4 — Tạo lại nhiều video cùng lúc (VD: cảnh 2 và 4)\n' +
+      '• /remake 3 xoay nhẹ góc 45 độ — Tùy biến góc máy / hành động theo ý muốn'
     );
     return;
   }
@@ -388,11 +367,10 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
       }
 
       validPanels.push({
-        index: idx,
-        imagePath: pPath,
-        imageBase64: buf.toString('base64'),
-        mimeType: 'image/png',
-        prompt,
+        panelIndex: idx,
+        buffer: buf,
+        prompt: prompt,
+        videoModelKey: template === 'template2' ? '4s' : ((template === 'template3' || template === 'template4') ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s'),
       });
     } else {
       invalidIndices.push(idx);
@@ -401,62 +379,37 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
 
   if (validPanels.length === 0) {
     await sendTelegramMessage(botToken, chatId,
-      `⚠️ Không tìm thấy ảnh panel cho cảnh: ${invalidIndices.join(', ')}. Lượt tạo gần nhất không có các cảnh này.`);
+      `⚠️ Không tìm thấy ảnh panel cho cảnh: ${numbers.join(', ')}. Hãy kiểm tra lại số cảnh!`);
     return;
   }
 
-  const customNote = customInstruction ? ` (Yêu cầu: "${customInstruction}")` : '';
-  const panelListStr = validPanels.map(p => `cảnh ${p.index}`).join(', ');
-  if (invalidIndices.length > 0) {
-    await sendTelegramMessage(botToken, chatId,
-      `⚠️ Bỏ qua số cảnh không tồn tại: ${invalidIndices.join(', ')}.`);
-  }
-
+  const customInfo = customInstruction ? `\n🎯 Yêu cầu tùy biến: "${customInstruction}"` : '';
   await sendTelegramMessage(botToken, chatId,
-    `🔄 Đang đưa yêu cầu tạo lại video cho ${panelListStr}${customNote} vào hàng đợi xử lý...`);
+    `🔄 Đang tạo lại ${validPanels.length} video cho cảnh ${validPanels.map(p => p.panelIndex).join(', ')}...${customInfo}`);
+
+  const startTime = Date.now();
 
   flowQueue.enqueue({
     chatId: String(chatId),
     photos: [],
     baseDir,
-    label: `Tạo lại video ${panelListStr}${customNote}`,
-    execute: async (runId) => {
-      await sendTelegramMessage(botToken, chatId,
-        `🎬 Đang khởi tạo video cho ${panelListStr} bằng Google Flow Veo 3${customNote}...`);
-
-      const startTime = Date.now();
-      const videos = await generateVideosFromPanelsDirect(baseDir, validPanels, {
-        aspectRatio: '9:16',
-        includeVideoBase64: true,
+    templateOptions: buildTemplateOptions(template),
+    label: `Remake cảnh ${validPanels.map(p => p.panelIndex).join(', ')}`,
+    execute: async () => {
+      const videos = await generateVideosFromPanelsDirect(validPanels, {
+        outputDir: runInfo.videosDir || path.join(runInfo.runDir, 'videos'),
+        concurrency: 2,
       });
-
-      const videosDir = runInfo.videosDir || path.join(runInfo.runDir, 'videos');
-      if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
 
       let successCount = 0;
       for (const v of videos) {
-        if (v.error) {
-          await sendTelegramMessage(botToken, chatId,
-            `❌ Lỗi tạo lại video cảnh ${v.panelIndex}: ${v.error}`);
-          continue;
-        }
+        if (!v || !v.videoBuffer) continue;
+        const base64 = v.videoBuffer.toString('base64');
+        const caption = `🎬 Video Cảnh ${v.panelIndex} (Tạo lại / Remake)\n` +
+          `• Template: ${template}\n` +
+          `• Thời lượng: ${validPanels.find(p => p.panelIndex === v.panelIndex)?.videoModelKey || '6s'}\n` +
+          (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '');
 
-        const base64 = v.video?.base64 || (v.videoPath && fs.existsSync(v.videoPath) ? fs.readFileSync(v.videoPath).toString('base64') : null);
-        if (!base64) {
-          await sendTelegramMessage(botToken, chatId,
-            `❌ Không trích xuất được dữ liệu video cảnh ${v.panelIndex}`);
-          continue;
-        }
-
-        // Overwrite video in videosDir
-        const targetVideoPath = path.join(videosDir, `panel-${v.panelIndex}.mp4`);
-        if (v.videoPath && fs.existsSync(v.videoPath)) {
-          fs.copyFileSync(v.videoPath, targetVideoPath);
-        } else {
-          fs.writeFileSync(targetVideoPath, Buffer.from(base64, 'base64'));
-        }
-
-        const caption = `🎬 Video cảnh ${v.panelIndex} đã được tạo lại thành công!`;
         const ok = await sendVideoToTelegramDirect(chatId, base64, v.panelIndex, `Panel ${v.panelIndex}`, caption);
         if (ok) successCount++;
       }
@@ -464,13 +417,13 @@ async function handleAgainCommand(botToken, chatId, text, baseDir) {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       if (successCount > 0) {
         await sendTelegramMessage(botToken, chatId,
-          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /again <số_cảnh> bất cứ lúc nào nếu muốn đổi lại video khác.`);
+          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /remake <số_cảnh> bất cứ lúc nào nếu muốn đổi lại video khác.`);
       }
       return { successCount, videos };
     },
   }).catch(err => {
-    console.error(`[Telegram Bot] /again error for chat ${chatId}:`, err.message);
-    sendTelegramMessage(botToken, chatId, `⚠️ Lỗi xử lý /again: ${err.message}`).catch(() => {});
+    console.error(`[Telegram Bot] /remake error for chat ${chatId}:`, err.message);
+    sendTelegramMessage(botToken, chatId, `⚠️ Lỗi xử lý /remake: ${err.message}`).catch(() => {});
   });
 }
 
@@ -499,7 +452,7 @@ async function handleUpdate(botToken, update) {
         '✨ Dùng /template5 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s tự động phân tích (có chữ tiếng Việt trên panel, không tiếng review).\n' +
         '💎 Dùng /template5_1 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text, không tiếng review).\n' +
         '🎙️ Dùng /template5_2 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ GIỌNG NÓI VOICE-OVER review, faceless 100%).\n' +
-        '🔄 Dùng /again <số_cảnh> [yêu cầu] (VD: /again 2 hoặc /again 2 xoay góc 45 độ) để tạo lại video với prompt tùy chỉnh.\n' +
+        '🔄 Dùng /remake <số_cảnh> [yêu cầu] (VD: /remake 2 hoặc /remake 2 xoay góc 45 độ) để tạo lại video với prompt tùy chỉnh.\n' +
         '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.\n' +
         '📊 Dùng /status để xem hàng đợi xử lý.'
       );
@@ -565,11 +518,13 @@ async function handleUpdate(botToken, update) {
       return;
     }
 
-    // ── Again command ─────────────────────────────────────────────────────────
-    if (text === '/again' || text.startsWith('/again ') || text.startsWith('/again@') || /^\/again\d+/i.test(text)) {
-      console.log(`[Telegram Bot] Received /again command from chat ${chatId}: ${text}`);
+    // ── Remake / Again / Redo command ─────────────────────────────────────────
+    if (text === '/remake' || text.startsWith('/remake ') || text.startsWith('/remake@') || /^\/remake\d+/i.test(text) ||
+        text === '/again' || text.startsWith('/again ') || text.startsWith('/again@') || /^\/again\d+/i.test(text) ||
+        text === '/redo' || text.startsWith('/redo ') || text.startsWith('/redo@') || /^\/redo\d+/i.test(text)) {
+      console.log(`[Telegram Bot] Received remake command from chat ${chatId}: ${text}`);
       const baseDir = path.resolve(__dirname, '..');
-      await handleAgainCommand(botToken, chatId, text, baseDir);
+      await handleRemakeCommand(botToken, chatId, text, baseDir);
       return;
     }
 
@@ -781,7 +736,7 @@ async function buildTelegramCommandsFromDrive() {
     { command: 'template5', description: '✨ Review đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt)' },
     { command: 'template5_1', description: '💎 Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text)' },
     { command: 'template5_2', description: '🎙️ Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + VOICE REVIEW faceless)' },
-    { command: 'again', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /again 2)' },
+    { command: 'remake', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /remake 2)' },
     { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
   ];
 

@@ -540,8 +540,8 @@ async function handleUpdate(botToken, update) {
     const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
     if (folderMatch && !RESERVED_COMMANDS.has(folderMatch[1].toLowerCase())) {
       const folderName = folderMatch[1].toLowerCase();
-      if (folderName.startsWith('p')) {
-        // Bỏ qua các lệnh bắt đầu bằng /p
+      if (folderName.startsWith('p') || folderName.startsWith('l')) {
+        // Bỏ qua các lệnh bắt đầu bằng /p hoặc /l
         return;
       }
       console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
@@ -721,8 +721,8 @@ function folderNameToTelegramCommand(folderName) {
   // Telegram bot commands support lowercase letters, digits and underscores.
   if (!/^[a-z][a-z0-9_]{0,31}$/.test(command)) return null;
   if (RESERVED_COMMANDS.has(command)) return null;
-  // Bỏ qua tất cả các lệnh bắt đầu bằng 'p' (ví dụ: p1, p2, p3, p_...)
-  if (command.startsWith('p')) return null;
+  // Bỏ qua tất cả các lệnh bắt đầu bằng 'p' hoặc 'l' (ví dụ: p1, p2..., l1, l2...)
+  if (command.startsWith('p') || command.startsWith('l')) return null;
   return command;
 }
 

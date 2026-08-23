@@ -202,8 +202,14 @@ function normalizeTemplate6Hashtags(parsed, elements) {
  */
 function buildTemplate6AnalysisPrompt() {
   return `TEXT-ONLY TASK. Do not generate images. Do not call image generation.
-You are a senior retail merchandising analyst, Vietnamese typography specialist, and Veo 3 director.
-Analyze the uploaded product image(s) with extreme precision. Extract the EXACT Vietnamese text printed on the front label, brand name, and supermarket merchandising context.
+You are a senior retail merchandising analyst, e-commerce OCR specialist, Vietnamese typography expert, and TikTok content strategist.
+Analyze the uploaded product image(s) or e-commerce screenshots (e.g. from Shopee, TikTok Shop, Lazada, product packaging) with extreme precision.
+
+CRITICAL OCR & HASHTAG EXTRACTION INSTRUCTIONS:
+1. OCR / Read All Text: Read ALL text, product titles, search keywords, shop names, banners, badges, and captions visible on the uploaded image(s) or screenshots.
+2. Extract exact full Vietnamese product name and brand name.
+3. Extract any explicit hashtags (e.g. #TopGia, #NuocRuaBat) or product keywords visible in the images.
+4. Extract or generate EXACTLY 5 high-converting, trending Vietnamese hashtags starting with "#" (e.g. brand, product category, supermarket keywords, TikTok trending tags).
 
 Return ONLY valid JSON with this schema:
 {

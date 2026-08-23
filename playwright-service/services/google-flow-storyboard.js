@@ -142,6 +142,138 @@ Return the exact same image cleaned.`;
   return null;
 }
 
+function normalizeHashtag(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const tag = raw.startsWith('#') ? raw : `#${raw}`;
+  return tag
+    .replace(/\s+/g, '')
+    .replace(/[^\p{L}\p{N}_#]/gu, '')
+    .replace(/^#+/, '#');
+}
+
+function slugToHashtag(value) {
+  const raw = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .trim();
+  return raw ? `#${raw}` : '';
+}
+
+function normalizeFootwearHashtags(parsed, isTemplate4) {
+  const provided = Array.isArray(parsed.hashtags) ? parsed.hashtags : (Array.isArray(parsed.analysis?.hashtags) ? parsed.analysis.hashtags : []);
+  const pName = parsed.productName || parsed.analysis?.productName || '';
+  const brand = parsed.brand || parsed.analysis?.brand || '';
+  const category = parsed.category || (isTemplate4 ? 'guocnu' : 'sneaker');
+
+  const defaultPool = isTemplate4
+    ? ['#GuocNu', '#GiayCaoGot', '#SandalNu', '#ReviewGiayNu', '#TikTokShopVN', '#OOTDFashion', '#TrendingVN']
+    : ['#GiaySneaker', '#GiayTheThao', '#ReviewGiay', '#SneakerVN', '#TikTokShopVN', '#StreetwearVN', '#TrendingVN'];
+
+  const fallbacks = [
+    brand,
+    pName,
+    category,
+    ...defaultPool,
+  ];
+
+  const tags = [];
+  for (const item of [...provided, ...fallbacks]) {
+    const norm = normalizeHashtag(item) || slugToHashtag(item);
+    if (norm && norm.length > 2 && !tags.some(t => t.toLowerCase() === norm.toLowerCase())) {
+      tags.push(norm);
+    }
+    if (tags.length === 5) break;
+  }
+
+  while (tags.length < 5) {
+    tags.push(defaultPool[tags.length] || `#sanpham${tags.length + 1}`);
+  }
+
+  return tags;
+}
+
+async function analyzeProductFootwear(geminiClient, filePayloads, isTemplate4) {
+  try {
+    const uploadedFiles = [];
+    for (let i = 0; i < Math.min(filePayloads.length, 3); i++) {
+      const file = filePayloads[i];
+      const buffer = Buffer.isBuffer(file.buffer)
+        ? file.buffer
+        : (file.base64 ? Buffer.from(file.base64, 'base64') : (file.path ? fs.readFileSync(file.path) : null));
+      if (!buffer) continue;
+      const mimeType = file.mimeType || 'image/png';
+      const filename = file.name || `product_${i + 1}.png`;
+      const url = await geminiClient.uploadFile(buffer, filename, mimeType);
+      uploadedFiles.push({ url, filename, mimeType });
+    }
+
+    if (uploadedFiles.length === 0) throw new Error('No files to analyze');
+
+    const prompt = `TEXT-ONLY TASK. Do not generate images.
+You are a footwear fashion expert, e-commerce OCR analyst, and TikTok content strategist.
+Analyze the uploaded footwear product image(s) or e-commerce screenshots with extreme precision.
+
+CRITICAL INSTRUCTIONS:
+1. OCR / Text Extraction: Read ALL text, product titles, search keywords, shop names, and captions visible in the images/screenshots (e.g. from Shopee, TikTok Shop, Lazada, product boxes, or catalog listings).
+2. Extract exact product name in Vietnamese (e.g. "Giày Sneaker Thể Thao Nam Nữ Cổ Thấp Trắng Đen", "Guốc Nữ Quai Trong Gót Vuông 5cm Đính Đá").
+3. Extract Brand name if visible (e.g. Nike, MLB, Adidas, Vascara, Juno, hoặc thương hiệu trên ảnh).
+4. Extract or generate EXACTLY 5 high-converting, trending hashtags starting with "#". Prioritize any hashtags/keywords visible in the screenshots, brand name, specific shoe model, and relevant TikTok trending tags.
+
+Return ONLY valid JSON with this schema:
+{
+  "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác từ ảnh/tiêu đề e-commerce",
+  "brand": "Tên thương hiệu nếu có",
+  "category": "sneaker|heels|sandals|boots|loafers|mules|slippers|other",
+  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
+  "colorway": "Màu sắc chính của sản phẩm",
+  "keyFeatures": "Đặc điểm nổi bật (quai, đế, chất liệu, phụ kiện đính kèm)"
+}`;
+
+    const res = await geminiClient.generateContent({
+      prompt,
+      fileData: uploadedFiles,
+      temporary: true,
+      expectImages: false,
+    });
+
+    let cleaned = (res.text || '').trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    }
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      const parsed = JSON.parse(cleaned.slice(start, end + 1));
+      const pName = parsed.productName || (isTemplate4 ? 'Guốc / Giày Nữ Thời Trang' : 'Giày Thể Thao Sneaker');
+      const hashtags = normalizeFootwearHashtags(parsed, isTemplate4);
+      console.log(`[GoogleFlowStoryboard] ✅ Footwear analyzed: "${pName}"`);
+      console.log(`[GoogleFlowStoryboard] Hashtags: ${hashtags.join(' ')}`);
+      return {
+        productName: pName,
+        brand: parsed.brand || '',
+        category: parsed.category || 'footwear',
+        hashtags,
+        colorway: parsed.colorway || '',
+        keyFeatures: parsed.keyFeatures || '',
+      };
+    }
+  } catch (err) {
+    console.warn(`[GoogleFlowStoryboard] ⚠️ Footwear analysis fallback: ${err.message}`);
+  }
+
+  const fallbackHashtags = normalizeFootwearHashtags({}, isTemplate4);
+  return {
+    productName: isTemplate4 ? 'Guốc Nữ / Giày Sandal Cao Gót Thời Trang' : 'Giày Thể Thao Sneaker Thời Trang',
+    brand: '',
+    category: 'footwear',
+    hashtags: fallbackHashtags,
+  };
+}
+
 function buildTemplate3Prompt(customOutfit = null) {
   const details = getRandomMicroDetails('template3');
 
@@ -651,6 +783,18 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   const geminiClient = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
   await geminiClient.init();
 
+  let analysis = {
+    productName: isTemplate4 ? 'Guốc Nữ / Giày Sandal Cao Gót Thời Trang' : 'Giày Thể Thao Sneaker Thời Trang',
+    hashtags: isTemplate4 ? ['#GuocNu', '#GiayCaoGot', '#SandalNu', '#ReviewGiayNu', '#TikTokShopVN'] : ['#GiaySneaker', '#GiayTheThao', '#ReviewGiay', '#SneakerVN', '#TikTokShopVN'],
+  };
+
+  try {
+    console.log(`[GoogleFlowStoryboard] 🔍 Step 2.5: Analyzing footwear images & extracting hashtags via Gemini API...`);
+    analysis = await analyzeProductFootwear(geminiClient, filePayloads, isTemplate4);
+  } catch (aErr) {
+    console.warn(`[GoogleFlowStoryboard] ⚠️ Footwear analysis skipped: ${aErr.message}`);
+  }
+
   const panelPrompts = getPanelPrompts(template);
   const panels = [];
 
@@ -762,13 +906,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       sourcePath: storyboardPath,
     },
     reviewArchive,
-    analysis: isTemplate4 ? {
-      productName: 'Template 4 Women Footwear Review',
-      hashtags: ['#womenshoes', '#guocnu', '#sandalnu', '#reviewgiaynu', '#fashionreview'],
-    } : {
-      productName: 'Template 3 Footwear Review',
-      hashtags: ['#shoereview', '#sneakerreview', '#reviewgiay', '#fashionreview'],
-    },
+    analysis,
   };
 }
 

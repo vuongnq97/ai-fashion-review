@@ -134,19 +134,84 @@ function getRandomSupermarketElements() {
   };
 }
 
+function normalizeHashtag(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const tag = raw.startsWith('#') ? raw : `#${raw}`;
+  return tag
+    .replace(/\s+/g, '')
+    .replace(/[^\p{L}\p{N}_#]/gu, '')
+    .replace(/^#+/, '#');
+}
+
+function slugToHashtag(value) {
+  const raw = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .trim();
+  return raw ? `#${raw}` : '';
+}
+
+function normalizeTemplate6Hashtags(parsed, elements) {
+  const provided = Array.isArray(parsed.hashtags) ? parsed.hashtags : (Array.isArray(parsed.analysis?.hashtags) ? parsed.analysis.hashtags : []);
+  const pName = parsed.productName || parsed.analysis?.productName || '';
+  const brand = parsed.brand || parsed.analysis?.brand || '';
+  const category = parsed.category || parsed.analysis?.category || 'sieuthi';
+  const storeName = elements?.store === 'winmart' ? 'WinMart' : 'BachHoaXanh';
+
+  const fallbacks = [
+    brand,
+    pName,
+    `Review${storeName}`,
+    'ReviewSieuThi',
+    category,
+    'GocNhinReview',
+    'TikTokShopVN',
+    'Trending',
+  ];
+
+  const tags = [];
+  for (const item of [...provided, ...fallbacks]) {
+    const norm = normalizeHashtag(item) || slugToHashtag(item);
+    if (norm && norm.length > 2 && !tags.some(t => t.toLowerCase() === norm.toLowerCase())) {
+      tags.push(norm);
+    }
+    if (tags.length === 5) break;
+  }
+
+  const defaultPool = ['#ReviewSieuThi', '#MuaSamThongMinh', `#${storeName}`, '#ReviewChanThuc', '#TikTokShopVN'];
+  for (const def of defaultPool) {
+    if (tags.length >= 5) break;
+    if (!tags.some(t => t.toLowerCase() === def.toLowerCase())) {
+      tags.push(def);
+    }
+  }
+
+  while (tags.length < 5) {
+    tags.push(`#sanpham${tags.length + 1}`);
+  }
+
+  return tags;
+}
+
 /**
  * Xây dựng Analysis Prompt cho sản phẩm siêu thị
  */
 function buildTemplate6AnalysisPrompt() {
   return `TEXT-ONLY TASK. Do not generate images. Do not call image generation.
-You are a supermarket retail product analyst and Veo 3 director.
-Analyze the uploaded product image(s) and determine how this product is merchandised in a Vietnamese modern supermarket (such as Bach Hoa Xanh or WinMart).
+You are a supermarket retail product analyst, TikTok content strategist, and Veo 3 director.
+Analyze the uploaded product image(s) and determine how this product is merchandised in a Vietnamese modern supermarket (such as Bach Hoa Xanh or WinMart), and generate exactly 5 trending Vietnamese hashtags.
 
 Return ONLY valid JSON with this schema:
 {
-  "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác",
+  "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác kèm thương hiệu (ví dụ: Nước Rửa Chén Top Gia Hương Chanh)",
+  "brand": "Tên thương hiệu nếu có (ví dụ: Top Gia, Suntory, Lix, Sunlight)",
   "category": "beverages|snacks|dairy|condiments|instant_food|personal_care|household|baby|cosmetics|other",
   "packagingType": "bottle|box|can|pouch|jar|packet|spray|tub|carton",
+  "hashtags": ["#ThuongHieu", "#TenSanPham", "#ReviewSieuThi", "#BachHoaXanh", "#TikTokShopVN"],
   "keyVisualDetails": "Color, logo, shape, text on packaging, texture",
   "supermarketAisleDescription": "Mô tả chi tiết kệ hàng siêu thị phù hợp (ví dụ: kệ nước ngọt đóng chai, kệ bánh kẹo bim bim, kệ nước mắm gia vị, kệ dầu gội sữa tắm...)",
   "neighborProducts": "Các sản phẩm tương tự cùng ngành hàng đặt bên cạnh trên kệ"
@@ -357,7 +422,7 @@ function archiveTemplate6Review(baseDir, filePayloads, prompt, storyboardBase64,
 /**
  * Phân tích sản phẩm qua Gemini API
  */
-async function analyzeProductTemplate6(geminiClient, filePayloads) {
+async function analyzeProductTemplate6(geminiClient, filePayloads, elements) {
   console.log(`[Template 6] Step 1a: Uploading ${filePayloads.length} product image(s)...`);
 
   const uploadedFiles = [];
@@ -389,13 +454,17 @@ async function analyzeProductTemplate6(geminiClient, filePayloads) {
     if (parsed) {
       const pName = parsed.productName || 'Sản Phẩm Siêu Thị';
       const cat = parsed.category || 'general';
+      const hashtags = normalizeTemplate6Hashtags(parsed, elements);
       console.log(`[Template 6] ✅ Product analyzed: "${pName}" (${cat})`);
+      console.log(`[Template 6] Hashtags: ${hashtags.join(' ')}`);
 
       return {
         analysis: {
           productName: pName,
+          brand: parsed.brand || '',
           category: cat,
           packagingType: parsed.packagingType || 'chai/hộp',
+          hashtags,
           keyVisualDetails: parsed.keyVisualDetails || 'Bao bì chuẩn',
           supermarketAisleDescription: parsed.supermarketAisleDescription || 'kệ hàng siêu thị hiện đại',
           neighborProducts: parsed.neighborProducts || 'các sản phẩm cùng loại',
@@ -407,11 +476,14 @@ async function analyzeProductTemplate6(geminiClient, filePayloads) {
     console.warn(`[Template 6] ⚠️ Analysis failed: ${err.message}. Using intelligent defaults.`);
   }
 
+  const fallbackHashtags = normalizeTemplate6Hashtags({}, elements);
   return {
     analysis: {
       productName: 'Sản phẩm siêu thị',
+      brand: '',
       category: 'general',
       packagingType: 'chai/hộp chuẩn',
+      hashtags: fallbackHashtags,
       supermarketAisleDescription: 'kệ hàng siêu thị hiện đại ngăn nắp',
       neighborProducts: 'các mặt hàng tiêu dùng cùng loại',
     },
@@ -454,7 +526,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   try {
     // ── Bước 1: Phân tích sản phẩm qua Gemini API ────────────────────────────
     console.log('[Template 6] 🔍 Step 1: Analyzing product image for supermarket merchandising...');
-    const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate6(geminiClient, filePayloads);
+    const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate6(geminiClient, filePayloads, elements);
     analysis = analyzedData;
 
     // ── Bước 2: Tạo Master Storyboard 2 Panel ─────────────────────────────────

@@ -76,23 +76,33 @@ if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
   console.log(`🔓 SSL Certificates not found. Starting server in HTTP mode.`);
 }
 
-server.listen(port, () => {
-  console.log(`🚀 Playwright Automation Server listening on port ${port}`);
-
-  if (pFolder) {
-    // ─── -p mode: read images from local/Drive-synced folder ─────────────────
-    const { runFromDriveFolder } = require('./services/drive-folder');
-    console.log(`[Server] Starting drive-folder mode for folder: p${pFolder}`);
-    runFromDriveFolder(pFolder, path.resolve(__dirname))
-      .catch(err => console.error('[Server] Drive folder flow error:', err.message));
-  } else {
-    // ─── Normal mode: start Telegram bot long-polling ─────────────────────────
-    try {
-      const { startTelegramBot } = require('./services/telegram-bot');
-      startTelegramBot();
-    } catch (err) {
-      console.error('Failed to start Telegram bot polling:', err.message);
-    }
+(async () => {
+  // ─── Tự động làm mới và xuất cookie Google/Gemini từ chrome-data ──────────
+  try {
+    const { autoExportCookies } = require('./services/auto-cookie-exporter');
+    await autoExportCookies(__dirname);
+  } catch (err) {
+    console.warn('⚠️ [Startup] Auto-cookie export skipped:', err.message);
   }
-});
+
+  server.listen(port, () => {
+    console.log(`🚀 Playwright Automation Server listening on port ${port}`);
+
+    if (pFolder) {
+      // ─── -p mode: read images from local/Drive-synced folder ─────────────────
+      const { runFromDriveFolder } = require('./services/drive-folder');
+      console.log(`[Server] Starting drive-folder mode for folder: p${pFolder}`);
+      runFromDriveFolder(pFolder, path.resolve(__dirname))
+        .catch(err => console.error('[Server] Drive folder flow error:', err.message));
+    } else {
+      // ─── Normal mode: start Telegram bot long-polling ─────────────────────────
+      try {
+        const { startTelegramBot } = require('./services/telegram-bot');
+        startTelegramBot();
+      } catch (err) {
+        console.error('Failed to start Telegram bot polling:', err.message);
+      }
+    }
+  });
+})();
 

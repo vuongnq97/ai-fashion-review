@@ -34,7 +34,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-// ─── Dọn dẹp thư mục chạy cũ khi khởi động server ───────────────────────────
+// ─── Dọn dẹp các thư mục tạm khi khởi động server ───────────────────────────
 const storyboardRunsDir = path.join(__dirname, 'storyboard-review-runs');
 if (fs.existsSync(storyboardRunsDir)) {
   try {
@@ -46,11 +46,17 @@ if (fs.existsSync(storyboardRunsDir)) {
 }
 fs.mkdirSync(storyboardRunsDir, { recursive: true });
 
-// Ensure uploads dir exists
+// Ensure clean uploads dir exists
 const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+if (fs.existsSync(uploadsDir)) {
+  try {
+    fs.rmSync(uploadsDir, { recursive: true, force: true });
+    console.log('🧹 [Startup] Đã xóa dọn sạch thư mục uploads tạm cũ.');
+  } catch (err) {
+    console.warn('⚠️ [Startup] Không thể xóa uploads:', err.message);
+  }
 }
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 app.use('/api', apiRoutes);
 

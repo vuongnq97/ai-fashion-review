@@ -365,14 +365,14 @@ function buildTemplate5MasterPrompt(analysisData, options = {}) {
   if (isNoText) {
     return `Generate one product review storyboard image (still photo collage, NOT a video) from the uploaded product reference images for ${prodName}.
 
-CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (KHÔNG ẢO CGI):
-- Aesthetics: Authentic smartphone camera snapshot (main lens ~26mm), natural window light, subtle realistic depth of field, real materials (matte, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot. No 3D render, no plastic CGI.
-- Strictly faceless: No visible human faces, no presenter face. Only hands, body limbs or cropped outfit in frame.
+CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (CHUẨN CAMERA THỰC TẾ, KHÔNG ẢO CGI):
+- Aesthetics: Authentic smartphone camera snapshot (iPhone 15 Pro 24mm/26mm lens, f/1.8 auto mode), natural window light, subtle realistic contact shadows, genuine material textures (matte finish, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot.
+- Hands & Model: Fair Asian skin tone, natural skin pores, knuckle creases, neat manicured nails, anatomically correct hands with 5 fingers, realistic physical grip. Strictly faceless (no visible faces, only hands/limbs/outfit).
 - NO CARTOON GRAPHICS: Absolutely NO glowing neon arrows, NO cartoon magnifying glasses, NO floating 3D icons, NO fake fairy sparkles.
 
 Storyboard requirements:
 - Exactly 4 panels arranged side by side in one single still image (horizontal 16:9 collage composed of 4 vertical 9:16 frames).
-- Setting: All 4 panels share the exact same location (${loc}) and lighting (${lighting}).
+- Setting: All 4 panels share the exact same location (${loc}) and natural lighting (${lighting}).
 - STRICT NO-TEXT RULE (TUYỆT ĐỐI KHÔNG CHỮ / NO TEXT / NO LABELS):
   * Every panel must be 100% pure clean photography without any typography, without any text badges, without any words, without any subtitles, without any labels, and without any watermarks.
   * Pure visual focus on authentic product textures, details, and realistic everyday interaction.
@@ -391,14 +391,14 @@ Generate one still storyboard image now.`.trim();
 
   return `Generate one product review storyboard image (still photo collage, NOT a video) from the uploaded product reference images for ${prodName}.
 
-CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (KHÔNG ẢO CGI):
-- Aesthetics: Authentic smartphone camera snapshot (main lens ~26mm), natural window light, subtle realistic depth of field, real materials (matte, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot. No 3D render, no plastic CGI.
-- Strictly faceless: No visible human faces, no presenter face. Only hands, body limbs or cropped outfit in frame.
+CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (CHUẨN CAMERA THỰC TẾ, KHÔNG ẢO CGI):
+- Aesthetics: Authentic smartphone camera snapshot (iPhone 15 Pro 24mm/26mm lens, f/1.8 auto mode), natural window light, subtle realistic contact shadows, genuine material textures (matte finish, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot.
+- Hands & Model: Fair Asian skin tone, natural skin pores, knuckle creases, neat manicured nails, anatomically correct hands with 5 fingers, realistic physical grip. Strictly faceless (no visible faces, only hands/limbs/outfit).
 - NO CARTOON GRAPHICS: Absolutely NO glowing neon arrows, NO cartoon magnifying glasses, NO floating 3D icons, NO fake fairy sparkles.
 
 Storyboard requirements:
 - Exactly 4 panels arranged side by side in one single still image (horizontal 16:9 collage composed of 4 vertical 9:16 frames).
-- Setting: All 4 panels share the exact same location (${loc}) and lighting (${lighting}).
+- Setting: All 4 panels share the exact same location (${loc}) and natural lighting (${lighting}).
 - Sequence & Single Caption Badges:
 ${sequenceInstructions}
 - Typography Rules & Safe Margin (QUAN TRỌNG: Cỡ chữ nhỏ gọn, an toàn 100% viền, không vẽ chữ rác):
@@ -444,8 +444,8 @@ VISUAL INSTRUCTIONS:
   * The image must focus 100% cleanly on the authentic physical product, material texture, and natural human interaction.
 
 - 100% PHOTOREALISM (THỰC TẾ 100%, KHÔNG ẢO CGI):
-  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room lighting, genuine soft contact shadows and textures.
-  * Real human hands and authentic everyday living spaces. Must look 100% real and authentic, NOT like an AI-generated image.
+  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room daylight, genuine soft contact shadows and textures.
+  * Fair Asian skin tone, natural skin pores, knuckle creases, clean neat nails, correct 5-finger anatomy, natural physical grip.
   * Faceless only: No visible human faces.
   * STRICTLY NO cartoon graphics, NO glowing neon arrows, NO floating magnifying glasses, NO fake fairy sparkles, NO 3D CGI props.
 - Output must be a still photo. Do NOT generate a video.
@@ -477,8 +477,8 @@ VISUAL INSTRUCTIONS:
     - STRICTLY NO cartoon graphics, NO glowing neon arrows, NO floating magnifying glasses, NO fake fairy sparkles, NO 3D CGI props, NO speech bubble pointers.
 
 - 100% PHOTOREALISM (THỰC TẾ 100%, KHÔNG ẢO CGI):
-  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room lighting, genuine soft contact shadows and textures.
-  * Real human hands and authentic everyday living spaces. Must look 100% real and authentic, NOT like an AI-generated image.
+  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room daylight, genuine soft contact shadows and textures.
+  * Fair Asian skin tone, natural skin pores, knuckle creases, clean neat nails, correct 5-finger anatomy, natural physical grip.
   * Faceless only: No visible human faces, no watermarks, no price tags.
 - Output must be a still photo. Do NOT generate a video.
 
@@ -497,6 +497,8 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
     options.hasVoice ||
     options.template === 'template5_2' || options.template === 'template5.2' || options.template === 'template52'
   );
+
+  const realismCues = 'Cảnh quay tự nhiên 100% như quay bằng camera điện thoại iPhone 15 Pro, ánh sáng ban ngày tự nhiên từ cửa sổ, đổ bóng tiếp xúc chân thực, bề mặt sản phẩm lì có vân chất liệu, không hiệu ứng bokeh giả, không ánh sáng studio nhân tạo, không nhựa bóng kiểu AI, không hiệu ứng ảo CGI.';
 
   const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
   const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
@@ -525,18 +527,18 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
     const vo4 = script[3]?.voiceOver || `Một sự lựa chọn hoàn hảo đáp ứng trọn vẹn cả tính thẩm mỹ lẫn công năng thực tế.`;
 
     return [
-      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo1}". VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
-      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo2}". VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
-      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo3}". VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`,
-      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo4}". VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI.`
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo1}". VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. ${realismCues}`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo2}". VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. ${realismCues}`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo3}". VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. ${realismCues}`,
+      `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}. Lời thoại nhân vật: "${vo4}". VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. ${realismCues}`
     ];
   }
 
   return [
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
   ];
 }
 

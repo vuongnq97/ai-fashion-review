@@ -104,7 +104,7 @@ function parseJsonObject(text) {
  * Ngẫu nhiên hóa siêu thị & outfit người review để tạo sự đa dạng tự nhiên
  */
 function getRandomSupermarketElements() {
-  const stores = ['bachhoaxanh', 'winmart'];
+  const stores = ['bachhoaxanh', 'red_supermarket'];
   const store = stores[Math.floor(Math.random() * stores.length)];
 
   const sleeves = [
@@ -160,13 +160,13 @@ function normalizeTemplate6Hashtags(parsed, elements) {
   const pName = parsed.productName || parsed.analysis?.productName || '';
   const brand = parsed.brand || parsed.analysis?.brand || '';
   const category = parsed.category || parsed.analysis?.category || 'sieuthi';
-  const storeName = elements?.store === 'winmart' ? 'WinMart' : 'BachHoaXanh';
+  const storeTag = elements?.store === 'bachhoaxanh' ? '#BachHoaXanh' : '#SieuThiTienLoi';
 
   const fallbacks = [
     brand,
     pName,
-    `Review${storeName}`,
     'ReviewSieuThi',
+    storeTag,
     category,
     'GocNhinReview',
     'TikTokShopVN',
@@ -182,7 +182,7 @@ function normalizeTemplate6Hashtags(parsed, elements) {
     if (tags.length === 5) break;
   }
 
-  const defaultPool = ['#ReviewSieuThi', '#MuaSamThongMinh', `#${storeName}`, '#ReviewChanThuc', '#TikTokShopVN'];
+  const defaultPool = ['#ReviewSieuThi', '#MuaSamThongMinh', storeTag, '#ReviewChanThuc', '#TikTokShopVN'];
   for (const def of defaultPool) {
     if (tags.length >= 5) break;
     if (!tags.some(t => t.toLowerCase() === def.toLowerCase())) {
@@ -216,7 +216,7 @@ Return ONLY valid JSON with this schema:
   },
   "category": "beverages|snacks|dairy|condiments|instant_food|personal_care|household|baby|cosmetics|other",
   "packagingType": "bottle|box|can|pouch|jar|packet|spray|tub|carton",
-  "hashtags": ["#ThuongHieu", "#TenSanPham", "#ReviewSieuThi", "#BachHoaXanh", "#TikTokShopVN"],
+  "hashtags": ["#ThuongHieu", "#TenSanPham", "#ReviewSieuThi", "#SieuThiTienLoi", "#TikTokShopVN"],
   "keyVisualDetails": "Color, logo, shape, text on packaging, texture",
   "supermarketAisleDescription": "Mô tả chi tiết kệ hàng siêu thị phù hợp (ví dụ: kệ nước ngọt đóng chai, kệ bánh kẹo bim bim, kệ nước mắm gia vị, kệ dầu gội sữa tắm...)",
   "neighborProducts": "Các sản phẩm tương tự cùng ngành hàng đặt bên cạnh trên kệ"
@@ -233,18 +233,18 @@ function buildTemplate6StoryboardPrompt(analysis, elements) {
   const labelTagline = analysis.exactLabelText?.taglineOrVariant || 'SIÊU SẠCH - SIÊU TIẾT KIỆM';
   const aisleDesc = analysis.supermarketAisleDescription || 'kệ hàng siêu thị hiện đại ngăn nắp';
   const neighbor = analysis.neighborProducts || 'các sản phẩm cùng loại trên kệ';
-  const isWinMart = elements.store === 'winmart';
+  const isRedStore = elements.store === 'red_supermarket' || elements.store === 'winmart';
 
-  const storeName = isWinMart ? 'WinMart' : 'Bách Hóa Xanh';
-  const shelfStyle = isWinMart
-    ? 'WinMart supermarket aisle with bold red promotional header signs ("WinMart Tươi Ngon Thượng Hạng", "Tiết kiệm mỗi ngày"), red shelf price tags with readable numbers ("25.000đ", "39.000đ"), brightly lit modern supermarket environment, glossy beige tile floor'
+  const storeName = isRedStore ? 'Siêu thị tiện lợi hiện đại' : 'Bách Hóa Xanh';
+  const shelfStyle = isRedStore
+    ? 'Modern red-themed convenience supermarket aisle with bold red promotional header signs ("SIÊU THỊ TIỆN LỢI - TƯƠI NGON MỖI NGÀY", "Hàng Mới Giá Tốt"), red shelf price tags with readable numbers ("25.000đ", "39.000đ"), brightly lit modern supermarket environment, glossy beige tile floor'
     : 'Bach Hoa Xanh supermarket aisle with signature green shelf headers ("Bách Hóa XANH - Thịt Cá Tươi Ngon", "Giá Rẻ Mỗi Ngày"), white and yellow price tags, well-organized retail shelving, bright daylight and ceiling lighting, clean beige tiled floor';
 
-  const basketDesc = isWinMart
-    ? 'a classic red WinMart plastic shopping basket resting flat on the tile floor (containing 1-2 snack boxes and a fresh food tray inside)'
+  const basketDesc = isRedStore
+    ? 'a classic plain red plastic shopping basket (no brand logo) resting flat on the tile floor (containing 1-2 snack boxes and a fresh food tray inside)'
     : 'a signature green plastic shopping basket with bright yellow handles resting flat on the tile floor (containing 1-2 snack packets and a packaged container inside)';
 
-  const refFileName = isWinMart ? 'template6_2_ref.jpg' : 'template6_1_ref.jpg';
+  const refFileName = isRedStore ? 'template6_2_ref.jpg' : 'template6_1_ref.jpg';
 
   return `Generate a single cohesive 2-panel storyboard photograph layout (side-by-side 2 vertical 9:16 panels, overall approx 18:16 ratio), depicting a 100% photorealistic first-person POV shopping experience in a Vietnamese modern supermarket (${storeName}).
 
@@ -259,9 +259,9 @@ MANDATORY VIETNAMESE TYPOGRAPHY & SPELLING RULES:
   * Brand Name: "${brandName}"
   * Subtext / Tagline: "${labelTagline}"
 - All supermarket overhead promotional banners and signs MUST use correct Vietnamese spelling with clear diacritic marks (chuẩn 100% tiếng Việt có dấu, không lỗi font, không thiếu dấu sắc, huyền, hỏi, ngã, nặng, mũ â/ê/ô/ơ/ư):
-  * ${isWinMart ? 'Banner text: "WinMart", "TƯƠI NGON THƯỢNG HẠNG", "Tiết kiệm mỗi ngày"' : 'Banner text: "Bách Hóa XANH", "Thịt Cá Tươi Ngon", "Giá Rẻ Mỗi Ngày"'}
+  * ${isRedStore ? 'Banner text: "SIÊU THỊ TIỆN LỢI", "TƯƠI NGON MỖI NGÀY", "Hàng Mới Giá Tốt"' : 'Banner text: "Bách Hóa XANH", "Thịt Cá Tươi Ngon", "Giá Rẻ Mỗi Ngày"'}
 - Shelf price strips and brand labels in background (e.g. Sunlight, Lix, Mỹ Hảo, Net...) must have crisp, realistic letters.
-- STRICTLY FORBIDDEN: misspelled words, missing diacritics, unreadable alien fonts, melted/wobbly characters, or distorted pseudo-text.
+- STRICTLY FORBIDDEN: copyrighted third-party supermarket logos, misspelled words, missing diacritics, unreadable alien fonts, melted/wobbly characters, or distorted pseudo-text.
 
 STRICT STYLE & REALISM:
 - Shot on iPhone 15 Pro 4K camera, natural handheld eye/chest level POV.
@@ -553,8 +553,9 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     masterPrompt = buildTemplate6StoryboardPrompt(analysis, elements);
 
     // Sử dụng template reference tương ứng (ưu tiên JPG tối ưu dung lượng)
-    const baseAssetJpg = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.jpg' : 'template6_1.jpg');
-    const baseAssetPng = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.png' : 'template6_1.png');
+    const isRed = elements.store === 'red_supermarket' || elements.store === 'winmart';
+    const baseAssetJpg = path.join(baseDir, 'assets', isRed ? 'template6_2.jpg' : 'template6_1.jpg');
+    const baseAssetPng = path.join(baseDir, 'assets', isRed ? 'template6_2.png' : 'template6_1.png');
     const refAssetPath = fs.existsSync(baseAssetJpg) ? baseAssetJpg : baseAssetPng;
     const combinedFiles = [...uploadedFiles];
     if (fs.existsSync(refAssetPath)) {
@@ -562,7 +563,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         const refBuf = fs.readFileSync(refAssetPath);
         const isJpg = refAssetPath.endsWith('.jpg');
         const refMime = isJpg ? 'image/jpeg' : 'image/png';
-        const refName = elements.store === 'winmart' ? (isJpg ? 'template6_2_ref.jpg' : 'template6_2_ref.png') : (isJpg ? 'template6_1_ref.jpg' : 'template6_1_ref.png');
+        const refName = isRed ? (isJpg ? 'template6_2_ref.jpg' : 'template6_2_ref.png') : (isJpg ? 'template6_1_ref.jpg' : 'template6_1_ref.png');
         const refUrl = await geminiClient.uploadFile(refBuf, refName, refMime);
         combinedFiles.push({ url: refUrl, filename: refName, mimeType: refMime });
       } catch (e) {

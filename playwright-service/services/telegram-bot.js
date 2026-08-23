@@ -288,6 +288,27 @@ function getLatestRunDirectory(baseDir) {
   return entries.length > 0 ? entries[0].path : null;
 }
 
+function getLastRunForChat(chatId, baseDir) {
+  const mem = lastRunByChat.get(String(chatId));
+  if (mem && mem.panelsDir && fs.existsSync(mem.panelsDir)) {
+    return mem;
+  }
+
+  const latestDir = getLatestRunDirectory(baseDir);
+  if (latestDir) {
+    const panelsDir = path.join(latestDir, 'panels');
+    const videosDir = path.join(latestDir, 'videos');
+    if (fs.existsSync(panelsDir)) {
+      return {
+        runDir: latestDir,
+        panelsDir,
+        videosDir,
+      };
+    }
+  }
+  return null;
+}
+
 async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   const rawArgs = text.replace(/^\/(?:remake|again|redo)(?:@\S+)?/i, '').trim();
 

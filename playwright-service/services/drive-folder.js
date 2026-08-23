@@ -124,7 +124,6 @@ async function findDriveChildFolder(parentFolderId, folderName) {
 
 async function listDriveChildFolders(parentFolderId) {
   const folderMimeType = 'application/vnd.google-apps.folder';
-  console.log(`[DriveFolder] Listing child folders in parent: ${parentFolderId}`);
 
   const folders = await listDriveFiles({
     q: `'${parentFolderId}' in parents and mimeType='${folderMimeType}' and trashed=false`,

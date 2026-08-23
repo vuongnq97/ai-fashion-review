@@ -753,10 +753,7 @@ async function buildTelegramCommandsFromDrive() {
 
     for (const folder of folders) {
       const command = folderNameToTelegramCommand(folder.name);
-      if (!command) {
-        console.warn(`[Telegram Bot] Skipping Drive folder "${folder.name}" because it is not a valid Telegram command name.`);
-        continue;
-      }
+      if (!command) continue;
       if (seen.has(command)) continue;
 
       commands.push({
@@ -767,13 +764,8 @@ async function buildTelegramCommandsFromDrive() {
       driveFolderByCommand.set(command, folder.name);
 
       // Telegram Bot API allows up to 100 commands. Keep room for /start below.
-      if (commands.length >= 99) {
-        console.warn('[Telegram Bot] Command menu reached Telegram limit; remaining Drive folders are not shown.');
-        break;
-      }
+      if (commands.length >= 99) break;
     }
-
-    console.log(`[Telegram Bot] Loaded ${Math.max(0, commands.length - 2)} folder command(s) from Drive parent ${parentFolderId}.`);
   } catch (err) {
     console.warn('[Telegram Bot] ⚠️ Could not load Drive folder commands:', err.message);
   }
@@ -794,14 +786,10 @@ async function registerBotCommands(botToken, retryCount = 2) {
       await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
         timeout: parseInt(process.env.TELEGRAM_COMMANDS_TIMEOUT_MS || '30000', 10)
       });
-      console.log(`[Telegram Bot] ✅ Bot commands registered (${commands.length} command(s), menu buttons ready).`);
       return;
     } catch (err) {
       if (attempt < retryCount) {
-        console.warn(`[Telegram Bot] ⚠️ Registering bot commands attempt ${attempt} failed (${err.message}). Retrying in 3s...`);
         await new Promise(r => setTimeout(r, 3000));
-      } else {
-        console.warn('[Telegram Bot] ⚠️ Could not update Telegram menu button list (network timeout), but bot is still fully active and working normally.');
       }
     }
   }
@@ -817,16 +805,12 @@ function startTelegramBot() {
     return;
   }
 
-  if (isPolling) {
-    console.log('[Telegram Bot] Bot is already polling.');
-    return;
-  }
+  if (isPolling) return;
 
   // Register command menu buttons on startup (fire-and-forget)
   registerBotCommands(botToken);
 
   isPolling = true;
-  console.log('[Telegram Bot] Starting Telegram updates polling loop...');
 
   // Start polling asynchronously
   (async () => {

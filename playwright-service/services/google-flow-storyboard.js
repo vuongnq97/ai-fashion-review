@@ -18,7 +18,12 @@ function safeBaseName(filePath, fallback = 'image') {
 }
 
 function getRandomMicroDetails(template = 'template3') {
-  if (template === 'template4') {
+  const isT4 = template === 'template4';
+  const handSide = Math.random() < 0.5 ? 'trai' : 'phai';
+  const handDescVi = handSide === 'trai' ? 'bàn tay trái' : 'bàn tay phải';
+  const handDescEn = handSide === 'trai' ? 'left hand' : 'right hand';
+
+  if (isT4) {
     const boxVariations = [
       'neatly stacked chic pastel pink, dusty rose, and minimalist white shoe boxes under the gold display shelving',
       'blush pink and cream white designer shoe boxes arranged with boutique elegance',
@@ -40,11 +45,40 @@ function getRandomMicroDetails(template = 'template3') {
       'a quiet moment in the pastel boutique looking toward the bright storefront entrance',
     ];
 
+    const t4Outfits = [
+      'chic pastel pink ribbed short-sleeve top + cream white pleated A-line skirt + small beige crossbody bag with gold chain',
+      'elegant soft lavender knit cardigan + high-waisted beige linen wide-leg pants + delicate gold chain shoulder bag',
+      'sophisticated sage green wrap blouse + off-white tailored straight trousers + cream quilted clutch',
+      'feminine dusty rose silk camisole top + white flowing tiered midi skirt + dainty gold ankle bracelet',
+      'minimalist butter yellow linen short-sleeve blouse + light blue denim straight-leg jeans with clean hem',
+    ];
+
+    const panel2Poses = [
+      {
+        en: 'Both slender bare legs extended forward side-by-side naturally on the boutique floor tiles, both feet resting gracefully flat on the floor in the footwear, heels side-by-side with toes pointing forward.',
+        vi: 'Hai bàn chân mang guốc/sandal đặt tự nhiên song song trên mặt sàn gạch boutique.'
+      },
+      {
+        en: 'One leg extended forward flat on the floor showing the sleek strap and arch of the footwear, the other leg slightly relaxed with foot resting naturally beside it.',
+        vi: 'Một chân duỗi nhẹ về phía trước trên sàn gạch, chân còn lại đặt tự nhiên cạnh bên.'
+      },
+      {
+        en: 'Both feet placed naturally on the floor tiles, ankles softly angled 15 degrees to the side to elegantly reveal the side arch and heel shape.',
+        vi: 'Hai bàn chân hơi nghiêng nhẹ 15 độ sang bên khoe đường cong gót và quai giày.'
+      },
+      {
+        en: 'Both legs extended straight forward from the seated position, feet resting comfortably on the light grey boutique floor tiles with natural relaxed posture.',
+        vi: 'Hai chân duỗi thẳng thoải mái về phía trước, hai bàn chân đặt vững trên sàn gạch.'
+      }
+    ];
+
     const boxes = boxVariations[Math.floor(Math.random() * boxVariations.length)];
     const floorShoes = floorShoeVariations[Math.floor(Math.random() * floorShoeVariations.length)];
     const shopper = shopperVariations[Math.floor(Math.random() * shopperVariations.length)];
+    const outfit = t4Outfits[Math.floor(Math.random() * t4Outfits.length)];
+    const panel2Pose = panel2Poses[Math.floor(Math.random() * panel2Poses.length)];
 
-    return { boxes, floorShoes, shopper };
+    return { boxes, floorShoes, shopper, outfit, handSide, handDescVi, handDescEn, panel2Pose };
   }
 
   const boxVariations = [
@@ -68,11 +102,20 @@ function getRandomMicroDetails(template = 'template3') {
     'a quiet moment in the boutique with clear depth of field looking toward the bright storefront entrance'
   ];
 
+  const t3Outfits = [
+    'trendy charcoal grey relaxed wide-leg tailored trousers + clean black minimalist tee',
+    'relaxed vintage wash light blue denim jeans with subtle cuffs + casual white oversized cotton shirt',
+    'stylish oat beige / khaki straight-leg chinos + minimalist olive green knit top',
+    'modern dark navy cropped relaxed trousers + heather grey boxy tee',
+    'earth-tone washed brown carpenter utility pants + cream beige vintage t-shirt',
+  ];
+
   const boxes = boxVariations[Math.floor(Math.random() * boxVariations.length)];
   const floorShoes = floorShoeVariations[Math.floor(Math.random() * floorShoeVariations.length)];
   const shopper = shopperVariations[Math.floor(Math.random() * shopperVariations.length)];
+  const outfit = t3Outfits[Math.floor(Math.random() * t3Outfits.length)];
 
-  return { boxes, floorShoes, shopper };
+  return { boxes, floorShoes, shopper, outfit, handSide, handDescVi, handDescEn };
 }
 
 async function cleanPanelWatermark(baseDir, panelPath) {
@@ -274,21 +317,21 @@ Return ONLY valid JSON with this schema:
   };
 }
 
-function buildTemplate3Prompt(customOutfit = null) {
-  const details = getRandomMicroDetails('template3');
+function buildTemplate3Prompt(customOutfit = null, details = null) {
+  const det = details || getRandomMicroDetails('template3');
 
   const outfitInstruction = customOutfit
     ? `Change the wearer's clothing in Panel 2, Panel 3, and Panel 4 to: ${customOutfit}.`
-    : `Analyze the uploaded footwear product style, category, and colorway, then adapt the wearer's pants/trousers in Panel 2, Panel 3, and Panel 4 to a stylish, matching outfit (e.g. relaxed light beige/khaki chinos, linen trousers, charcoal tailored pants, or casual denim) that best complements this specific footwear.`;
+    : `Adapt the wearer's clothing in Panel 2, Panel 3, and Panel 4 to this stylish outfit that complements the footwear: ${det.outfit}.`;
 
   return `A realistic 4-panel horizontal split storyboard image (9:16 vertical ratio for each panel arranged side-by-side in a single wide collage) for a footwear review inside the EXACT footwear shop setting from the reference storyboard image.
 
 - Environment Continuity & Natural Micro-Variations:
   + PRESERVE the exact shop architecture, square cream and charcoal floor tiles, wooden counter in Panel 1, tall wooden bar stool in Panel 3, black track lighting, and shop aisles from the reference storyboard image.
   + INTRODUCE NATURAL VARIATIONS in background micro-details:
-    * Shoe Boxes on shelves: ${details.boxes}.
-    * Display & Floor footwear: ${details.floorShoes}.
-    * Background atmosphere: ${details.shopper}.
+    * Shoe Boxes on shelves: ${det.boxes}.
+    * Display & Floor footwear: ${det.floorShoes}.
+    * Background atmosphere: ${det.shopper}.
 
 - Footwear Replacement (Source of Truth):
   + In all 4 panels, REPLACE the footwear with the EXACT product design, colorway, upper materials (leather/canvas/suede/mesh), sole thickness, laces/straps, and logo details from the uploaded product reference images.
@@ -298,7 +341,7 @@ function buildTemplate3Prompt(customOutfit = null) {
   + Footwear logic: If closed-toe shoes/sneakers/loafers, wear clean neutral or off-white socks with natural folds. If sandals/slides/slippers/open-toe, feature natural bare feet with realistic skin texture.
 
 - 4-Panel Composition (Locked to reference layout):
-  + Panel 1 (Leftmost): Top-down overhead angle over the shop wooden counter. A realistic human hand supports and tilts one shoe from underneath the sole at a 20-degree angle; the matching second shoe rests neatly below on the display stand. Both shoes completely within frame.
+  + Panel 1 (Leftmost): Top-down overhead angle over the shop wooden counter. A realistic human ${det.handDescEn} supports and tilts one shoe from underneath the sole at a 20-degree angle; the matching second shoe rests neatly below on the display stand. Both shoes completely within frame.
   + Panel 2 (Second from left): First-person chest POV looking down at relaxed extended legs wearing the footwear on the shop tiled floor.
   + Panel 3 (Third from left): Side profile view of the wearer sitting on the tall wooden bar stool in the same shop, showing the trousers, legs, and matching footwear.
   + Panel 4 (Rightmost): Standing try-on pose in the exact same shop aisle. The model is standing faceless (camera framed from chest/waist down to feet), body and feet slightly turned toward the camera/viewer to showcase the footwear silhouette and fit from a standing perspective.
@@ -307,21 +350,21 @@ function buildTemplate3Prompt(customOutfit = null) {
 - Strictly faceless, no visible faces, no text, no captions, no watermarks, no UI elements.`;
 }
 
-function buildTemplate4Prompt(customOutfit = null) {
-  const details = getRandomMicroDetails('template4');
+function buildTemplate4Prompt(customOutfit = null, details = null) {
+  const det = details || getRandomMicroDetails('template4');
 
   const outfitInstruction = customOutfit
     ? `Change the wearer's clothing in Panel 2, Panel 3, and Panel 4 to: ${customOutfit}.`
-    : `Chic pastel pink ribbed short-sleeve top + cream/white pleated tennis/A-line skirt + small beige crossbody shoulder bag with gold chain. Delicate female hands and slender bare legs, clean manicured nails with soft nude/pink polish, delicate gold bracelet on wrist.`;
+    : `Wearer's outfit in Panel 2, Panel 3, and Panel 4: ${det.outfit}. Delicate female hands and slender bare legs, clean manicured nails with soft nude/pink polish, delicate gold bracelet on wrist.`;
 
   return `A realistic 4-panel horizontal split storyboard image (9:16 vertical ratio for each panel arranged side-by-side in a single wide collage) for a women's footwear review inside the EXACT pastel pink boutique shoe shop setting from the reference storyboard image.
 
 - Environment Continuity & Natural Micro-Variations:
   + PRESERVE the exact chic boutique shop architecture, large light grey/beige square floor tiles, gold metal frame shelving racks, pastel pink shoe boxes, dusty rose/blush velvet cushioned try-on bench with gold frame in Panel 1 & Panel 3, and bright storefront natural daylight.
   + INTRODUCE NATURAL VARIATIONS in background micro-details:
-    * Shoe Boxes on shelves: ${details.boxes}.
-    * Display & Shelves footwear: ${details.floorShoes}.
-    * Background atmosphere: ${details.shopper}.
+    * Shoe Boxes on shelves: ${det.boxes}.
+    * Display & Shelves footwear: ${det.floorShoes}.
+    * Background atmosphere: ${det.shopper}.
 
 - Footwear Replacement (Source of Truth):
   + In all 4 panels, REPLACE the footwear with the EXACT women's product design, colorway, upper materials (leather/satin/suede/mesh/straps/buckles), heel style/height, sole, and fine details from the uploaded product reference images.
@@ -331,10 +374,10 @@ function buildTemplate4Prompt(customOutfit = null) {
   + Footwear logic: If open-toe/sandals/heels/mules/slides, feature natural bare feet with realistic smooth skin texture. If closed-toe sneakers/loafers, clean off-white ankle socks or barefoot as appropriate.
 
 - 4-Panel Composition (Locked to reference layout):
-  + Panel 1 (Leftmost): Close-up shot over the dusty rose velvet try-on bench. A delicate female hand with manicured nails holds and tilts one women's shoe/sandal/heel from the upper/side at a 20-degree angle; the matching second shoe rests neatly below on the silver/metallic display stand on the velvet bench.
-  + Panel 2 (Second from left): First-person POV looking straight down from the female model's lap/waist. The bottom hem of the cream pleated skirt is visible at the top edge. Slender bare legs extended forward wearing the women's footwear on the light grey boutique floor tiles.
-  + Panel 3 (Third from left): Side-profile view of the female model sitting gracefully on the dusty rose velvet cushioned bench with gold frame. Shows the pink ribbed top, white pleated skirt, beige crossbody bag, and legs extended/crossed displaying the side silhouette, heel height, strap design, and fit of the footwear.
-  + Panel 4 (Rightmost): Full-body standing try-on pose in the pastel pink boutique aisle next to the gold display racks. The model stands gracefully (faceless, framed from chest down to feet), body slightly angled, wearing the pink top, pleated skirt, crossbody bag, showcasing the complete outfit with the footwear.
+  + Panel 1 (Leftmost): Close-up shot over the dusty rose velvet try-on bench. A delicate female ${det.handDescEn} with manicured nails holds and tilts one women's shoe/sandal/heel from the upper/side at a 20-degree angle; the matching second shoe rests neatly below on the silver/metallic display stand on the velvet bench.
+  + Panel 2 (Second from left): First-person POV looking straight down from the female model's lap/waist. ${det.panel2Pose?.en || 'Slender bare legs extended forward naturally wearing the women footwear on the light grey boutique floor tiles.'}
+  + Panel 3 (Third from left): Side-profile view of the female model sitting gracefully on the dusty rose velvet cushioned bench with gold frame. Shows the model in ${det.outfit}, displaying the side silhouette, heel height, strap design, and fit of the footwear.
+  + Panel 4 (Rightmost): Full-body standing try-on pose in the pastel pink boutique aisle next to the gold display racks. The model stands gracefully (faceless, framed from chest down to feet), body slightly angled, wearing ${det.outfit}, showcasing the complete outfit with the footwear.
 
 - Atmosphere & Realism: Authentic smartphone photography in a real women's footwear boutique, bright soft shop lighting, natural skin textures with visible pores, genuine fabric and leather folds, no CGI, no AI plastic shine.
 - Strictly faceless, no visible faces, no text, no captions, no watermarks, no UI elements.`;
@@ -342,7 +385,8 @@ function buildTemplate4Prompt(customOutfit = null) {
 
 function buildSinglePanelPrompt(panelIndex, outfit, details, template = 'template3') {
   if (template === 'template4') {
-    const outfitText = outfit || 'chic pastel pink ribbed short-sleeve top and cream/white pleated skirt with a small beige crossbody bag';
+    const outfitText = outfit || details?.outfit || 'chic pastel pink ribbed short-sleeve top and cream/white pleated skirt with a small beige crossbody bag';
+    const handEn = details?.handDescEn || 'hand';
 
     const commonHeader = `Generate a single faceless women's footwear boutique-review photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
 CRITICAL INSTRUCTIONS:
@@ -359,7 +403,7 @@ CRITICAL INSTRUCTIONS:
       return `${commonHeader}
 CRITICAL — Panel 1 MUST match scene 1 of the women's boutique storyboard:
 - Camera: Eye-level / slight top-down close-up over the dusty rose velvet try-on bench.
-- One women's shoe/sandal/heel held gracefully by a delicate female hand in the FOREGROUND, occupying 55-70% of panel height, tilted 15-30 degrees.
+- One women's shoe/sandal/heel held gracefully by a delicate female ${handEn} in the FOREGROUND, occupying 55-70% of panel height, tilted 15-30 degrees.
 - The OTHER shoe rests neatly below on the metallic display stand on the velvet bench.
 - Background: chic pastel pink boutique shelves with ${details.boxes}, light grey tiled floor, soft boutique lights.
 - FORBIDDEN: full body, face, watermark, added text.`;
@@ -369,20 +413,19 @@ CRITICAL — Panel 1 MUST match scene 1 of the women's boutique storyboard:
       return `${commonHeader}
 CRITICAL — Panel 2 MUST match scene 2 of the women's boutique storyboard:
 - Camera: POV from female model's lap looking STRAIGHT DOWN at own legs. Camera at waist/lap level, pointing down 60-70 degrees.
-- Top edge shows the hem of the cream/white pleated skirt.
-- Slender bare legs EXTENDED STRAIGHT FORWARD, relaxed on the light grey boutique floor tiles.
+- Slender bare legs in try-on pose: ${details.panel2Pose?.en || 'Both feet resting gracefully flat on the light grey boutique floor tiles'}.
 - Feet wearing the women's footwear at BOTTOM CENTER.
 - 1-1.5 meters of floor tiles visible between camera and feet.
 - Boutique gold shelves with pastel pink brand boxes visible in the DISTANCE.
-- FORBIDDEN: bent knees at 90°, crossed legs, side angle, low camera, hands in frame, walking, standing up.`;
+- FORBIDDEN: side angle, low camera, hands in frame, walking, standing up.`;
     }
 
     if (panelIndex === 3) {
       return `${commonHeader}
 CRITICAL — Panel 3 MUST match scene 3 of the women's boutique storyboard:
 - Camera: SIDE-ANGLE view of the female model seated gracefully on the dusty rose velvet cushioned bench with gold metal frame.
-- Shows model from mid-torso down: pastel pink ribbed top, ${outfitText}, matching women's footwear.
-- Legs extended or crossed displaying the side silhouette, heel height, strap design, and fit.
+- Shows model from mid-torso down: ${outfitText}, matching women's footwear.
+- Legs extended or comfortably positioned displaying the side silhouette, heel height, strap design, and fit.
 - Face CROPPED OUT above frame.
 - Background: gold frame shelves with pastel pink shoeboxes, boutique entrance with soft daylight.
 - FORBIDDEN: front-facing angle, full face, regular wooden chair, low-angle from floor, walking.`;
@@ -393,7 +436,7 @@ CRITICAL — Panel 3 MUST match scene 3 of the women's boutique storyboard:
 CRITICAL — Panel 4 MUST match scene 4 (the rightmost standing scene) of the women's boutique storyboard:
 - Subject: A single continuous, cohesive standing try-on shot of the female model in the pastel boutique aisle wearing the footwear and ${outfitText}.
 - Camera & Framing: Standing eye/chest level, vertical 9:16 frame showing the full lower body from chest/waist down to feet in one clean, uninterrupted shot (faceless, head cropped above frame or hidden behind phone).
-- Stance & Pose: The female model stands gracefully next to the gold display racks, body and feet slightly angled to showcase the footwear silhouette, heel height, and pleated skirt.
+- Stance & Pose: The female model stands gracefully next to the gold display racks, body and feet slightly angled to showcase the footwear silhouette, heel height, and outfit.
 - Background: Pastel pink boutique aisle with shoe display shelves and pink boxes.
 - STRICTLY FORBIDDEN: split body, floating torso, full face, walking, watermark, text.`;
     }
@@ -401,7 +444,8 @@ CRITICAL — Panel 4 MUST match scene 4 (the rightmost standing scene) of the wo
     return '';
   }
 
-  const outfitText = outfit || 'stylish matching light beige/khaki chinos with clean off-white socks';
+  const outfitText = outfit || details?.outfit || 'stylish matching light beige/khaki chinos with clean off-white socks';
+  const handEn = details?.handDescEn || 'hand';
 
   const commonHeader = `Generate a single faceless footwear shop-review photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
 CRITICAL INSTRUCTIONS:
@@ -418,7 +462,7 @@ CRITICAL INSTRUCTIONS:
     return `${commonHeader}
 CRITICAL — Panel 1 MUST match scene 1 of the storyboard:
 - Camera: TOP-DOWN from ABOVE, looking straight down at the store wooden counter. NOT a side view, NOT a horizontal shot.
-- One shoe/footwear product held by a realistic hand in the FOREGROUND, occupying 55-70% of panel height, tilted 15-30 degrees.
+- One shoe/footwear product held by a realistic ${handEn} in the FOREGROUND, occupying 55-70% of panel height, tilted 15-30 degrees.
 - The OTHER shoe rests neatly below on the display stand.
 - Background: warm boutique shelves with ${details.boxes}, beige tiled floor, warm ceiling lights.
 - FORBIDDEN: side-view camera, face, full body, watermark, added text.`;
@@ -608,27 +652,29 @@ CHUYỂN ĐỘNG DUY NHẤT LÀ TRƯỢT NGANG TOÀN BỘ BÀN CHÂN TRÊN MẶT
 GIỮ NGUYÊN HÌNH DÁNG VÀ VỊ TRÍ CỦA NGƯỜI VÀ ĐÔI GIÀY.`;
 }
 
-function getPanelPrompts(template = 'template3', options = {}) {
+function getPanelPrompts(template = 'template3', options = {}, details = null) {
+  const isT4 = template === 'template4';
+  const det = details || getRandomMicroDetails(template);
   const panel2Prompt = buildPanel2VideoPrompt(options.panel2Foot || null);
 
-  if (template === 'template4') {
+  if (isT4) {
     return [
-      'Tạo video review giày dép nữ faceless dài đúng 8 giây. VISUAL: Camera điện thoại góc nhìn cận cảnh quầy nệm nhung hồng pastel trong shop giày nữ. Chiếc giày/dép/guốc còn lại đặt cố định trên giá đỡ kim loại bên dưới. Bàn tay nữ với móng tay sơn nhẹ nhàng luôn cầm chắc ở thân/quai giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh: 0s-2s: Bàn tay giữ giày, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ chi tiết mũi giày và quai trên. 2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài, độ cao gót và đường cong đế. 4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong và lớp lót êm. 6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc duyên dáng. Ánh sáng boutique hồng pastel ấm áp chân thực, da tay mịn tự nhiên, video im lặng không tiếng nói.',
+      `Tạo video review giày dép nữ faceless dài đúng 8 giây. VISUAL: Camera điện thoại góc nhìn cận cảnh quầy nệm nhung hồng pastel trong shop giày nữ. Chiếc giày/dép/guốc còn lại đặt cố định trên giá đỡ kim loại bên dưới. Bàn tay nữ (${det.handDescVi || 'tay phải'}) với móng tay sơn nhẹ nhàng luôn cầm chắc ở thân/quai giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh: 0s-2s: Bàn tay giữ giày, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ chi tiết mũi giày và quai trên. 2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài, độ cao gót và đường cong đế. 4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong và lớp lót êm. 6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc duyên dáng. Ánh sáng boutique hồng pastel ấm áp chân thực, da tay mịn tự nhiên, video im lặng không tiếng nói.`,
       panel2Prompt,
-      'Tạo video review giày dép nữ faceless dài đúng 4 giây. VISUAL: Góc quay ngang từ bên hông người mẫu nữ mặc váy xếp ly ngồi duyên dáng trên ghế nệm nhung hồng chân vàng kim trong shop giày, thấy từ eo xuống chân và sàn gạch. Hành động chân mềm mại: 0s-1.2s: Chân gần camera duỗi nhẹ tự nhiên từ ghế nệm, bàn chân chạm nhẹ sàn gạch, xoay nhẹ cổ chân khoe đường cong gót giày, độ cao gót và quai ôm chân. 1.2s-2.6s: Bàn chân tựa trên sàn gạch nhún nhẹ đệm đế êm ái khi tiếp đất. 2.6s-4s: Nghiêng nhẹ bàn chân sang cạnh ngoài khoe chi tiết quai cài và gót, rồi thả lỏng chân về tư thế ngồi tự nhiên. Ánh sáng boutique ấm áp, không rời ghế, video im lặng không tiếng nói.',
-      'Tạo video review giày dép nữ faceless dài đúng 8 giây. VISUAL: Người mẫu nữ mặc áo hồng và chân váy xếp ly trắng đứng thử giày giữa lối đi shop giày pastel, góc máy từ ngực xuống chân (faceless). Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy: 0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và sự kết hợp với chân váy xếp ly. 2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong. 5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin nữ tính trước gương shop khoe trực diện tổng thể form dáng giày và outfit. Ánh sáng shop chân thực, video im lặng không tiếng nói.',
+      `Tạo video review giày dép nữ faceless dài đúng 4 giây. VISUAL: Góc quay ngang từ bên hông người mẫu nữ ngồi duyên dáng trên ghế nệm nhung hồng trong boutique, thấy từ eo xuống chân và sàn gạch. Động tác chân uyển chuyển, mượt mà và thanh thoát: 0s-2s: Bàn chân mang guốc/sandal duỗi nhẹ mượt mà chạm mũi giày xuống sàn gạch, hơi nâng nhẹ gót khoe đường cong thanh thoát của mu bàn chân, quai ôm và độ cao gót. 2s-4s: Hạ gót giày êm ái xuống sàn gạch, xoay nhẹ mũi chân sang ngoài góc 20 độ dứt khoát và duyên dáng để khoe trọn vẹn vẻ đẹp bên hông và chi tiết quai cài, rồi giữ yên tạo dáng tự nhiên. Chuyển động mềm mại, liền mạch, nhanh gọn và thanh lịch, không giật cục, không thô cứng. Ánh sáng boutique ấm áp, không rời ghế, video im lặng không tiếng nói.`,
+      `Tạo video review giày dép nữ faceless dài đúng 8 giây. VISUAL: Người mẫu nữ mặc ${det.outfit || 'áo hồng và chân váy xếp ly trắng'} đứng thử giày giữa lối đi shop giày pastel, góc máy từ ngực xuống chân (faceless). Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy: 0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và sự kết hợp với outfit. 2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong. 5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin nữ tính trước gương shop khoe trực diện tổng thể form dáng giày và outfit. Ánh sáng shop chân thực, video im lặng không tiếng nói.`,
     ];
   }
 
   return [
-    'Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Camera điện thoại góc top-down nhìn từ trên xuống quầy gỗ shop giày dép. Chiếc giày còn lại đặt cố định trên giá đỡ bên dưới. Bàn tay luôn giữ chắc cố định ở dưới đế giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh của giày: 0s-2s: Bàn tay giữ đế, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ góc trên và chi tiết mũi giày. 2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài và độ cao đế. 4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong. 6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc chắc chắn. Ánh sáng shop chân thực, da tay có vân tự nhiên, không bokeh giả, video im lặng không tiếng nói.',
+    `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Camera điện thoại góc top-down nhìn từ trên xuống quầy gỗ shop giày dép. Chiếc giày còn lại đặt cố định trên giá đỡ bên dưới. Bàn tay (${det.handDescVi || 'tay phải'}) luôn giữ chắc cố định ở dưới đế giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh của giày: 0s-2s: Bàn tay giữ đế, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ góc trên và chi tiết mũi giày. 2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài và độ cao đế. 4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong. 6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc chắc chắn. Ánh sáng shop chân thực, da tay có vân tự nhiên, không bokeh giả, video im lặng không tiếng nói.`,
     panel2Prompt,
-    'Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: Góc quay ngang từ bên hông người mẫu ngồi trên ghế bar gỗ cao trong shop giày, thấy từ eo xuống chân và sàn gạch. Hành động chân dứt khoát: 0s-1.2s: Chân gần camera duỗi nhẹ tự nhiên từ ghế cao, bàn chân chạm nhẹ sàn gạch, xoay nhẹ cổ chân khoe đường cong thân bên và độ dốc đế. 1.2s-2.6s: Bàn chân tựa trên sàn gạch nhún nhẹ đệm đế êm ái khi tiếp đất. 2.6s-4s: Nghiêng nhẹ bàn chân sang cạnh ngoài khoe chi tiết viền đế và gót, rồi thả lỏng chân về tư thế ngồi tự nhiên. Ánh sáng shop ấm áp chân thực, không rời ghế, video im lặng không tiếng nói.',
-    'Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Người mẫu đứng thử giày giữa lối đi shop giày dép, góc máy từ ngực xuống chân (faceless). Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy: 0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và phom quần. 2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong. 5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin trước gương shop khoe trực diện tổng thể form dáng giày và outfit. Ánh sáng shop chân thực, video im lặng không tiếng nói.',
+    `Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: Góc quay ngang từ bên hông người mẫu ngồi trên ghế bar cao trong shop giày dép, thấy từ eo xuống chân và sàn gạch. Động tác chân nhanh nhẹn, mượt mà và dứt khoát: 0s-2s: Bàn chân đang mang giày chạm nhẹ sàn gạch, người mẫu nhịp chân nhẹ nhàng 2 lần mượt mà để khoe độ đàn hồi êm ái của đế và form giày khi vận động. 2s-4s: Xoay nhẹ cổ chân sang một bên góc 30 độ mượt mà và dứt khoát để khoe toàn bộ cạnh bên, phom dáng và gót giày dưới ánh đèn shop, rồi giữ ổn định tự nhiên. Chuyển động liền mạch, nhanh nhẹn, tự nhiên như khách đang thử giày thật, không giật cục, không thô cứng. Ánh sáng shop ấm áp chân thực, không rời ghế, video im lặng không tiếng nói.`,
+    `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Người mẫu mặc ${det.outfit || 'quần âu và giày thể thao'} đứng thử giày giữa lối đi shop giày dép, góc máy từ ngực xuống chân (faceless). Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy: 0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và phom quần. 2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong. 5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin trước gương shop khoe trực diện tổng thể form dáng giày và outfit. Ánh sáng shop chân thực, video im lặng không tiếng nói.`,
   ];
 }
 
-function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, template = 'template3') {
+function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, template = 'template3', details = null) {
   const archiveRoot = path.join(baseDir, 'storyboard-review-runs');
   ensureDir(archiveRoot);
 
@@ -665,7 +711,7 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
   }
 
   // Save prompts.md
-  const panelPrompts = getPanelPrompts(template);
+  const panelPrompts = getPanelPrompts(template, {}, details);
   const templateTitle = template === 'template4' ? 'Template 4 (Women Footwear Boutique)' : 'Template 3 (Footwear Shop)';
   const promptsContent = `# ${templateTitle} - Google Flow Storyboard Prompts (4 Panels)
 
@@ -678,7 +724,7 @@ ${prompt}
 ### Panel 1 (8s - ${template === 'template4' ? 'Close-Up Hand Held on Velvet Bench' : 'Top-Down Hand Held'})
 ${panelPrompts[0]}
 
-### Panel 2 (6s - ${template === 'template4' ? 'POV Pleated Skirt Sitting' : 'Chest POV Sitting'})
+### Panel 2 (6s - ${template === 'template4' ? 'POV Try-On Sitting' : 'Chest POV Sitting'})
 ${panelPrompts[1]}
 
 ### Panel 3 (4s - ${template === 'template4' ? 'Side Angle Velvet Bench' : 'Side Bar Stool'})
@@ -731,7 +777,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
   // Upload reference image + input images to Google Flow
   const allUploadPayloads = [refPayload, ...filePayloads];
-  const prompt = isTemplate4 ? buildTemplate4Prompt(options.outfit || null) : buildTemplate3Prompt(options.outfit || null);
+  const prompt = isTemplate4 ? buildTemplate4Prompt(options.outfit || null, details) : buildTemplate3Prompt(options.outfit || null, details);
 
   const tmpRoot = path.join(baseDir, 'uploads', 'flow-storyboard-runs');
   ensureDir(tmpRoot);
@@ -795,7 +841,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     console.warn(`[GoogleFlowStoryboard] ⚠️ Footwear analysis skipped: ${aErr.message}`);
   }
 
-  const panelPrompts = getPanelPrompts(template);
+  const panelPrompts = getPanelPrompts(template, options, details);
   const panels = [];
 
   try {
@@ -870,7 +916,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   }
 
   // 3. Save review archive
-  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, prompt, genResult.base64, panels, template);
+  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, prompt, genResult.base64, panels, template, details);
 
   // 4. Generate videos if requested
   let videos = [];

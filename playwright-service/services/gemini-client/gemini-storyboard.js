@@ -340,11 +340,10 @@ Quy tắc bắt buộc: Camera cố định hoàn toàn. Chân còn lại giữ 
 `.trim();
 
 const TEMPLATE3_PANEL3_CHOREOGRAPHY = `
-Hành động cảnh 3 (4 giây — góc bên hông, ngồi ghế bar cao, chuyển động chân dứt khoát):
-0s-1.2s: Chân gần camera duỗi nhẹ tự nhiên từ ghế cao, bàn chân chạm nhẹ sàn gạch, xoay nhẹ cổ chân khoe đường cong thân bên và độ dốc đế.
-1.2s-2.6s: Bàn chân tựa trên sàn gạch nhún nhẹ đệm đế êm ái khi tiếp đất.
-2.6s-4s: Nghiêng nhẹ bàn chân sang cạnh ngoài khoe chi tiết viền đế và gót, rồi thả lỏng chân về tư thế ngồi tự nhiên.
-Tuyệt đối không walking, không đứng dậy, không di chuyển khỏi ghế, không low-angle xuống đất, không tracking shot.
+Hành động cảnh 3 (4 giây — góc bên hông, ngồi ghế bar cao, động tác chân nhanh nhẹn, mượt mà và dứt khoát):
+0s-2s: Bàn chân đang mang giày chạm nhẹ sàn gạch, người mẫu nhịp chân nhẹ nhàng 2 lần mượt mà để khoe độ đàn hồi êm ái của đế và form giày khi vận động.
+2s-4s: Xoay nhẹ cổ chân sang một bên góc 30 độ mượt mà và dứt khoát để khoe toàn bộ cạnh bên, phom dáng và gót giày dưới ánh đèn shop, rồi giữ ổn định tự nhiên.
+Chuyển động liền mạch, nhanh nhẹn, tự nhiên như khách đang thử giày thật, không giật cục, không thô cứng. Tuyệt đối không walking, không đứng dậy, không di chuyển khỏi ghế.
 `.trim();
 
 const TEMPLATE3_PANEL4_SCENE_REFERENCE = `

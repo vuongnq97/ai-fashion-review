@@ -580,11 +580,15 @@ async function handleUpdate(botToken, update) {
       return;
     }
 
-    // Folder commands (also handles e.g. /p1@botname sent in groups).
-    // Keep /start and /dailyvlog reserved; any other alphanumeric command maps to a folder name.
+    // Folder commands (also handles e.g. /m1@botname sent in groups).
+    // Keep reserved commands; ignore commands starting with 'p' (e.g. /p1, /p2); any other alphanumeric command maps to a folder name.
     const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
     if (folderMatch && !RESERVED_COMMANDS.has(folderMatch[1].toLowerCase())) {
       const folderName = folderMatch[1].toLowerCase();
+      if (folderName.startsWith('p')) {
+        // Bỏ qua các lệnh bắt đầu bằng /p
+        return;
+      }
       console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
       await handleFolderCommand(botToken, chatId, folderName);
       return;
@@ -762,6 +766,8 @@ function folderNameToTelegramCommand(folderName) {
   // Telegram bot commands support lowercase letters, digits and underscores.
   if (!/^[a-z][a-z0-9_]{0,31}$/.test(command)) return null;
   if (RESERVED_COMMANDS.has(command)) return null;
+  // Bỏ qua tất cả các lệnh bắt đầu bằng 'p' (ví dụ: p1, p2, p3, p_...)
+  if (command.startsWith('p')) return null;
   return command;
 }
 

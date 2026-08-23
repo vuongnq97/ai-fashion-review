@@ -298,6 +298,71 @@ function archiveTemplate6Review(baseDir, filePayloads, prompt, storyboardBase64,
 }
 
 /**
+ * Phân tích sản phẩm qua Gemini API
+ */
+async function analyzeProductTemplate6(geminiClient, filePayloads) {
+  console.log(`[Template 6] Step 1a: Uploading ${filePayloads.length} product image(s)...`);
+
+  const uploadedFiles = [];
+  for (let i = 0; i < filePayloads.length; i++) {
+    const file = filePayloads[i];
+    const buffer = Buffer.isBuffer(file.buffer)
+      ? file.buffer
+      : (file.base64 ? Buffer.from(file.base64, 'base64') : (file.path ? fs.readFileSync(file.path) : null));
+    if (!buffer) continue;
+
+    const mimeType = file.mimeType || 'image/png';
+    const filename = file.name || `product_${i + 1}.png`;
+    const url = await geminiClient.uploadFile(buffer, filename, mimeType);
+    uploadedFiles.push({ url, filename, mimeType });
+  }
+
+  console.log(`[Template 6] Step 1b: Analyzing product for supermarket merchandising via Gemini API...`);
+  const analysisPrompt = buildTemplate6AnalysisPrompt();
+
+  try {
+    const res = await geminiClient.generateContent({
+      prompt: analysisPrompt,
+      fileData: uploadedFiles,
+      temporary: true,
+      expectImages: false,
+    });
+
+    const parsed = parseJsonObject(res.text || '');
+    if (parsed) {
+      const pName = parsed.productName || 'Sản Phẩm Siêu Thị';
+      const cat = parsed.category || 'general';
+      console.log(`[Template 6] ✅ Product analyzed: "${pName}" (${cat})`);
+
+      return {
+        analysis: {
+          productName: pName,
+          category: cat,
+          packagingType: parsed.packagingType || 'chai/hộp',
+          keyVisualDetails: parsed.keyVisualDetails || 'Bao bì chuẩn',
+          supermarketAisleDescription: parsed.supermarketAisleDescription || 'kệ hàng siêu thị hiện đại',
+          neighborProducts: parsed.neighborProducts || 'các sản phẩm cùng loại',
+        },
+        uploadedFiles,
+      };
+    }
+  } catch (err) {
+    console.warn(`[Template 6] ⚠️ Analysis failed: ${err.message}. Using intelligent defaults.`);
+  }
+
+  return {
+    analysis: {
+      productName: 'Sản phẩm siêu thị',
+      category: 'general',
+      packagingType: 'chai/hộp chuẩn',
+      supermarketAisleDescription: 'kệ hàng siêu thị hiện đại ngăn nắp',
+      neighborProducts: 'các mặt hàng tiêu dùng cùng loại',
+    },
+    uploadedFiles,
+  };
+}
+
+/**
  * Hàm chính thực thi toàn bộ luồng Template 6
  */
 async function generateStoryboard(baseDir, filePayloads, options = {}) {
@@ -305,129 +370,136 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     throw new Error('Template 6 requires at least one product reference image.');
   }
 
+  const secure1Psid = process.env.GEMINI_SECURE_1PSID;
+  const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
+  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
+    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(baseDir, 'gemini.cookies.json');
+
+  if (!secure1Psid && !cookieFilePath) {
+    throw new Error('GEMINI_SECURE_1PSID or GEMINI_COOKIE_PATH is required for Template 6 storyboard generation');
+  }
+
   const geminiClient = new GeminiApiClient({
-    secure1Psid: process.env.GEMINI_SECURE_1PSID,
-    secure1Psidts: process.env.GEMINI_SECURE_1PSIDTS,
-    cookieFilePath: process.env.GEMINI_COOKIE_PATH || path.join(baseDir, 'gemini-cookies'),
+    secure1Psid,
+    secure1Psidts,
+    cookieFilePath: fs.existsSync(cookieFilePath) ? cookieFilePath : undefined,
   });
+
+  await geminiClient.init();
 
   let analysis = {};
   let elements = getRandomSupermarketElements();
   let storyboardBase64 = null;
+  let masterPrompt = '';
   const panels = [];
 
   try {
     // ── Bước 1: Phân tích sản phẩm qua Gemini API ────────────────────────────
     console.log('[Template 6] 🔍 Step 1: Analyzing product image for supermarket merchandising...');
-    const analysisPrompt = buildTemplate6AnalysisPrompt();
-    let analysisRaw = null;
-
-    try {
-      const resp = await geminiClient.generateText(analysisPrompt, {
-        filePayloads: filePayloads.slice(0, 2),
-        model: 'gemini-2.5-flash',
-        timeoutMs: 45000,
-      });
-      analysisRaw = parseJsonObject(resp.text);
-      analysis = analysisRaw || {};
-      console.log(`[Template 6] ✅ Analyzed: "${analysis.productName || 'Sản phẩm'}" (Ngành hàng: ${analysis.category || 'general'}, Siêu thị: ${elements.store})`);
-    } catch (err) {
-      console.warn('[Template 6] ⚠️ Analysis failed, using intelligent defaults:', err.message);
-      analysis = {
-        productName: 'Sản phẩm siêu thị',
-        category: 'general',
-        packagingType: 'chai/hộp chuẩn',
-        supermarketAisleDescription: 'kệ hàng siêu thị hiện đại ngăn nắp',
-        neighborProducts: 'các mặt hàng tiêu dùng cùng loại',
-      };
-    }
+    const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate6(geminiClient, filePayloads);
+    analysis = analyzedData;
 
     // ── Bước 2: Tạo Master Storyboard 2 Panel ─────────────────────────────────
-    console.log(`[Template 6] 🎨 Step 2: Generating Master Storyboard (2 Panels, Store: ${elements.store})...`);
-    const masterPrompt = buildTemplate6StoryboardPrompt(analysis, elements);
+    console.log(`[Template 6] 🎨 Step 2: Generating Master Storyboard (2 Panels, Store: ${elements.store}) via Gemini API...`);
+    masterPrompt = buildTemplate6StoryboardPrompt(analysis, elements);
 
     // Sử dụng template reference tương ứng
     const refAssetPath = path.join(baseDir, 'assets', elements.store === 'winmart' ? 'template6_2.png' : 'template6_1.png');
-    const visualRefs = [...filePayloads];
+    const combinedFiles = [...uploadedFiles];
     if (fs.existsSync(refAssetPath)) {
-      visualRefs.push({
-        name: elements.store === 'winmart' ? 'template6_2_ref.png' : 'template6_1_ref.png',
-        mimeType: 'image/png',
-        buffer: fs.readFileSync(refAssetPath),
-      });
+      try {
+        const refBuf = fs.readFileSync(refAssetPath);
+        const refName = elements.store === 'winmart' ? 'template6_2_ref.png' : 'template6_1_ref.png';
+        const refUrl = await geminiClient.uploadFile(refBuf, refName, 'image/png');
+        combinedFiles.push({ url: refUrl, filename: refName, mimeType: 'image/png' });
+      } catch (e) {
+        console.warn(`[Template 6] Could not upload reference asset: ${e.message}`);
+      }
     }
+
+    let storyboardBuf = null;
+    let lastMasterErr = null;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const genRes = await geminiClient.generateImage(masterPrompt, {
-          filePayloads: visualRefs,
-          aspectRatio: '1:1',
-          model: 'imagen-3.0-generate-002',
-          timeoutMs: 60000,
+        const masterRes = await geminiClient.generateContent({
+          prompt: masterPrompt,
+          fileData: combinedFiles,
+          temporary: true,
+          expectImages: true,
         });
 
-        if (!genRes.images || genRes.images.length === 0) {
-          throw new Error('Gemini API did not return any image for Master Storyboard');
+        if (!masterRes.images || masterRes.images.length === 0) {
+          throw new Error('Gemini API did not return any Master Storyboard image for Template 6');
         }
 
-        const buf = await geminiClient.downloadImage(genRes.images[0].url);
-        storyboardBase64 = buf.toString('base64');
-        console.log(`[Template 6] ✅ Master Storyboard generated successfully on attempt ${attempt}!`);
+        storyboardBuf = await geminiClient.downloadImage(masterRes.images[0].url);
+        storyboardBase64 = storyboardBuf.toString('base64');
+        console.log('[Template 6] ✅ Master Storyboard created successfully!');
         break;
       } catch (err) {
-        console.warn(`[Template 6] Master Storyboard attempt ${attempt}/3 failed: ${err.message}`);
+        lastMasterErr = err;
+        console.warn(`[Template 6] Master Storyboard Attempt ${attempt}/3 failed: ${err.message}. Retrying in 4s...`);
         if (attempt === 3) throw err;
         await new Promise(r => setTimeout(r, 4000));
       }
     }
 
-    // ── Bước 3: Sinh 2 Panel 9:16 độc lập ─────────────────────────────────────
-    console.log('[Template 6] 🖼️  Step 3: Generating 2 independent 9:16 panels...');
-    const panelRefs = [...filePayloads];
-    if (storyboardBase64) {
-      panelRefs.push({
-        name: 'storyboard_master.png',
-        mimeType: 'image/png',
-        buffer: Buffer.from(storyboardBase64, 'base64'),
-      });
+    if (!storyboardBuf) {
+      throw new Error(`Failed to generate Master Storyboard: ${lastMasterErr?.message || 'Unknown error'}`);
     }
 
-    for (let panelIndex = 1; panelIndex <= 2; panelIndex++) {
-      const panelPrompt = buildTemplate6PanelPrompt(panelIndex, analysis, elements);
+    // Upload storyboard image for panel reference
+    const sbUploadUrl = await geminiClient.uploadFile(storyboardBuf, 'master_storyboard.png', 'image/png');
+    const panelCombinedFiles = [
+      { url: sbUploadUrl, filename: 'master_storyboard.png', mimeType: 'image/png' },
+      ...uploadedFiles
+    ];
+
+    // ── Bước 3: Sinh 2 Panel 9:16 riêng biệt ─────────────────────────────────
+    const videoPrompts = getTemplate6VideoPrompts(analysis, options);
+    for (let i = 1; i <= 2; i++) {
+      console.log(`[Template 6] Step 3: Generating Panel ${i}/2 (9:16) via Gemini API...`);
+      const panelPrompt = buildTemplate6PanelPrompt(i, analysis, elements);
+
       let panelBuf = null;
+      let lastPanelErr = null;
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(`[Template 6] Generating Panel ${panelIndex}/2 (Attempt ${attempt}/3)...`);
-          const genRes = await geminiClient.generateImage(panelPrompt, {
-            filePayloads: panelRefs,
-            aspectRatio: '9:16',
-            model: 'imagen-3.0-generate-002',
-            timeoutMs: 60000,
+          const panelRes = await geminiClient.generateContent({
+            prompt: panelPrompt,
+            fileData: panelCombinedFiles,
+            temporary: true,
+            expectImages: true,
           });
 
-          if (!genRes.images || genRes.images.length === 0) {
-            throw new Error(`No image returned for Panel ${panelIndex}`);
+          if (!panelRes.images || panelRes.images.length === 0) {
+            throw new Error(`Gemini API did not return image for Panel ${i}`);
           }
 
-          panelBuf = await geminiClient.downloadImage(genRes.images[0].url);
-          console.log(`[Template 6] ✅ Panel ${panelIndex}/2 generated!`);
+          panelBuf = await geminiClient.downloadImage(panelRes.images[0].url);
+          console.log(`[Template 6] ✅ Panel ${i}/2 generated successfully!`);
           break;
         } catch (err) {
-          console.warn(`[Template 6] Panel ${panelIndex} attempt ${attempt}/3 failed: ${err.message}`);
+          lastPanelErr = err;
+          console.warn(`[Template 6] Panel ${i}/2 Attempt ${attempt}/3 failed: ${err.message}. Retrying in 4s...`);
           if (attempt === 3) throw err;
           await new Promise(r => setTimeout(r, 4000));
         }
       }
 
-      const finalB64 = panelBuf.toString('base64');
+      if (!panelBuf) {
+        throw new Error(`Failed to generate Panel ${i}: ${lastPanelErr?.message || 'Unknown error'}`);
+      }
+
       panels.push({
-        index: panelIndex,
-        panelIndex: panelIndex,
-        imageBase64: finalB64,
-        image: { base64: finalB64, mimeType: 'image/png' },
+        index: i,
+        imagePath: null, // will be populated in archive
+        imageBase64: panelBuf.toString('base64'),
         mimeType: 'image/png',
-        videoModelKey: '8s',
+        prompt: videoPrompts[i - 1],
       });
     }
   } finally {
@@ -435,7 +507,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   }
 
   // ── Bước 4: Lưu trữ archive ────────────────────────────────────────────────
-  const archive = archiveTemplate6Review(baseDir, filePayloads, buildTemplate6StoryboardPrompt(analysis, elements), storyboardBase64, panels, analysis, elements, options);
+  const archive = archiveTemplate6Review(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis, elements, options);
 
   // ── Bước 5: Sinh 2 Veo 3 Videos (8 giây mỗi video) ─────────────────────────
   let videos = [];

@@ -315,7 +315,8 @@ async function analyzeProductTemplate5(geminiClient, filePayloads) {
 /**
  * Xây dựng prompt Master Storyboard (4 panel horizontal split 16:9)
  */
-function buildTemplate5MasterPrompt(analysisData) {
+function buildTemplate5MasterPrompt(analysisData, options = {}) {
+  const isNoText = !!(options.noText || options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51');
   const a = analysisData || {};
   const overlays = a.panelOverlays || normalizePanelOverlays(a);
   const loc = a.sceneContext?.location || 'a bright modern lifestyle setting';
@@ -328,10 +329,33 @@ function buildTemplate5MasterPrompt(analysisData) {
     sceneContext: a.sceneContext || {},
     panels: overlays.map(p => ({
       id: p.id,
-      headline: p.headline,
-      keySellingPoints: p.subtexts,
+      headline: isNoText ? undefined : p.headline,
+      keySellingPoints: isNoText ? undefined : p.subtexts,
+      goal: (a.script && a.script[p.id - 1]?.goal) || `Scene ${p.id}`,
     }))
   };
+
+  if (isNoText) {
+    return `Generate one product review storyboard image (still photo collage, NOT a video) from the uploaded product reference images for ${prodName}.
+
+CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM (KHÔNG ẢO CGI):
+- Aesthetics: Authentic smartphone camera snapshot (main lens ~26mm), natural window light, subtle realistic depth of field, real materials (matte, fabric grain, metallic brush or leather texture). Must look 100% real and authentic like a real human photoshoot. No 3D render, no plastic CGI.
+- Strictly faceless: No visible human faces, no presenter face. Only hands, body limbs or cropped outfit in frame.
+- NO CARTOON GRAPHICS: Absolutely NO glowing neon arrows, NO cartoon magnifying glasses, NO floating 3D icons, NO fake fairy sparkles.
+
+Storyboard requirements:
+- Exactly 4 panels arranged side by side in one single still image (horizontal 16:9 collage composed of 4 vertical 9:16 frames).
+- Setting: All 4 panels share the exact same location (${loc}) and lighting (${lighting}).
+- STRICT NO-TEXT RULE (TUYỆT ĐỐI KHÔNG CHỮ / NO TEXT / NO LABELS):
+  * Every panel must be 100% pure clean photography without any typography, without any text badges, without any words, without any subtitles, without any labels, and without any watermarks.
+  * Pure visual focus on authentic product textures, details, and realistic everyday interaction.
+- Output must be a still photograph collage. Do NOT generate or describe a video.
+
+Scene plan:
+${JSON.stringify(sceneData, null, 2)}
+
+Generate one still storyboard image now.`.trim();
+  }
 
   const sequenceInstructions = overlays.map(p => {
     const subtextLines = (p.subtexts || []).join(' | ');
@@ -366,13 +390,37 @@ Generate one still storyboard image now.`.trim();
 /**
  * Xây dựng prompt cho từng Panel 9:16 riêng biệt (Gemini API)
  */
-function buildTemplate5PanelPrompt(panelIndex, analysisData) {
+function buildTemplate5PanelPrompt(panelIndex, analysisData, options = {}) {
+  const isNoText = !!(options.noText || options.template === 'template5_1' || options.template === 'template5.1' || options.template === 'template51');
   const a = analysisData || {};
   const overlays = a.panelOverlays || normalizePanelOverlays(a);
   const current = overlays[panelIndex - 1] || { id: panelIndex, headline: `PANEL ${panelIndex}`, subtexts: [] };
   const loc = a.sceneContext?.location || 'a bright modern setting';
   const prodName = a.productName || 'the product';
   const subtextStr = (current.subtexts || []).join(' | ');
+
+  if (isNoText) {
+    return `Generate a single vertical 9:16 smartphone photograph for Panel ${panelIndex} of 4 for the ${prodName} review.
+
+VISUAL INSTRUCTIONS:
+- Panel Index: ${panelIndex} of 4.
+- Aspect Ratio: 9:16 vertical.
+- Setting: ${loc}.
+- Product Identity: Match the EXACT design, colors, textures, and details from the product reference images.
+
+- STRICT NO-TEXT RULE (TUYỆT ĐỐI KHÔNG CHỮ / NO TEXT / NO WATERMARKS):
+  * Pure clean smartphone photography with NO typography overlays, NO caption cards, NO words, NO letters, NO numbers, NO badges, NO stickers, NO watermarks, NO price tags anywhere in the image.
+  * The image must focus 100% cleanly on the authentic physical product, material texture, and natural human interaction.
+
+- 100% PHOTOREALISM (THỰC TẾ 100%, KHÔNG ẢO CGI):
+  * Authentic smartphone camera snapshot (iPhone 15 Pro style 24mm lens), real natural room lighting, genuine soft contact shadows and textures.
+  * Real human hands and authentic everyday living spaces. Must look 100% real and authentic, NOT like an AI-generated image.
+  * Faceless only: No visible human faces.
+  * STRICTLY NO cartoon graphics, NO glowing neon arrows, NO floating magnifying glasses, NO fake fairy sparkles, NO 3D CGI props.
+- Output must be a still photo. Do NOT generate a video.
+
+Generate exactly one still image now.`.trim();
+  }
 
   return `Generate a single vertical 9:16 smartphone photograph for Panel ${panelIndex} of 4 for the ${prodName} review.
 
@@ -407,11 +455,11 @@ Generate exactly one still image now.`.trim();
 }
 
 /**
- * Lấy danh sách 4 Prompt Veo 3 chuẩn 6s tiếng Việt cho Template 5
+ * Lấy danh sách 4 Prompt Veo 3 chuẩn 6s tiếng Việt cho Template 5 / Template 5.1
  * TUYỆT ĐỐI KHÔNG truyền chuỗi text trong ngoặc kép cho Veo vì Veo sẽ tự vẽ thêm chữ lỗi font.
  * Veo chỉ animate hình ảnh gốc và giữ nguyên chữ đã có sẵn trên panel ảnh.
  */
-function getTemplate5VideoPrompts(analysisData) {
+function getTemplate5VideoPrompts(analysisData, options = {}) {
   const prodName = analysisData?.productName || 'sản phẩm';
   const script = analysisData?.script || [];
 
@@ -428,20 +476,21 @@ function getTemplate5VideoPrompts(analysisData) {
   const vfx4 = script[3]?.techVFX ? ` Thao tác thực tế: ${script[3].techVFX}.` : '';
 
   return [
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT ĐỒ HỌA TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx1} ${desc1}. Chuyển động camera và tay chân thực, mượt mà: 0s-2s giữ yên góc quay, 2s-4s nghiêng nhẹ cổ tay khoe chi tiết và kiểu dáng sản phẩm, 4s-6s trở về vị trí tự nhiên ban đầu. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx2} ${desc2}. Chuyển động: 0s-2s giữ khung hình ổn định, 2s-4s ngón tay tương tác chạm nhẹ vào chi tiết công năng thực tế, 4s-6s giữ yên góc quay tôn vinh sản phẩm. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx3} ${desc3}. Chuyển động: 0s-2s bắt đầu thao tác sử dụng thực tế, 2s-4s tương tác mượt mà thể hiện hiệu quả công năng vượt trội, 4s-6s giữ nguyên trạng thái hài lòng tại chỗ. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL:${vfx4} ${desc4}. Chuyển động: 0s-2s khung hình tổng thể sang trọng, 2s-4s chuyển động nhẹ nhàng khoe trọn vẻ đẹp và tính tiện dụng của sản phẩm, 4s-6s kết thúc tự tin vững chãi. Cảnh quay tự nhiên như video quay thật 100%, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
   ];
 }
 
 /**
  * Lưu trữ metadata và kết quả vào thư mục storyboard-review-runs
  */
-function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, analysis) {
+function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, analysis, options = {}) {
+  const template = options.template || (options.noText ? 'template5_1' : 'template5');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runId = Math.random().toString(36).substring(2, 8);
-  const runDir = path.join(baseDir, 'storyboard-review-runs', `${timestamp}-template5-flow-${runId}`);
+  const runDir = path.join(baseDir, 'storyboard-review-runs', `${timestamp}-${template}-flow-${runId}`);
   ensureDir(runDir);
 
   const inputsDir = path.join(runDir, 'inputs');
@@ -464,15 +513,20 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
     p.imagePath = pPath;
   });
 
-  const videoPrompts = getTemplate5VideoPrompts(analysis);
+  const videoPrompts = getTemplate5VideoPrompts(analysis, options);
+  const isNoText = !!(options.noText || template === 'template5_1' || template === 'template5.1' || template === 'template51');
   const overlays = analysis?.panelOverlays || normalizePanelOverlays(analysis || {});
-  const overlaysSummary = overlays.map(p => `Panel ${p.id}: [${p.headline}] ${p.subtexts.join(' / ')}`).join('\n');
+  const overlaysSummary = isNoText
+    ? 'NO TEXT MODE: All panels and storyboard generated without text overlays.'
+    : overlays.map(p => `Panel ${p.id}: [${p.headline}] ${p.subtexts.join(' / ')}`).join('\n');
 
   const promptsMd = [
-    `# Template 5 Storyboard Run: ${timestamp}`,
+    `# ${template.toUpperCase()} Storyboard Run: ${timestamp}`,
     `Run ID: ${runId}`,
+    `Template: ${template} (${isNoText ? 'No Text' : 'With Text Overlays'})`,
     `Product Name: ${analysis?.productName || 'N/A'}`,
     `Category: ${analysis?.category || 'N/A'}`,
+    `Text Mode: ${isNoText ? 'NO TEXT' : 'WITH VIETNAMESE OVERLAYS'}`,
     `Text Overlays:\n${overlaysSummary}`,
     '',
     '## Master Storyboard Prompt (Gemini API)',
@@ -512,10 +566,14 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
 }
 
 /**
- * Main Storyboard Generator for Template 5
+ * Main Storyboard Generator for Template 5 & Template 5.1 (No Text)
  */
 async function generateStoryboard(baseDir, filePayloads, options = {}) {
-  console.log(`[Template5] Starting Template 5 review generation for ${filePayloads.length} input image(s)...`);
+  const template = options.template || (options.noText ? 'template5_1' : 'template5');
+  const isNoText = !!(options.noText || template === 'template5_1' || template === 'template5.1' || template === 'template51');
+  const promptOptions = { ...options, template, noText: isNoText };
+
+  console.log(`[Template5] Starting ${template.toUpperCase()} (${isNoText ? 'No Text' : 'With Text'}) review generation for ${filePayloads.length} input image(s)...`);
 
   const secure1Psid = process.env.GEMINI_SECURE_1PSID;
   const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
@@ -546,8 +604,8 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     analysis = analyzedData;
 
     // 2. Sinh Master Storyboard qua Gemini API (Không dùng ảnh ref tĩnh)
-    console.log('[Template5] Step 2: Generating Master 4-Panel Storyboard via Gemini API...');
-    masterPrompt = buildTemplate5MasterPrompt(analysis);
+    console.log(`[Template5] Step 2: Generating Master 4-Panel Storyboard (${isNoText ? 'No Text' : 'With Text'}) via Gemini API...`);
+    masterPrompt = buildTemplate5MasterPrompt(analysis, promptOptions);
 
     let storyboardBuf = null;
     let lastMasterErr = null;
@@ -587,11 +645,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       ...uploadedFiles
     ];
 
-    // 3. Tách / Sinh 4 Panel 9:16 riêng biệt có chữ tiếng Việt qua Gemini API
-    const videoPrompts = getTemplate5VideoPrompts(analysis);
+    // 3. Tách / Sinh 4 Panel 9:16 riêng biệt (có chữ hoặc không chữ) qua Gemini API
+    const videoPrompts = getTemplate5VideoPrompts(analysis, promptOptions);
     for (let i = 1; i <= 4; i++) {
-      console.log(`[Template5] Step 3: Generating Panel ${i}/4 (9:16) with text overlay via Gemini API...`);
-      const panelPrompt = buildTemplate5PanelPrompt(i, analysis);
+      console.log(`[Template5] Step 3: Generating Panel ${i}/4 (9:16) [${isNoText ? 'No Text' : 'With Text'}] via Gemini API...`);
+      const panelPrompt = buildTemplate5PanelPrompt(i, analysis, promptOptions);
 
       let panelBuf = null;
       let lastPanelErr = null;
@@ -636,7 +694,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   }
 
   // 4. Archive kết quả
-  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis);
+  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis, promptOptions);
 
   // 5. Sinh 4 Video 6s trên Google Flow (Veo 3)
   let videos = [];

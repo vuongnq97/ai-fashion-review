@@ -22,9 +22,12 @@ const { EXTENSION_ID, getExtensionArgs } = require('./utils/extension-loader');
 
   const page = await context.newPage();
   await page.goto('https://labs.google.com/fx');
+
+  const geminiPage = await context.newPage();
+  await geminiPage.goto('https://gemini.google.com');
   
-  console.log('1. Hãy đăng nhập vào Google.');
-  console.log('2. Đợi giao diện Google Labs tải thành công.');
-  console.log('3. Quay lại Terminal và nhấn Ctrl+C để kết thúc, HOẶC đóng trình duyệt.');
-  console.log('Session của bạn sẽ được lưu lại trong thư mục chrome-data để Playwright chạy ngầm sau này!');
+  console.log('1. Hãy đăng nhập vào tài khoản Google.');
+  console.log('2. Đợi giao diện Google Labs và Google Gemini tải xong.');
+  console.log('3. Đóng cửa sổ trình duyệt để hoàn tất.');
+  console.log('Session của bạn sẽ được lưu lại trong thư mục chrome-data để Playwright chạy ngầm tự động!');
 })();

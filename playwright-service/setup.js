@@ -122,6 +122,12 @@ async function main() {
     } catch (err) {
       console.log('  ℹ️  Đã đóng trình duyệt đăng nhập.');
     }
+
+    // Tự động trích xuất cookie ngay lập tức sau khi đăng nhập
+    try {
+      const { autoExportCookies } = require('./services/auto-cookie-exporter');
+      await autoExportCookies(BASE_DIR);
+    } catch (_) {}
   } else {
     console.log('  ℹ️  Bỏ qua bước đăng nhập. Bạn có thể chạy "node login.js" bất cứ lúc nào.');
   }

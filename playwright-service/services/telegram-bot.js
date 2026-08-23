@@ -783,19 +783,27 @@ async function buildTelegramCommandsFromDrive() {
 
 /**
  * Register bot commands so Telegram shows Drive folder names as tappable buttons.
- * Uses the setMyCommands API — called once on startup.
+ * Uses the setMyCommands API — called once on startup with retry.
  */
-async function registerBotCommands(botToken) {
+async function registerBotCommands(botToken, retryCount = 2) {
   const commands = await buildTelegramCommandsFromDrive();
   commands.push({ command: 'start', description: 'Bắt đầu / Xem hướng dẫn' });
 
-  try {
-    await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
-      timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
-    });
-    console.log(`[Telegram Bot] ✅ Bot commands registered (${commands.length} command(s), menu buttons ready).`);
-  } catch (err) {
-    console.warn('[Telegram Bot] ⚠️ Failed to register bot commands:', err.message);
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
+    try {
+      await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
+        timeout: parseInt(process.env.TELEGRAM_COMMANDS_TIMEOUT_MS || '30000', 10)
+      });
+      console.log(`[Telegram Bot] ✅ Bot commands registered (${commands.length} command(s), menu buttons ready).`);
+      return;
+    } catch (err) {
+      if (attempt < retryCount) {
+        console.warn(`[Telegram Bot] ⚠️ Registering bot commands attempt ${attempt} failed (${err.message}). Retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
+      } else {
+        console.warn('[Telegram Bot] ⚠️ Could not update Telegram menu button list (network timeout), but bot is still fully active and working normally.');
+      }
+    }
   }
 }
 

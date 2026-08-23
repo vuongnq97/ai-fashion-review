@@ -46,20 +46,36 @@ async function main() {
   ensureDir(path.join(BASE_DIR, 'storyboard-review-runs'));
   console.log('  ✅ Các thư mục dữ liệu đã sẵn sàng!');
 
-  // 3. Cài đặt npm dependencies
-  console.log('\n2️⃣  Cài đặt các gói Node.js dependencies (npm install)...');
+  // 3. Cài đặt Yarn & dependencies
+  console.log('\n2️⃣  Cài đặt các gói dependencies qua Yarn (yarn install)...');
   try {
-    execSync('npm install', { cwd: BASE_DIR, stdio: 'inherit' });
-    console.log('  ✅ npm install hoàn tất!');
+    try {
+      execSync('yarn --version', { stdio: 'ignore' });
+    } catch (_) {
+      console.log('  📦 Đang cài đặt Yarn toàn cục...');
+      execSync('npm install -g yarn', { stdio: 'inherit' });
+    }
+    execSync('yarn install', { cwd: BASE_DIR, stdio: 'inherit' });
+    console.log('  ✅ yarn install hoàn tất!');
   } catch (err) {
-    console.error('  ❌ Lỗi khi chạy npm install:', err.message);
-    process.exit(1);
+    console.warn('  ⚠️ Lỗi khi chạy yarn install, đang thử lại với npm install...', err.message);
+    try {
+      execSync('npm install', { cwd: BASE_DIR, stdio: 'inherit' });
+      console.log('  ✅ npm install hoàn tất!');
+    } catch (npmErr) {
+      console.error('  ❌ Lỗi khi cài đặt dependencies:', npmErr.message);
+      process.exit(1);
+    }
   }
 
   // 4. Cài đặt Playwright Chromium
   console.log('\n3️⃣  Cài đặt Playwright Chromium Browser...');
   try {
-    execSync('npx playwright install chromium', { cwd: BASE_DIR, stdio: 'inherit' });
+    try {
+      execSync('yarn playwright install chromium', { cwd: BASE_DIR, stdio: 'inherit' });
+    } catch (_) {
+      execSync('npx playwright install chromium', { cwd: BASE_DIR, stdio: 'inherit' });
+    }
     console.log('  ✅ Playwright Chromium đã cài đặt thành công!');
   } catch (err) {
     console.error('  ❌ Lỗi khi cài đặt Playwright Chromium:', err.message);

@@ -65,84 +65,80 @@ playwright-service/
   chrome-data/                      Chrome profile/session đăng nhập Google
 ```
 
-## Cài Đặt
+## Cài Đặt Cho Máy Mới (1-Click Setup)
 
-### 1. Clone Project
+### Cách 1: Chạy file Setup tự động (Khuyên dùng)
+
+Trên máy mới, chỉ cần chạy đúng 1 lệnh từ thư mục gốc:
 
 ```bash
 git clone https://github.com/vuongnq97/ai-fashion-review.git
 cd ai-fashion-review
+./setup.sh
 ```
 
-### 2. Cài Dependencies
+*(Script sẽ tự động: kiểm tra Node.js, chạy `npm install`, tải Playwright Chromium, tạo các thư mục dữ liệu cần thiết, tạo file `.env`, hỗ trợ nhập `TELEGRAM_BOT_TOKEN`, và mở trình duyệt để bạn đăng nhập Google lần đầu).*
 
+---
+
+### Cách 2: Cài Đặt Thủ Công
+
+#### 1. Cài Dependencies & Playwright Browser:
 ```bash
 cd playwright-service
 npm install
 npx playwright install chromium
 ```
 
-### 3. Cấu Hình Environment
-
+#### 2. Cấu Hình Environment:
 ```bash
 cp .env.example .env
 ```
+Mở `playwright-service/.env` và điền:
+- `TELEGRAM_BOT_TOKEN=...` (Token riêng lấy từ `@BotFather` cho máy này).
+- `PORT=3000`
 
-Sửa `playwright-service/.env`:
-
-```env
-# Bắt buộc
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Server
-PORT=3000
-
-# Tùy chọn: TikTok integration
-TIKTOK_CLIENT_KEY=your_tiktok_client_key
-TIKTOK_CLIENT_SECRET=your_tiktok_client_secret
-TIKTOK_REDIRECT_URI=https://your-domain.github.io/ai-fashion/callback.html
-```
-
-### 4. Đăng Nhập Google Lần Đầu
-
-Chạy script để mở browser, đăng nhập Google, và lưu session:
-
+#### 3. Đăng Nhập Google Lần Đầu:
 ```bash
 cd playwright-service
 node login.js
 ```
+- Trình duyệt sẽ mở ra trang Google Labs / Flow.
+- Đăng nhập tài khoản Google của bạn rồi đóng trình duyệt để lưu session vào `chrome-data/`.
 
-Trong browser vừa mở:
-
-1. Đăng nhập tài khoản Google.
-2. Mở Google AI Studio và Google Flow để xác nhận truy cập bình thường.
-3. Đóng browser hoặc `Ctrl+C` khi xong.
-
-Session được lưu trong `playwright-service/chrome-data/`.
-
-### 5. Chạy Server
-
+#### 4. Khởi Động Server:
 ```bash
 cd playwright-service
 node server.js
 ```
 
-Server chạy tại `http://localhost:3000`. Khi khởi động:
-- Express API sẵn sàng nhận request.
-- Telegram bot tự động bắt đầu long-polling.
+---
+
+## Các Template Hỗ Trợ Trên Telegram Bot
+
+| Lệnh Telegram | Chức Năng & Đặc Điểm |
+|---|---|
+| `/template5` | **Review Đa Ngành Hàng 4 cảnh 6s** (Thời trang, Mỹ phẩm, Gia dụng... tự động phân tích qua Gemini API, có thẻ chữ tiếng Việt nhỏ gọn trong safe-zone, không tiếng review). |
+| `/template5_1` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ / No Text $100\%$)** — Storyboard, 4 Panel và 4 Video đều sạch hoàn toàn không chữ, tập trung góc quay thực tế. |
+| `/template1` | Review giày dép/thời trang faceless 2 cảnh (không voice-over). |
+| `/template2` | Review giày dép 8 cảnh x 4s (không voice-over). |
+| `/template3` | Review shop giày dép 4 cảnh (Top-down 8s, POV 6s, góc hông 4s, đứng thử 8s). |
+| `/template4` | Review giày/dép nữ shop pastel 4 cảnh (Cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng dáng 8s). |
+| `/again <cảnh> [yêu cầu]` | **Tạo lại video cảnh chưa ưng ý** (VD: `/again 2` hoặc `/again 2 xoay nhẹ góc 45 độ` để ưu tiên custom prompt). |
+| `/dailyvlog` | Tạo vlog lifestyle cho nhân vật Nhi. |
+| `/status` | Xem trạng thái hàng đợi xử lý video. |
+
+---
 
 ## Sử Dụng
 
 ### Luồng Chính: Review Sản Phẩm (Telegram → Video)
 
-1. Gửi 1 hoặc nhiều ảnh sản phẩm vào Telegram bot.
-2. Bot tự động nhận ảnh, gom batch (đợi 5 giây nếu có nhiều ảnh liên tiếp).
-3. Gemini WebAPI phân tích sản phẩm, tạo storyboard + panel images + video prompts.
-4. Tạo video Veo 3 cho từng panel (direct API hoặc Google Flow).
-5. Resize/crop video về tỉ lệ 9:16 bằng FFmpeg.
-6. Gửi từng video đã resize về Telegram cho user.
-
-Hoặc dùng folder commands: `/p1`, `/p2`, `/m1`... để tải ảnh từ Google Drive/local folder.
+1. Mở Telegram, chat với bot của bạn.
+2. Gõ lệnh chọn template mong muốn (ví dụ: `/template5` hoặc `/template5_1`).
+3. Gửi album ảnh sản phẩm (từ 1 đến 11+ ảnh).
+4. Bot tự động gom ảnh, tạo Master Storyboard qua Gemini API, tách 4 Panel 9:16, sinh 4 Video 6s trên Veo 3 và gửi video về Telegram.
+5. Nếu cần làm lại cảnh nào, gõ `/again <số_cảnh> [yêu cầu]`.
 
 ### Luồng Daily Vlog: Lifestyle cho Nhi (Telegram → Video)
 

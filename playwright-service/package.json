@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node --max-http-header-size=65536 server.js",
+    "setup": "node setup.js",
+    "login": "node login.js",
+    "cookies": "node export-gemini-cookies.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

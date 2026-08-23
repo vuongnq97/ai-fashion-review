@@ -321,31 +321,31 @@ function getTemplate6VideoPrompts(analysisData = {}, options = {}) {
 
   const realismCues = 'Phong cách 100% live-action photorealistic, giống footage quay bằng iPhone 15 Pro thật. Da tay nữ tự nhiên, không làm mịn da, không hiệu ứng làm đẹp. Kệ hàng siêu thị ở background giữ nguyên, không thay đổi bố cục và sản phẩm trên kệ. Ánh sáng ban ngày tự nhiên từ cửa sổ và đèn trần, bóng đổ mềm, sàn gạch thật, màu sắc tự nhiên. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền, không text, không subtitle, không graphic, không CGI, không 3D, không cartoon, không filter làm đẹp. Không biến dạng bàn tay. Không biến dạng sản phẩm. Không thêm người vào foreground.';
 
-  // Cảnh 1 (8s - template6_1.md)
+  // Cảnh 1 (8s - template6_1.md: phân bổ chi tiết 4 phân đoạn 2 giây)
   const scene1 = `Tạo video review ${prodName} góc nhìn thứ nhất (POV) dài đúng 8 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. ` +
     `Cảnh quay POV chân thực từ góc nhìn người mua hàng, camera iPhone 15 Pro đặt cố định ở vị trí ngang ngực. ` +
-    `Ngay từ frame đầu tiên, sản phẩm ${prodName} đã được cầm sẵn trên tay nữ. Không có hành động lấy sản phẩm từ kệ. Tuyệt đối không có giỏ hàng trong Cảnh 1. ` +
+    `Ngay từ frame đầu tiên, sản phẩm ${prodName} đã được cầm sẵn trên tay nữ ở khoảng ngang ngực. Không có hành động lấy sản phẩm từ kệ. Tuyệt đối không có giỏ hàng trong Cảnh 1. ` +
     `Chỉ nhìn thấy bàn tay và cẳng tay nữ, không nhìn thấy khuôn mặt hay phần thân trên. ` +
-    `Bàn tay giữ sản phẩm trước camera. Người mua nhanh chóng xoay cổ tay sang trái rồi sang phải để kiểm tra sản phẩm từ các góc khác nhau. Sau đó hơi nghiêng sản phẩm về phía trước và trở lại vị trí ban đầu. ` +
-    `Chuyển động nhanh, gọn và dứt khoát, giống một người đang xem nhanh sản phẩm trong siêu thị trước khi quyết định mua. ` +
-    `Trình tự chuyển động: Cầm sản phẩm → xoay trái nhanh → xoay phải nhanh → hơi nghiêng sản phẩm → dừng. ` +
-    `Tổng thể chuyển động diễn ra liên tục và nhanh, khoảng 1–2 giây. Tuyệt đối không được chuyển động quá chậm hay dạng slow-motion. ` +
-    `Cổ tay và ngón tay chuyển động tự nhiên, không giật cục. Có một chút chuyển động quán tính tự nhiên của sản phẩm khi xoay cổ tay. ` +
-    `Camera hoàn toàn đứng yên trong toàn bộ cảnh. Không pan, không tilt, không zoom, không tiến gần, không lùi xa. ` +
+    `Bàn tay giữ sản phẩm trước camera. Người mua xoay cổ tay nhịp nhàng và dứt khoát để quan sát bao bì và chi tiết sản phẩm qua từng khoảng thời gian 2 giây: ` +
+    `0s-2s: Cầm sản phẩm ổn định ở ngang ngực, bắt đầu xoay nhẹ cổ tay sang trái để xem mặt bên và nhãn sản phẩm. ` +
+    `2s-4s: Xoay cổ tay sang phải nhịp nhàng và dứt khoát để kiểm tra mặt sau và thông tin bao bì. ` +
+    `4s-6s: Hơi nghiêng sản phẩm về phía trước và lắc nhẹ cổ tay 1-2 lần để quan sát độ bóng và chất liệu bao bì dưới ánh đèn siêu thị. ` +
+    `6s-8s: Đưa sản phẩm trở lại vị trí chính diện ngang ngực, giữ ổn định tự tin. ` +
+    `Cổ tay và ngón tay chuyển động tự nhiên, dứt khoát, không giật cục, có quán tính thực tế. ` +
+    `Camera hoàn toàn đứng yên trong toàn bộ 8 giây. Không pan, không tilt, không zoom, không tiến gần, không lùi xa. ` +
     (customInstruction ? `YÊU CẦU ƯU TIÊN: ${customInstruction}. ` : '') +
     `${realismCues}`;
 
-  // Cảnh 2 (8s - template6_2.md)
+  // Cảnh 2 (8s - template6_2.md: lắc lắc sản phẩm trên tay rồi mới đặt nhẹ nhàng dứt khoát vào giỏ)
   const scene2 = `Tạo video review ${prodName} góc nhìn thứ nhất (POV) dài đúng 8 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. ` +
     `Video POV chân thực, camera iPhone 15 Pro đặt cố định ở vị trí ngang ngực, cùng góc quay và cùng bàn tay nữ như Cảnh 1. ` +
-    `Ngay từ frame đầu tiên, bàn tay nữ đang cầm sẵn chính sản phẩm ${prodName}. ` +
-    `Chiếc giỏ mua hàng đã nằm cố định trên mặt đất ở phía dưới khung hình. ` +
-    `Bàn tay nữ nhanh chóng đưa sản phẩm xuống phía dưới và đặt trực tiếp vào giỏ. ` +
-    `Động tác phải nhanh, gọn và dứt khoát, giống hành động mua hàng tự nhiên trong siêu thị. ` +
-    `Trình tự chuyển động: Cầm sản phẩm → hạ tay nhanh xuống → đưa sản phẩm vào giỏ → thả sản phẩm → rút tay nhanh lên. ` +
-    `Tổng thể hành động diễn ra nhanh và dứt khoát khoảng 1–2 giây. Tuyệt đối không được kéo dài hoặc chuyển động chậm chạp. ` +
-    `Khi sản phẩm chạm các món đồ trong giỏ, sản phẩm phải nằm xuống tự nhiên theo trọng lực. Các ngón tay nhanh chóng buông sản phẩm rồi rút khỏi khung hình. ` +
-    `Giỏ mua hàng luôn nằm cố định trên mặt đất trong toàn bộ cảnh quay. Tuyệt đối không nâng giỏ, không cầm quai, không kéo giỏ, không để giỏ bay hoặc tự di chuyển. ` +
+    `Ngay từ frame đầu tiên, bàn tay nữ đang cầm sản phẩm. Chiếc giỏ mua hàng đã nằm cố định trên mặt đất ở phía dưới khung hình. ` +
+    `Người mua đưa sản phẩm xuống phía trên giỏ hàng, lắc nhẹ sản phẩm qua lại nhiều lần trên tay trước khi đặt nhẹ nhàng và dứt khoát vào giỏ: ` +
+    `0s-2s: Bàn tay cầm sản phẩm từ ngang ngực hạ xuống phía trên giỏ hàng, giữ sản phẩm lơ lửng ngay ngắn phía trên các món đồ trong giỏ. ` +
+    `2s-4s: Cầm sản phẩm trên tay lắc lắc lắc, lắc qua lắc lại 2-3 lần nhịp nhàng và dứt khoát (như thao tác cân nhắc, kiểm tra lần cuối của người mua hàng). ` +
+    `4s-6s: Hạ tay xuống đặt sản phẩm nhẹ nhàng vào giữa các món đồ trong giỏ hàng. Khi sản phẩm chạm đáy giỏ, các ngón tay buông dứt khoát, sản phẩm nằm yên tự nhiên theo trọng lực. ` +
+    `6s-8s: Bàn tay nhanh chóng và gọn gàng rút lên trên ra khỏi khung hình. Giỏ hàng và sản phẩm nằm cố định dưới sàn gạch. ` +
+    `Giỏ mua hàng luôn nằm cố định trên mặt đất trong toàn bộ 8 giây. Tuyệt đối không nâng giỏ, không cầm quai, không kéo giỏ, không để giỏ bay hoặc tự di chuyển. ` +
     `Camera hoàn toàn đứng yên. Không pan, không tilt, không zoom, không camera tracking. Chỉ có bàn tay và sản phẩm chuyển động. ` +
     (customInstruction ? `YÊU CẦU ƯU TIÊN: ${customInstruction}. ` : '') +
     `${realismCues}`;

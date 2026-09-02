@@ -5,6 +5,7 @@ const { createFlowPage, closeFlowPage } = require('./browser');
 const { prepareGeneration, executeGeneration } = require('./image');
 const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
 const { GeminiApiClient } = require('./gemini-client/gemini-api');
+const { sendPhotoToTelegram, sendOrUpdateLivePanel } = require('./telegram-send');
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -239,7 +240,36 @@ function normalizeFootwearHashtags(parsed, isTemplate4) {
   return tags;
 }
 
-async function analyzeProductFootwear(geminiClient, filePayloads, isTemplate4) {
+function buildProductContextSection(options = {}) {
+  const ctx = options.productContext || {};
+  const lines = [];
+  if (ctx.productTitle) lines.push(`Product title: ${ctx.productTitle}`);
+  if (ctx.productId) lines.push(`Product ID: ${ctx.productId}`);
+  if (ctx.productUrl) lines.push(`Product URL: ${ctx.productUrl}`);
+  if (ctx.productDescription) lines.push(`Product description from TikTok Shop:\n${ctx.productDescription}`);
+  return lines.length ? `\nTikTok Shop source metadata:\n${lines.join('\n')}\n` : '';
+}
+
+function buildFallbackReviewScript(productName = '', isTemplate4 = false) {
+  if (isTemplate4) {
+    return {
+      panel1: `Mấy bà ơi, ai đang tìm một em guốc vừa sang chảnh vừa tôn dáng thì xem ngay em này nha, thiết kế cực kỳ trendy và hút mắt luôn!`,
+      panel2: `Cận cảnh form dáng ôm chân siêu thon gọn, quai mềm mại không sợ đau cọ sát, từng đường may tỉ mỉ sắc sảo cực kỳ nha.`,
+      panel3: `Lên chân một cái là hack dáng tôn chiều cao đỉnh chóp, đế êm ái đàn hồi đi lại cả ngày cực kỳ thoải mái không lo mỏi chân.`,
+      panel4: `Phối cùng đầm hay đồ công sở đều bao xinh nổi bật, giá hôm nay đang siêu hời mấy bà bấm ngay giỏ hàng góc trái săn deal kẻo hết nha!`,
+      fullText: `Mấy bà ơi, ai đang tìm một em guốc vừa sang chảnh vừa tôn dáng thì xem ngay em này nha, thiết kế cực kỳ trendy và hút mắt luôn! Cận cảnh form dáng ôm chân siêu thon gọn, quai mềm mại không sợ đau cọ sát, từng đường may tỉ mỉ sắc sảo cực kỳ nha. Lên chân một cái là hack dáng tôn chiều cao đỉnh chóp, đế êm ái đàn hồi đi lại cả ngày cực kỳ thoải mái không lo mỏi chân. Phối cùng đầm hay đồ công sở đều bao xinh nổi bật, giá hôm nay đang siêu hời mấy bà bấm ngay giỏ hàng góc trái săn deal kẻo hết nha!`
+    };
+  }
+  return {
+    panel1: `Mọi người ơi, ai đang tìm một đôi giày vừa êm vừa chất thì ngắm ngay em này nha, form dáng thể thao cực kỳ năng động và thời thượng luôn!`,
+    panel2: `Nhìn cận cảnh chất liệu xịn đét chưa, vải thoáng khí đế bám đường cực tốt, đường chỉ may chắc chắn từng đường kim mũi chỉ nè.`,
+    panel3: `Xỏ chân vào là cảm nhận độ êm ái đàn hồi nâng đỡ bàn chân liền, đi học đi làm hay đi dạo phố cả ngày vẫn nhẹ tênh thoải mái.`,
+    panel4: `Mix cùng quần âu hay jeans đều bao ngầu bao chất, đang có deal hời số lượng có hạn mọi người bấm ngay giỏ hàng bên dưới chốt đơn nhé!`,
+    fullText: `Mọi người ơi, ai đang tìm một đôi giày vừa êm vừa chất thì ngắm ngay em này nha, form dáng thể thao cực kỳ năng động và thời thượng luôn! Nhìn cận cảnh chất liệu xịn đét chưa, vải thoáng khí đế bám đường cực tốt, đường chỉ may chắc chắn từng đường kim mũi chỉ nè. Xỏ chân vào là cảm nhận độ êm ái đàn hồi nâng đỡ bàn chân liền, đi học đi làm hay đi dạo phố cả ngày vẫn nhẹ tênh thoải mái. Mix cùng quần âu hay jeans đều bao ngầu bao chất, đang có deal hời số lượng có hạn mọi người bấm ngay giỏ hàng bên dưới chốt đơn nhé!`
+  };
+}
+
+async function analyzeProductFootwear(geminiClient, filePayloads, isTemplate4, options = {}) {
   try {
     const uploadedFiles = [];
     for (let i = 0; i < Math.min(filePayloads.length, 3); i++) {
@@ -259,12 +289,21 @@ async function analyzeProductFootwear(geminiClient, filePayloads, isTemplate4) {
     const prompt = `TEXT-ONLY TASK. Do not generate images.
 You are a footwear fashion expert, e-commerce OCR analyst, and TikTok content strategist.
 Analyze the uploaded footwear product image(s) or e-commerce screenshots with extreme precision.
+${buildProductContextSection(options)}
 
 CRITICAL INSTRUCTIONS:
 1. OCR / Text Extraction: Read ALL text, product titles, search keywords, shop names, and captions visible in the images/screenshots (e.g. from Shopee, TikTok Shop, Lazada, product boxes, or catalog listings).
-2. Extract exact product name in Vietnamese (e.g. "Giày Sneaker Thể Thao Nam Nữ Cổ Thấp Trắng Đen", "Guốc Nữ Quai Trong Gót Vuông 5cm Đính Đá").
+2. Extract exact product name in Vietnamese (e.g. "Giày Sneaker Thể Thao Nam Nữ Cổ Thấp Trắng Đen", "Guốc Nữ Quai Trong Gót Vuông 5cm Đính Đá"). Prefer TikTok Shop product title metadata when available.
 3. Extract Brand name if visible (e.g. Nike, MLB, Adidas, Vascara, Juno, hoặc thương hiệu trên ảnh).
 4. Extract or generate EXACTLY 5 high-converting, trending hashtags starting with "#". Prioritize any hashtags/keywords visible in the screenshots, brand name, specific shoe model, and relevant TikTok trending tags.
+5. Review Script Generation (Kịch bản review sản phẩm bằng lời nói tiếng Việt cho nhân vật nữ):
+   - Tạo kịch bản review tiếng Việt cho nhân vật nữ (giọng KOC TikToker trẻ trung, cuốn hút, nói nhanh dồn dập, tự nhiên, tràn đầy năng lượng kích thích mua hàng).
+   - Nội dung chứa nhiều chữ, thông tin chi tiết và cuốn hút để đọc nhanh trong từng cảnh.
+   - Phân chia chính xác thành 4 đoạn khớp với 4 cảnh video (mỗi đoạn 30-50 chữ):
+     * panel1 (Cận cảnh trên quầy 6-8s): Hook giật tít mở đầu gây tò mò, khen ngợi thiết kế hot trend, màu sắc và độ hoàn thiện của sản phẩm.
+     * panel2 (POV nhìn thẳng xuống chân 6s): Đánh giá chi tiết khi xỏ vào chân, form dáng ôm chân thon gọn, chất liệu da/vải cao cấp, đường may tỉ mỉ.
+     * panel3 (Góc nghiêng ngồi thử 4-6s): Trải nghiệm độ êm ái, đế đàn hồi nâng đỡ bàn chân, hack dáng tăng chiều cao tôn chân.
+     * panel4 (Đứng toàn thân khoe outfit 6-8s): Gợi ý phối đồ linh hoạt (đi học, đi làm, đi chơi), chốt deal giục người xem bấm ngay vào giỏ hàng góc trái săn ưu đãi.
 
 Return ONLY valid JSON with this schema:
 {
@@ -273,7 +312,14 @@ Return ONLY valid JSON with this schema:
   "category": "sneaker|heels|sandals|boots|loafers|mules|slippers|other",
   "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
   "colorway": "Màu sắc chính của sản phẩm",
-  "keyFeatures": "Đặc điểm nổi bật (quai, đế, chất liệu, phụ kiện đính kèm)"
+  "keyFeatures": "Đặc điểm nổi bật (quai, đế, chất liệu, phụ kiện đính kèm)",
+  "reviewScript": {
+    "panel1": "Đoạn lời thoại đọc nhanh cho cảnh 1 (30-50 chữ)",
+    "panel2": "Đoạn lời thoại đọc nhanh cho cảnh 2 (30-50 chữ)",
+    "panel3": "Đoạn lời thoại đọc nhanh cho cảnh 3 (30-50 chữ)",
+    "panel4": "Đoạn lời thoại đọc nhanh cho cảnh 4 (30-50 chữ)",
+    "fullText": "Toàn bộ kịch bản đọc liền mạch"
+  }
 }`;
 
     const res = await geminiClient.generateContent({
@@ -293,8 +339,19 @@ Return ONLY valid JSON with this schema:
       const parsed = JSON.parse(cleaned.slice(start, end + 1));
       const pName = parsed.productName || (isTemplate4 ? 'Guốc / Giày Nữ Thời Trang' : 'Giày Thể Thao Sneaker');
       const hashtags = normalizeFootwearHashtags(parsed, isTemplate4);
+      const fallbackScript = buildFallbackReviewScript(pName, isTemplate4);
+      const rawScript = parsed.reviewScript || {};
+      const reviewScript = {
+        panel1: String(rawScript.panel1 || fallbackScript.panel1).trim(),
+        panel2: String(rawScript.panel2 || fallbackScript.panel2).trim(),
+        panel3: String(rawScript.panel3 || fallbackScript.panel3).trim(),
+        panel4: String(rawScript.panel4 || fallbackScript.panel4).trim(),
+        fullText: String(rawScript.fullText || [rawScript.panel1, rawScript.panel2, rawScript.panel3, rawScript.panel4].filter(Boolean).join(' ') || fallbackScript.fullText).trim(),
+      };
+
       console.log(`[GoogleFlowStoryboard] ✅ Footwear analyzed: "${pName}"`);
       console.log(`[GoogleFlowStoryboard] Hashtags: ${hashtags.join(' ')}`);
+      console.log(`[GoogleFlowStoryboard] Review Script (Panel 1): "${reviewScript.panel1}"`);
       return {
         productName: pName,
         brand: parsed.brand || '',
@@ -302,6 +359,7 @@ Return ONLY valid JSON with this schema:
         hashtags,
         colorway: parsed.colorway || '',
         keyFeatures: parsed.keyFeatures || '',
+        reviewScript,
       };
     }
   } catch (err) {
@@ -309,11 +367,14 @@ Return ONLY valid JSON with this schema:
   }
 
   const fallbackHashtags = normalizeFootwearHashtags({}, isTemplate4);
+  const fallbackPName = isTemplate4 ? 'Guốc Nữ / Giày Sandal Cao Gót Thời Trang' : 'Giày Thể Thao Sneaker Thời Trang';
+  const fallbackScript = buildFallbackReviewScript(fallbackPName, isTemplate4);
   return {
-    productName: isTemplate4 ? 'Guốc Nữ / Giày Sandal Cao Gót Thời Trang' : 'Giày Thể Thao Sneaker Thời Trang',
+    productName: fallbackPName,
     brand: '',
     category: 'footwear',
     hashtags: fallbackHashtags,
+    reviewScript: fallbackScript,
   };
 }
 
@@ -321,30 +382,29 @@ function buildTemplate3Prompt(customOutfit = null, details = null) {
   const det = details || getRandomMicroDetails('template3');
 
   const outfitInstruction = customOutfit
-    ? `Change the wearer's clothing in Panel 2, Panel 3, and Panel 4 to: ${customOutfit}.`
-    : `Adapt the wearer's clothing in Panel 2, Panel 3, and Panel 4 to this stylish outfit that complements the footwear: ${det.outfit}.`;
+    ? `Change the wearer's clothing in Panel 2 and Panel 3 to: ${customOutfit}.`
+    : `Adapt the wearer's clothing in Panel 2 and Panel 3 to this stylish outfit that complements the footwear: ${det.outfit}.`;
 
-  return `A realistic 4-panel horizontal split storyboard image (9:16 vertical ratio for each panel arranged side-by-side in a single wide collage) for a footwear review inside the EXACT footwear shop setting from the reference storyboard image.
+  return `A realistic 3-panel horizontal split storyboard image (9:16 vertical ratio for each panel arranged side-by-side in a single wide collage) for a footwear review inside the EXACT footwear shop setting from the reference storyboard image.
 
 - Environment Continuity & Natural Micro-Variations:
-  + PRESERVE the exact shop architecture, square cream and charcoal floor tiles, wooden counter in Panel 1, tall wooden bar stool in Panel 3, black track lighting, and shop aisles from the reference storyboard image.
+  + PRESERVE the exact shop architecture, square cream and charcoal floor tiles, wooden counter in Panel 1, tall wooden bar stool in Panel 2, black track lighting, and shop aisles from the reference storyboard image.
   + INTRODUCE NATURAL VARIATIONS in background micro-details:
     * Shoe Boxes on shelves: ${det.boxes}.
     * Display & Floor footwear: ${det.floorShoes}.
     * Background atmosphere: ${det.shopper}.
 
 - Footwear Replacement (Source of Truth):
-  + In all 4 panels, REPLACE the footwear with the EXACT product design, colorway, upper materials (leather/canvas/suede/mesh), sole thickness, laces/straps, and logo details from the uploaded product reference images.
+  + In all 3 panels, REPLACE the footwear with the EXACT product design, colorway, upper materials (leather/canvas/suede/mesh), sole thickness, laces/straps, and logo details from the uploaded product reference images.
 
 - Outfit & Footwear Styling:
   + ${outfitInstruction}
   + Footwear logic: If closed-toe shoes/sneakers/loafers, wear clean neutral or off-white socks with natural folds. If sandals/slides/slippers/open-toe, feature natural bare feet with realistic skin texture.
 
-- 4-Panel Composition (Locked to reference layout):
+- 3-Panel Composition (Locked to reference layout):
   + Panel 1 (Leftmost): Top-down overhead angle over the shop wooden counter. A realistic human ${det.handDescEn} supports and tilts one shoe from underneath the sole at a 20-degree angle; the matching second shoe rests neatly below on the display stand. Both shoes completely within frame.
-  + Panel 2 (Second from left): First-person chest POV looking down at relaxed extended legs wearing the footwear on the shop tiled floor.
-  + Panel 3 (Third from left): Side profile view of the wearer sitting on the tall wooden bar stool in the same shop, showing the trousers, legs, and matching footwear.
-  + Panel 4 (Rightmost): Standing try-on pose in the exact same shop aisle. The model is standing faceless (camera framed from chest/waist down to feet), body and feet slightly turned toward the camera/viewer to showcase the footwear silhouette and fit from a standing perspective.
+  + Panel 2 (Middle): Side profile view of the wearer sitting on the tall wooden bar stool in the same shop, showing the trousers, legs, and matching footwear.
+  + Panel 3 (Rightmost): Standing try-on pose in the exact same shop aisle. The model is standing faceless (camera framed from chest/waist down to feet), body and feet slightly turned toward the camera/viewer to showcase the footwear silhouette and fit from a standing perspective.
 
 - Atmosphere & Realism: Authentic smartphone photography in a real footwear boutique, warm shop lighting, real skin textures with visible pores, genuine fabric and leather folds, no CGI, no AI plastic shine, no studio rim light.
 - Strictly faceless, no visible faces, no text, no captions, no watermarks, no UI elements.`;
@@ -450,7 +510,7 @@ CRITICAL — Panel 4 MUST match scene 4 (the rightmost standing scene) of the wo
   const commonHeader = `Generate a single faceless footwear shop-review photograph that looks like an authentic smartphone camera shot (still image, NOT a video).
 CRITICAL INSTRUCTIONS:
 - Aspect ratio: 9:16 vertical frame.
-- Use the uploaded storyboard image (storyboard-master.png) as the main visual reference and extract/recreate ONLY this panel ${panelIndex} of 4.
+- Use the uploaded storyboard image (storyboard-master.png) as the main visual reference and extract/recreate ONLY this panel ${panelIndex} of 3.
 - Keep the product identity exactly consistent with the product reference photo(s).
 - Keep the shared footwear shop setting, square floor tiles, warm shop lighting, and shelving consistent with the storyboard scene.
 - The photo must look like it was casually taken with a normal smartphone camera, not a professional studio photo or AI render.
@@ -471,18 +531,6 @@ CRITICAL — Panel 1 MUST match scene 1 of the storyboard:
   if (panelIndex === 2) {
     return `${commonHeader}
 CRITICAL — Panel 2 MUST match scene 2 of the storyboard:
-- Camera: POV from wearer's CHEST looking STRAIGHT DOWN at own legs. Camera at chest level, pointing down 60-70 degrees.
-- Legs EXTENDED STRAIGHT FORWARD, relaxed, NOT bent at 90 degrees, NOT crossed.
-- Frame: Two thighs at LEFT/RIGHT top edges (V shape). Floor tiles in middle. Feet with footwear at BOTTOM CENTER.
-- 1-1.5 meters of floor tiles visible between camera and feet.
-- Outfit: ${outfitText}. Clean socks if closed-toe shoes; barefoot if sandals.
-- Shoe store shelves with brand boxes visible in the DISTANCE.
-- FORBIDDEN: bent knees at 90°, crossed legs, side angle, low camera, hands in frame, walking, standing up.`;
-  }
-
-  if (panelIndex === 3) {
-    return `${commonHeader}
-CRITICAL — Panel 3 MUST match scene 3 of the storyboard:
 - Camera: SIDE-ANGLE from the side, at waist/hip height, 1-1.5m away.
 - Person sitting on a TALL wooden bar stool (dark wood, high seat, NO backrest, stool clearly visible).
 - Visible body from mid-torso down: relaxed top, ${outfitText}, matching footwear.
@@ -492,9 +540,9 @@ CRITICAL — Panel 3 MUST match scene 3 of the storyboard:
 - FORBIDDEN: front-facing angle, full face, regular chair/bench, hidden stool, low-angle from floor, walking.`;
   }
 
-  if (panelIndex === 4) {
+  if (panelIndex === 3) {
     return `${commonHeader}
-CRITICAL — Panel 4 MUST match scene 4 (the rightmost standing scene) of the storyboard:
+CRITICAL — Panel 3 MUST match scene 3 (the rightmost standing scene) of the storyboard:
 - Subject: A single continuous, cohesive standing try-on shot of the model in the shop aisle wearing the footwear and ${outfitText}.
 - Camera & Framing: Standing eye/chest level, vertical 9:16 frame showing the full lower body from chest/waist down to feet in one clean, uninterrupted shot (faceless, no face visible above chest).
 - Stance & Pose: The model stands naturally in the center aisle, body and both feet turned slightly toward the camera/viewer to showcase the footwear silhouette, fit, and trousers. Both shoes rest firmly on the shop floor tiles.
@@ -668,7 +716,6 @@ function getPanelPrompts(template = 'template3', options = {}, details = null) {
 
   return [
     `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Camera điện thoại góc top-down nhìn từ trên xuống quầy gỗ shop giày dép. Chiếc giày còn lại đặt cố định trên giá đỡ bên dưới. Bàn tay (${det.handDescVi || 'tay phải'}) luôn giữ chắc cố định ở dưới đế giày trong suốt video, chiếc giày gắn liền theo bàn tay, không tự xoay tròn hay lật đảo độc lập, chỉ nghiêng cổ tay nhẹ nhàng để khoe các góc cạnh của giày: 0s-2s: Bàn tay giữ đế, nghiêng nhẹ cổ tay về phía trước để camera thấy rõ góc trên và chi tiết mũi giày. 2s-4s: Nghiêng nhẹ cổ tay sang trái góc 30 độ khoe toàn bộ thân giày bên ngoài và độ cao đế. 4s-6s: Nghiêng nhẹ cổ tay sang phải góc 30 độ khoe thân giày bên trong. 6s-8s: Nghiêng nhẹ cổ tay về phía sau khoe gót giày và cạnh đế dưới, rồi giữ yên góc nghiêng tự nhiên kết thúc chắc chắn. Ánh sáng shop chân thực, da tay có vân tự nhiên, không bokeh giả, video im lặng không tiếng nói.`,
-    panel2Prompt,
     `Tạo video review giày dép faceless dài đúng 4 giây. VISUAL: Góc quay ngang từ bên hông người mẫu ngồi trên ghế bar cao trong shop giày dép, thấy từ eo xuống chân và sàn gạch. Động tác chân nhanh nhẹn, mượt mà và dứt khoát: 0s-2s: Bàn chân đang mang giày chạm nhẹ sàn gạch, người mẫu nhịp chân nhẹ nhàng 2 lần mượt mà để khoe độ đàn hồi êm ái của đế và form giày khi vận động. 2s-4s: Xoay nhẹ cổ chân sang một bên góc 30 độ mượt mà và dứt khoát để khoe toàn bộ cạnh bên, phom dáng và gót giày dưới ánh đèn shop, rồi giữ ổn định tự nhiên. Chuyển động liền mạch, nhanh nhẹn, tự nhiên như khách đang thử giày thật, không giật cục, không thô cứng. Ánh sáng shop ấm áp chân thực, không rời ghế, video im lặng không tiếng nói.`,
     `Tạo video review giày dép faceless dài đúng 8 giây. VISUAL: Người mẫu mặc ${det.outfit || 'quần âu và giày thể thao'} đứng thử giày giữa lối đi shop giày dép, góc máy từ ngực xuống chân (faceless). Hai bàn chân luôn đặt phẳng hoàn toàn trên mặt sàn gạch trong suốt video, tuyệt đối không nhón mũi chân, không nhấc gót, không nhảy: 0s-2.5s: Đứng thẳng tại chỗ với hai bàn chân đặt phẳng trên sàn gạch, xoay nhẹ thân người sang trái góc 20 độ khoe dáng giày bên ngoài và phom quần. 2.5s-5.5s: Xoay nhẹ thân người sang phải góc 20 độ, hai bàn chân vẫn đặt phẳng trên sàn gạch, khoe mặt giày bên trong. 5.5s-8s: Chân phải trượt nhẹ sang bên nửa bước giữ bàn chân phẳng bám sát sàn gạch, đứng thẳng vững chãi tạo dáng tự tin trước gương shop khoe trực diện tổng thể form dáng giày và outfit. Ánh sáng shop chân thực, video im lặng không tiếng nói.`,
   ];
@@ -713,7 +760,17 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
   // Save prompts.md
   const panelPrompts = getPanelPrompts(template, {}, details);
   const templateTitle = template === 'template4' ? 'Template 4 (Women Footwear Boutique)' : 'Template 3 (Footwear Shop)';
-  const promptsContent = `# ${templateTitle} - Google Flow Storyboard Prompts (4 Panels)
+  const panelPromptSections = panelPrompts.map((panelPrompt, index) => {
+    const panelIndex = index + 1;
+    const title = template === 'template4'
+      ? ['Close-Up Hand Held on Velvet Bench', 'POV Try-On Sitting', 'Side Angle Velvet Bench', 'Standing Try-On in Pastel Aisle'][index]
+      : ['Top-Down Hand Held', 'Side Bar Stool', 'Standing Try-On in Aisle'][index];
+    const duration = template === 'template4'
+      ? ['8s', '6s', '4s', '8s'][index]
+      : ['8s', '4s', '8s'][index];
+    return `### Panel ${panelIndex} (${duration} - ${title})\n${panelPrompt}`;
+  }).join('\n\n');
+  const promptsContent = `# ${templateTitle} - Google Flow Storyboard Prompts (${panelPrompts.length} Panels)
 
 ## Storyboard Image-to-Image Prompt
 \`\`\`text
@@ -721,17 +778,7 @@ ${prompt}
 \`\`\`
 
 ## Veo 3 Video Prompts
-### Panel 1 (8s - ${template === 'template4' ? 'Close-Up Hand Held on Velvet Bench' : 'Top-Down Hand Held'})
-${panelPrompts[0]}
-
-### Panel 2 (6s - ${template === 'template4' ? 'POV Try-On Sitting' : 'Chest POV Sitting'})
-${panelPrompts[1]}
-
-### Panel 3 (4s - ${template === 'template4' ? 'Side Angle Velvet Bench' : 'Side Bar Stool'})
-${panelPrompts[2]}
-
-### Panel 4 (8s - ${template === 'template4' ? 'Standing Try-On in Pastel Aisle' : 'Standing Try-On in Aisle'})
-${panelPrompts[3]}
+${panelPromptSections}
 `;
   fs.writeFileSync(path.join(archiveDir, 'prompts.md'), promptsContent, 'utf-8');
 
@@ -784,36 +831,64 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   const runDir = path.join(tmpRoot, `run-${Date.now()}`);
   ensureDir(runDir);
 
-  const page = await createFlowPage(baseDir);
   let genResult = null;
+  let lastGenErr = null;
 
-  try {
-    console.log(`[GoogleFlowStoryboard] Step 1: Preparing master Storyboard image generation on Google Flow (${templateNameDisplay})...`);
-    const prepared = await prepareGeneration(
-      page,
-      prompt,
-      allUploadPayloads,
-      {
-        imageModel: 'nano-banana-2',
-        aspectRatio: '16:9',
-        outputCount: 1,
-      },
-      baseDir
-    );
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let page = null;
+    try {
+      if (attempt > 1) {
+        console.log(`[GoogleFlowStoryboard] 🔄 Retrying master Storyboard generation (Attempt ${attempt}/3)...`);
+        await new Promise(r => setTimeout(r, 4000));
+      }
+      page = await createFlowPage(baseDir);
+      console.log(`[GoogleFlowStoryboard] Step 1: Preparing master Storyboard image generation on Google Flow (${templateNameDisplay})...`);
+      const prepared = await prepareGeneration(
+        page,
+        prompt,
+        allUploadPayloads,
+        {
+          imageModel: 'nano-banana-2',
+          aspectRatio: '16:9',
+          outputCount: 1,
+        },
+        baseDir
+      );
 
-    console.log('[GoogleFlowStoryboard] Step 2: Executing master Storyboard image generation API...');
-    genResult = await executeGeneration(prepared);
-  } finally {
-    await closeFlowPage(page);
+      console.log('[GoogleFlowStoryboard] Step 2: Executing master Storyboard image generation API...');
+      genResult = await executeGeneration(prepared);
+      if (genResult && genResult.base64) {
+        break;
+      }
+    } catch (gErr) {
+      lastGenErr = gErr;
+      console.warn(`[GoogleFlowStoryboard] Master storyboard attempt ${attempt}/3 failed: ${gErr.message}`);
+    } finally {
+      if (page) await closeFlowPage(page);
+    }
   }
 
   if (!genResult || !genResult.base64) {
-    throw new Error('Google Flow did not return a generated storyboard image');
+    throw new Error(`Google Flow did not return a generated storyboard image: ${lastGenErr?.message || 'Unknown error'}`);
   }
 
   const storyboardPath = path.join(runDir, 'storyboard.png');
   fs.writeFileSync(storyboardPath, Buffer.from(genResult.base64, 'base64'));
   console.log(`[GoogleFlowStoryboard] ✅ Master Storyboard image generated via Google Flow: ${storyboardPath}`);
+
+  const progress = typeof options.onProgress === 'function' ? options.onProgress : async () => {};
+  await progress({
+    currentStep: 'storyboard_generated',
+    stepOrder: 3,
+    progressPercent: 40,
+    message: `Master Storyboard (${templateNameDisplay}) đã tạo xong. Đang sinh 4 panel...`,
+  });
+
+  const targetChatId = options.chatId || options.telegramChatId || null;
+  if (targetChatId) {
+    sendPhotoToTelegram(targetChatId, genResult.base64, `🎨 Master Storyboard (${templateNameDisplay}) đã tạo xong. Đang tiến hành tạo 4 panel...`)
+      .catch(err => console.error('[GoogleFlowStoryboard] sendPhoto error:', err.message));
+  }
 
   // 2. Generate 4 native 9:16 vertical panels via Gemini API
   console.log(`[GoogleFlowStoryboard] Step 3: Generating 4 separate 9:16 vertical panels via Gemini API for ${templateNameDisplay}...`);
@@ -836,12 +911,13 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
   try {
     console.log(`[GoogleFlowStoryboard] 🔍 Step 2.5: Analyzing footwear images & extracting hashtags via Gemini API...`);
-    analysis = await analyzeProductFootwear(geminiClient, filePayloads, isTemplate4);
+    analysis = await analyzeProductFootwear(geminiClient, filePayloads, isTemplate4, options);
   } catch (aErr) {
     console.warn(`[GoogleFlowStoryboard] ⚠️ Footwear analysis skipped: ${aErr.message}`);
   }
 
-  const panelPrompts = getPanelPrompts(template, options, details);
+  const panelPrompts = getPanelPrompts(template, options, details, analysis?.reviewScript);
+  const panelCount = template === 'template4' ? 4 : 3;
   const panels = [];
 
   try {
@@ -861,10 +937,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       ...productFileData,
     ];
 
-    for (let i = 0; i < 4; i++) {
+    let livePanelMsgId = null;
+    for (let i = 0; i < panelCount; i++) {
       const panelIndex = i + 1;
       const singlePrompt = buildSinglePanelPrompt(panelIndex, options.outfit || null, details, template);
-      console.log(`[GoogleFlowStoryboard] [${panelIndex}/4] Generating Panel ${panelIndex} (9:16) via Gemini API...`);
+      console.log(`[GoogleFlowStoryboard] [${panelIndex}/${panelCount}] Generating Panel ${panelIndex} (9:16) via Gemini API...`);
 
       let panelBuf = null;
       let lastErr = null;
@@ -883,11 +960,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
           }
 
           panelBuf = await geminiClient.downloadImage(genRes.images[0].url);
-          console.log(`[GoogleFlowStoryboard] [${panelIndex}/4] ✅ Image received from Gemini API in ${Math.round((Date.now() - startedAt) / 1000)}s!`);
+          console.log(`[GoogleFlowStoryboard] [${panelIndex}/${panelCount}] ✅ Image received from Gemini API in ${Math.round((Date.now() - startedAt) / 1000)}s!`);
           break;
         } catch (err) {
           lastErr = err;
-          console.warn(`[GoogleFlowStoryboard] [${panelIndex}/4] Attempt ${attempt}/3 failed: ${err.message}. Retrying...`);
+          console.warn(`[GoogleFlowStoryboard] [${panelIndex}/${panelCount}] Attempt ${attempt}/3 failed: ${err.message}. Retrying...`);
           await new Promise(r => setTimeout(r, 4000));
         }
       }
@@ -909,11 +986,24 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         sourcePath: panelPath,
         mimeType: 'image/png',
       });
-      console.log(`[GoogleFlowStoryboard] ✅ Panel ${panelIndex}/4 generated via Gemini API!`);
+      console.log(`[GoogleFlowStoryboard] ✅ Panel ${panelIndex}/${panelCount} generated via Gemini API!`);
+
+      if (targetChatId && panelBuf) {
+        try {
+          livePanelMsgId = await sendOrUpdateLivePanel(targetChatId, livePanelMsgId, panelBuf, panelIndex, panelCount);
+        } catch (_) {}
+      }
     }
   } finally {
     try { await geminiClient.close(); } catch (_) {}
   }
+
+  await progress({
+    currentStep: 'panels_generated',
+    stepOrder: 4,
+    progressPercent: 60,
+    message: `Đã tạo xong ${panelCount} panel ảnh. Đang tiến hành tạo video...`,
+  });
 
   // 3. Save review archive
   const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, prompt, genResult.base64, panels, template, details);
@@ -922,12 +1012,24 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   let videos = [];
   if (options.generateVideos !== false) {
     console.log('[GoogleFlowStoryboard] Step 4: Generating Veo 3 videos from panels on Google Flow...');
+    await progress({
+      currentStep: 'generating_videos',
+      stepOrder: 5,
+      progressPercent: 75,
+      message: 'Đang tạo video bằng Veo 3...',
+    });
     videos = await generateVideosFromPanelsDirect(baseDir, panels, {
       aspectRatio: '9:16',
       videoModelKey: options.videoModelKey || null,
       includeVideoBase64: !!options.includeVideoBase64,
     });
     console.log(`[GoogleFlowStoryboard] Video result: ${videos.filter(v => !v.error).length}/${videos.length} completed`);
+    await progress({
+      currentStep: 'videos_generated',
+      stepOrder: 6,
+      progressPercent: 90,
+      message: `Đã tạo xong ${videos.filter(v => !v.error).length}/${videos.length} video panel.`,
+    });
 
     if (reviewArchive && reviewArchive.root) {
       const videosDir = path.join(reviewArchive.root, 'videos');

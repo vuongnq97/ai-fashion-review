@@ -1,0 +1,18 @@
+{
+  "lastRunSlots": {
+    "2026-09-02 19:10": {
+      "jobId": "tg_-5593403910_1735546718395074080_1788351013186",
+      "shortlink": "https://vt.tiktok.com/ZS9BnqrPwdFJx-aUiWf/",
+      "ranAt": "2026-09-02T12:10:13.594Z",
+      "forced": false
+    },
+    "2026-09-02 19:55": {
+      "jobId": "tg_-5593403910_1732640788936295579_1788353705862",
+      "shortlink": "https://vt.tiktok.com/ZS9Bnqk6b8E62-bqcpP/",
+      "ranAt": "2026-09-02T12:55:06.261Z",
+      "forced": false
+    }
+  },
+  "nextLinkIndex": 4,
+  "usedLinks": {}
+}

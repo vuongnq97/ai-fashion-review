@@ -394,7 +394,11 @@ class GeminiApiClient {
     }
 
     // Launch headless browser — needed for Playwright's APIRequestContext TLS stack
-    this._browser = await chromium.launch({ headless: true });
+    const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
+    this._browser = await chromium.launch({
+      channel: chromeChannel,
+      headless: true,
+    });
     const browserContext = await this._browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     });

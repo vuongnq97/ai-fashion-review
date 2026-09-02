@@ -313,81 +313,127 @@ async function executeGeneration({ context, bearerToken, recaptchaToken, imageIn
 
   const apiAspectRatio = ASPECT_RATIO_MAP[aspectRatio] || 'IMAGE_ASPECT_RATIO_SQUARE';
   const apiModelName = MODEL_MAP[imageModel] || 'NARWHAL';
-  const seed = Math.floor(Math.random() * 1000000);
-  const sessionId = `;${Date.now()}`;
-  const batchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  const requestBody = {
-    clientContext: {
-      recaptchaContext: { token: recaptchaToken, applicationType: 'RECAPTCHA_APPLICATION_TYPE_WEB' },
-      projectId: PROJECT_ID, tool: 'PINHOLE', sessionId
-    },
-    mediaGenerationContext: { batchId },
-    useNewMedia: true,
-    requests: [{
-      clientContext: {
-        recaptchaContext: { token: recaptchaToken, applicationType: 'RECAPTCHA_APPLICATION_TYPE_WEB' },
-        projectId: PROJECT_ID, tool: 'PINHOLE', sessionId
-      },
-      imageModelName: apiModelName,
-      imageAspectRatio: apiAspectRatio,
-      structuredPrompt: { parts: [{ text: prompt }] },
-      seed,
-      imageInputs: imageInputUUIDs.map(name => ({ imageInputType: 'IMAGE_INPUT_TYPE_REFERENCE', name }))
-    }]
-  };
-
   const apiUrl = `https://aisandbox-pa.googleapis.com/v1/projects/${PROJECT_ID}/flowMedia:batchGenerateImages`;
 
-  const response = await context.request.fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=UTF-8',
-      'Authorization': `Bearer ${bearerToken}`,
-      'Origin': 'https://labs.google',
-      'Referer': 'https://labs.google/',
-      'x-browser-channel': 'stable',
-      'x-browser-copyright': 'Copyright 2026 Google LLC. All Rights Reserved.',
-      'x-browser-year': '2026'
-    },
-    data: JSON.stringify(requestBody),
-    timeout: 600000
-  });
+  let lastError = null;
+  const maxRetries = 3;
 
-  const status = response.status();
-  const body = await response.text();
-  if (status !== 200) throw new Error(`[Gen] API returned HTTP ${status}: ${body.substring(0, 500)}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const seed = Math.floor(Math.random() * 1000000);
+      const sessionId = `;${Date.now()}`;
+      const batchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  const result = JSON.parse(body);
-  console.log(`[Gen] ✅ API returned successfully!`);
+      const requestBody = {
+        clientContext: {
+          recaptchaContext: { token: recaptchaToken, applicationType: 'RECAPTCHA_APPLICATION_TYPE_WEB' },
+          projectId: PROJECT_ID, tool: 'PINHOLE', sessionId
+        },
+        mediaGenerationContext: { batchId },
+        useNewMedia: true,
+        requests: [{
+          clientContext: {
+            recaptchaContext: { token: recaptchaToken, applicationType: 'RECAPTCHA_APPLICATION_TYPE_WEB' },
+            projectId: PROJECT_ID, tool: 'PINHOLE', sessionId
+          },
+          imageModelName: apiModelName,
+          imageAspectRatio: apiAspectRatio,
+          structuredPrompt: { parts: [{ text: prompt }] },
+          seed,
+          imageInputs: imageInputUUIDs.map(name => ({ imageInputType: 'IMAGE_INPUT_TYPE_REFERENCE', name }))
+        }]
+      };
 
-  const media = result.media || [];
-  if (media.length === 0) throw new Error('[Gen] API returned no media in response');
+      if (attempt > 1) {
+        console.log(`[Gen] 🔄 Retrying batchGenerateImages API (Attempt ${attempt}/${maxRetries})...`);
+      }
 
-  const mainMedia = media[0];
-  const fifeUrl = mainMedia.image?.generatedImage?.fifeUrl;
-  const generatedName = mainMedia.name;
-  if (!fifeUrl) throw new Error('[Gen] No fifeUrl in API response');
+      const response = await context.request.fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Authorization': `Bearer ${bearerToken}`,
+          'Origin': 'https://labs.google',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-copyright': 'Copyright 2026 Google LLC. All Rights Reserved.',
+          'x-browser-year': '2026'
+        },
+        data: JSON.stringify(requestBody),
+        timeout: 180000
+      });
 
-  const imgResponse = await context.request.fetch(fifeUrl);
-  const imgBuffer = await imgResponse.body();
-  const resultBase64 = imgBuffer.toString('base64');
-  console.log(`[Gen]   ✅ Image fetched (base64 length: ${resultBase64.length}).`);
+      const status = response.status();
+      const body = await response.text();
+      if (status !== 200) {
+        throw new Error(`API returned HTTP ${status}: ${body.substring(0, 500)}`);
+      }
 
-  let allResults = [];
-  if (outputCount > 1 && media.length > 1) {
-    for (const m of media) {
-      const url = m.image?.generatedImage?.fifeUrl;
-      if (url) {
-        const r = await context.request.fetch(url);
-        const buf = await r.body();
-        allResults.push({ base64: buf.toString('base64'), mimeType: 'image/png' });
+      const result = JSON.parse(body);
+      console.log(`[Gen] ✅ API returned successfully!`);
+
+      const media = result.media || [];
+      if (media.length === 0) {
+        throw new Error('API returned no media in response');
+      }
+
+      const mainMedia = media[0];
+      const fifeUrl = mainMedia.image?.generatedImage?.fifeUrl;
+      const generatedName = mainMedia.name;
+      if (!fifeUrl) {
+        throw new Error('No fifeUrl in API response');
+      }
+
+      // Fetch image with retry
+      let imgBuffer = null;
+      for (let imgAttempt = 1; imgAttempt <= 3; imgAttempt++) {
+        try {
+          const imgResponse = await context.request.fetch(fifeUrl, { timeout: 60000 });
+          if (imgResponse.status() === 200) {
+            imgBuffer = await imgResponse.body();
+            break;
+          }
+        } catch (fetchErr) {
+          if (imgAttempt === 3) throw fetchErr;
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+
+      if (!imgBuffer) {
+        throw new Error('Failed to download generated image buffer from fifeUrl');
+      }
+
+      const resultBase64 = imgBuffer.toString('base64');
+      console.log(`[Gen]   ✅ Image fetched (base64 length: ${resultBase64.length}).`);
+
+      let allResults = [];
+      if (outputCount > 1 && media.length > 1) {
+        for (const m of media) {
+          const url = m.image?.generatedImage?.fifeUrl;
+          if (url) {
+            try {
+              const r = await context.request.fetch(url, { timeout: 60000 });
+              const buf = await r.body();
+              allResults.push({ base64: buf.toString('base64'), mimeType: 'image/png' });
+            } catch (_) {}
+          }
+        }
+      }
+
+      console.log(`[Gen] ✅ Done! Returning result (Name: ${generatedName}).`);
+      return { base64: resultBase64, mimeType: 'image/png', imageName: generatedName, allResults: allResults.length > 0 ? allResults : undefined };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[Gen] ⚠️ batchGenerateImages attempt ${attempt}/${maxRetries} failed: ${err.message}`);
+      if (attempt < maxRetries) {
+        const waitMs = Math.min(3000 * Math.pow(2, attempt - 1), 12000);
+        console.log(`[Gen] Waiting ${Math.round(waitMs / 1000)}s before retry...`);
+        await new Promise(r => setTimeout(r, waitMs));
       }
     }
   }
 
-  console.log(`[Gen] ✅ Done! Returning result (Name: ${generatedName}).`);
-  return { base64: resultBase64, mimeType: 'image/png', imageName: generatedName, allResults: allResults.length > 0 ? allResults : undefined };
+  throw new Error(`[Gen] Failed to execute generation after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
 // Legacy wrapper (backward compat)

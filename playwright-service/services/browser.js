@@ -6,8 +6,8 @@ const { getConfig } = require('../utils/config-manager');
 
 const config = getConfig(path.resolve(__dirname, '..'));
 
-const PROJECT_URL = config.systemSettings.flowProjectUrl || 'https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1';
-const PROJECT_ID = config.systemSettings.flowProjectId || '022f171a-baeb-4a4a-8561-51d0c992f3a1';
+const PROJECT_URL = config.systemSettings.flowProjectUrl || 'https://labs.google/fx/vi/tools/flow/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c';
+const PROJECT_ID = config.systemSettings.flowProjectId || '8ac10c4a-44b5-4d55-b470-10ab24db4c1c';
 const SITE_KEY = config.systemSettings.recaptchaSiteKey || '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
 
 let globalContext = null;
@@ -119,11 +119,21 @@ async function getSharedContext(baseDir) {
   if (!globalContext) {
     console.log('[Browser] Launching shared persistent context...');
     const isHeadless = process.env.HEADLESS === 'true';
-    
-    // Remove stale lock if present
-    try { fs.unlinkSync(path.join(userDataDir, 'SingletonLock')); } catch (_) {}
-    
+
+    // Remove stale locks if present
+    try {
+      if (fs.existsSync(userDataDir)) {
+        for (const f of fs.readdirSync(userDataDir)) {
+          if (f.startsWith('Singleton')) {
+            try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) { }
+          }
+        }
+      }
+    } catch (_) { }
+
+    const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
     globalContext = await chromium.launchPersistentContext(userDataDir, {
+      channel: chromeChannel,
       headless: isHeadless,
       args: [
         '--disable-blink-features=AutomationControlled',
@@ -158,7 +168,7 @@ async function getBrowserPage(baseDir) {
       console.log('[Browser] newPage() failed, reloading context...');
       try { await context.close(); } catch (_) { }
       globalContext = null;
-      
+
       const newContext = await getSharedContext(baseDir);
       globalPage = await newContext.newPage();
     }

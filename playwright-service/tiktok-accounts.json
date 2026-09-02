@@ -1,0 +1,40 @@
+{
+  "WIFMkBwL39jBHjxo": {
+    "label": "Lady Shop (ladystore2000)",
+    "sessionid": "PASTE_SESSION_ID_HERE",
+    "uid_tt": "PASTE_UID_TT_HERE",
+    "tt_csrf_token": "PASTE_CSRF_TOKEN_HERE",
+    "sid_tt": "PASTE_SESSION_ID_HERE",
+    "sid_guard": "PASTE_SID_GUARD_HERE",
+    "msToken": "PASTE_MSTOKEN_HERE",
+    "updatedAt": ""
+  },
+  "cJDNuW2i1tFFXivi": {
+    "label": "Men Shop",
+    "_ttp": "3Ht0rXvudODUIRSG06lcUdde9OP",
+    "tt_chain_token": "dYt7WiSje2RfNQ0pvb9ceg==",
+    "tt_csrf_token": "qMDSQHca-UUr17z9jbWP32IDQecAQ4dxXjPY",
+    "s_v_web_id": "verify_mte71dwc_d8P2yB50_T82u_4urK_9wah_YpIK0gAR703e",
+    "d_ticket": "572e283e8f53ee8b89a79d05538159e338fa1",
+    "uid_tt": "7ff0f9765f602d5cc517366f970c9fcfa267d9ec17494819b2b6d0da998c5d42",
+    "uid_tt_ss": "7ff0f9765f602d5cc517366f970c9fcfa267d9ec17494819b2b6d0da998c5d42",
+    "sid_tt": "c2ac7d502ff7b81183efeedfef6498e4",
+    "sessionid": "c2ac7d502ff7b81183efeedfef6498e4",
+    "sessionid_ss": "c2ac7d502ff7b81183efeedfef6498e4",
+    "sid_guard": "c2ac7d502ff7b81183efeedfef6498e4%7C1787996860%7C15552000%7CThu%2C+25-Feb-2027+09%3A47%3A40+GMT",
+    "msToken": "WAxK75_fW1nXgudKKQ2xDxFi7q1ZzFcHwJ4YhA8qRlVX9I-B8hMgA4AfSZmZ4BfTlqztE07Xe74x5keYyiZuC60n7W6kMCYdIdkgZdFCIpJ99xysiG9JbwAUtE90fvfKsmyB3u3t0a7iB-PisSzO_QvVa2xz_3g",
+    "ttwid": "1%7CqwJJaWbArcfbCiaoS38SeJUjLQrCeV1uUrHwlI2lfVg%7C1787996870%7Cd0765b15dcaf2e174efce352cf3f48a9cf1ca0f602d5988383ab2c494523e60b",
+    "odin_tt": "86e276d2a0b1cc32b7975183680f90e86f1a8ef077f9ecc411d3aad01cd5fc45915363aa0417beb45e616e5e57a62530b3eb94b3815bc20e13185cefb9957480c83fe2e37cbe137512e4955bab24bfac",
+    "updatedAt": "2026-09-02T12:28:00.000Z"
+  },
+  "Q9JStYDsDEzn5Tg3": {
+    "label": "Nhi Shop (hanhi012002)",
+    "sessionid": "PASTE_SESSION_ID_HERE",
+    "uid_tt": "PASTE_UID_TT_HERE",
+    "tt_csrf_token": "PASTE_CSRF_TOKEN_HERE",
+    "sid_tt": "PASTE_SESSION_ID_HERE",
+    "sid_guard": "PASTE_SID_GUARD_HERE",
+    "msToken": "PASTE_MSTOKEN_HERE",
+    "updatedAt": ""
+  }
+}

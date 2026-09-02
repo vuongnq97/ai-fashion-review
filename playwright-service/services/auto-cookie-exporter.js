@@ -46,13 +46,21 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
 
   // Xóa file lock cũ nếu có
   try {
-    fs.rmSync(path.join(userDataDir, 'SingletonLock'), { force: true });
+    if (fs.existsSync(userDataDir)) {
+      for (const f of fs.readdirSync(userDataDir)) {
+        if (f.startsWith('Singleton')) {
+          try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) {}
+        }
+      }
+    }
   } catch (_) {}
 
   let context = null;
   try {
     console.log('🔄 [AutoCookie] Đang tự động làm mới và trích xuất cookie Google/Gemini...');
+    const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
     context = await chromium.launchPersistentContext(userDataDir, {
+      channel: chromeChannel,
       headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',

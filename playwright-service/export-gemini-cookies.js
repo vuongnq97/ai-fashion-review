@@ -53,13 +53,21 @@ async function waitForEnter(message) {
   const envPath = path.join(baseDir, '.env');
 
   try {
-    fs.rmSync(path.join(userDataDir, 'SingletonLock'), { force: true });
+    if (fs.existsSync(userDataDir)) {
+      for (const f of fs.readdirSync(userDataDir)) {
+        if (f.startsWith('Singleton')) {
+          try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) {}
+        }
+      }
+    }
   } catch (_) {}
 
   console.log('[GeminiCookies] Opening Playwright persistent profile: chrome-data');
   console.log('[GeminiCookies] This is the same profile used by the automation service.');
 
+  const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
   const context = await chromium.launchPersistentContext(userDataDir, {
+    channel: chromeChannel,
     headless: false,
     args: [
       '--disable-blink-features=AutomationControlled',

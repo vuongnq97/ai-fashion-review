@@ -22,8 +22,8 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
     systemSettings: {
       storyboardProvider: "aistudio-playwright",
       aiStudioUrl: "https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true",
-      flowProjectUrl: "https://labs.google/fx/vi/tools/flow/project/022f171a-baeb-4a4a-8561-51d0c992f3a1",
-      flowProjectId: "022f171a-baeb-4a4a-8561-51d0c992f3a1",
+      flowProjectUrl: "https://labs.google/fx/vi/tools/flow/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
+      flowProjectId: "8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
       recaptchaSiteKey: "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
       chromeExtensionId: "jmobnhoghinjlmjogafjadohcmdebbej"
     },
@@ -44,12 +44,37 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
     return {
       uiSettings: { ...defaults.uiSettings, ...parsed.uiSettings },
       systemSettings: { ...defaults.systemSettings, ...parsed.systemSettings },
-      dailyVlogSettings: { ...defaults.dailyVlogSettings, ...parsed.dailyVlogSettings }
+      dailyVlogSettings: { ...defaults.dailyVlogSettings, ...parsed.dailyVlogSettings },
+      autoT3Settings: { ...(parsed.autoT3Settings || {}) },
+      autoT4Settings: { ...(parsed.autoT4Settings || {}) },
+      autoT5Settings: { ...(parsed.autoT5Settings || {}) },
+      channels: parsed.channels || {},
     };
   } catch (err) {
     console.error(`[ConfigManager] Error reading config.json:`, err.message);
-    return defaults;
+    return { ...defaults, channels: {} };
   }
+}
+
+/**
+ * Resolve TikTok channel config for a given chatId.
+ * Lookup order: exact chatId match → "default" → built-in fallback.
+ * @param {string} baseDir
+ * @param {string|number} chatId
+ * @returns {{ channelId: string, label: string, tiktokCredentialId: string, tiktokCredentialName: string }}
+ */
+function getChannelForChat(baseDir, chatId) {
+  const config = getConfig(baseDir);
+  const channels = config.channels || {};
+  const key = String(chatId || '');
+
+  const channel = channels[key] || channels['default'] || {};
+  return {
+    channelId: channels[key] ? key : 'default',
+    label: channel.label || 'Shop Chính',
+    tiktokCredentialId: channel.tiktokCredentialId || 'cJDNuW2i1tFFXivi',
+    tiktokCredentialName: channel.tiktokCredentialName || 'TikTok Credential account',
+  };
 }
 
 /**
@@ -163,5 +188,6 @@ async function applyConfigToUI(frame, baseDir = path.resolve(__dirname, '..')) {
 
 module.exports = {
   getConfig,
+  getChannelForChat,
   applyConfigToUI
 };

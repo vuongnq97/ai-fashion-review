@@ -354,21 +354,57 @@ ngrok http 3000
 node playwright-service/debug-flow-direct-video-api.js
 ```
 
-## Legacy: n8n Workflow (Không còn sử dụng)
+## n8n Orchestration (Telegram → Gen Video → TikTok Affiliate)
 
-> **Lưu ý:** Luồng n8n đã được thay thế hoàn toàn bằng Telegram bot tích hợp trong server Node.js. Phần này chỉ để tham khảo.
+Hệ thống hỗ trợ chế độ điều phối qua n8n workflow:
+- File workflow mới: `workflows/TELEGRAM GEN VIDEO + AUTO UPLOAD TIKTOK.json`
+- File workflow tham chiếu cũ: `workflows/AUTO UPLOAD VIDEO +AFFILITATE LIINK TIKTOK.json`
 
-Nếu muốn dùng n8n workflow (legacy):
+### 1. Cấu hình Server cho n8n Mode:
 
-```bash
-# Cài n8n
-docker run -d --name n8n -p 5678:5678 \
-  -v n8n_data:/home/node/.n8n \
-  --add-host=host.docker.internal:host-gateway \
-  n8nio/n8n:2.17.7
-
-# Push workflow
-npx --yes n8nac push workflows/solid-saddle-de3ecbf97f11/ReviewAI.workflow.ts --verify
+Trong `playwright-service/.env`:
+```env
+N8N_ORCHESTRATION=true
+DEFAULT_STORYBOARD_TEMPLATE=template5_1
+PRODUCT_IMAGE_LIMIT=8
+PRODUCT_IMAGE_MIN=1
+PRODUCT_IMAGE_DOWNLOAD_TIMEOUT_MS=15000
+# Đặt false nếu môi trường gặp lỗi SELF_SIGNED_CERT_IN_CHAIN khi tải ảnh TikTok
+PRODUCT_IMAGE_TLS_REJECT_UNAUTHORIZED=true
 ```
 
-Workflow n8n gọi server qua `http://host.docker.internal:3000`.
+Khi `N8N_ORCHESTRATION=true`, server tắt long-polling Telegram bot nội bộ để n8n độc quyền xử lý Telegram Trigger.
+
+### 2. Luồng hoạt động:
+
+1. **Telegram Trigger**: Người dùng gửi shortlink TikTok Shop (vd: `https://vt.tiktok.com/...` hoặc kèm `/template5_1`).
+2. **Asset Extraction**: n8n phân giải shortlink, tải HTML PDP và gọi `/api/product-assets/extract` để trích xuất `product_id`, tiêu đề, mô tả và tối đa 8 ảnh.
+3. **Enqueue Job**: n8n gọi `POST /api/jobs/enqueue` để đưa job vào hàng đợi generation.
+4. **Checkpoints (01 → 07)**: n8n theo dõi tiến độ từng step theo thời gian thực:
+   - `01 — Product Assets Extracted`
+   - `02 — Product Analyzed`
+   - `03 — Storyboard Generated`
+   - `04 — Panels Generated`
+   - `05 — Videos Generated`
+   - `06 — Final Video Merged`
+   - `07 — Generation Completed`
+5. **Video Preview**: Server tự động merge các panel video và gửi video hoàn chỉnh về Telegram kèm caption và hướng dẫn `/upload`.
+6. **Upload Command (`/upload`)**:
+   - Khi người dùng gửi `/upload` (hoặc `/upload <jobId>`), n8n kiểm tra tính duy nhất (idempotency).
+   - Gọi `Get Link Affiliate` để xác minh sản phẩm nằm trong danh sách showcase/affiliate của tài khoản TikTok.
+   - Tải final video từ `/api/jobs/:jobId/final-video` và upload lên TikTok với product anchor tương ứng.
+   - Ghi nhận trạng thái publish và dọn dẹp job tạm.
+
+### 3. Job REST API Endpoints
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| POST | `/api/product-assets/extract` | Trích xuất `productId`, title, mô tả, ảnh từ PDP HTML |
+| POST | `/api/jobs/enqueue` | Đưa generation job vào hàng đợi |
+| GET | `/api/jobs/:jobId` | Đọc trạng thái và checkpoint hiện tại của job |
+| GET | `/api/jobs/latest?chatId=...` | Lấy job hoàn tất gần nhất của một chat |
+| GET | `/api/jobs/:jobId/result` | Lấy kết quả phân tích, caption, hashtag và thông tin video |
+| GET | `/api/jobs/:jobId/final-video` | Tải file binary MP4 video hoàn chỉnh đã merge |
+| POST | `/api/jobs/:jobId/upload-state` | Cập nhật trạng thái upload (`published`, `failed`) |
+| DELETE | `/api/jobs/:jobId` | Dọn dẹp thư mục tạm và xóa job khỏi bộ nhớ |
+

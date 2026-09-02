@@ -1,15 +1,24 @@
 const axios = require('axios');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
+
+// Allow local proxy/TLS certificates
+const telegramAgent = new https.Agent({ rejectUnauthorized: false });
+const tgHttp = axios.create({
+  httpsAgent: telegramAgent,
+  proxy: false,
+});
+
 const { runStoryboardFullFlow } = require('./storyboard-fullflow');
 const { sendVideoToTelegramDirect } = require('./telegram-send');
-const {
-  runFromDriveFolder,
-  extractDriveFolderId,
-  listDriveChildFolders,
-} = require('./drive-folder');
 const { handleDailyVlogCommand, handleDailyVlogPhoto, isWaitingForDailyVlogPhoto } = require('./dailyvlog-flow');
 const { flowQueue } = require('./flow-queue');
+const { generationJobService } = require('./generation-job');
+const { extractProductAssetsFromHtml } = require('./product-assets');
+const { handleAutoT3Command, startAutoT3Scheduler } = require('./auto-t3-scheduler');
+const { autoT4Scheduler, autoT5Scheduler } = require('./auto-scheduler');
+const { getChannelForChat } = require('../utils/config-manager');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
@@ -19,17 +28,37 @@ const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
 let pollingOffset = 0;
 
-const RESERVED_COMMANDS = new Set(['start', 'dailyvlog', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'template6', 'status', 'remake', 'again', 'redo']);
-const driveFolderByCommand = new Map();
+const RESERVED_COMMANDS = new Set(['start', 'upload', 'dailyvlog', 'auto_t3', 'auto_t4', 'auto_t5', 'chatid', 'channel', 'template1', 'template2', 'template3', 'template4', 'template5', 'template5_1', 'template51', 'template5_2', 'template52', 'template6', 'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4', 'again', 'redo']);
+
+function classifyTelegramCommand(text = '') {
+  const value = String(text || '').trim();
+  if (/^\/upload(?:@\w+)?(?:\s|$)/i.test(value)) return 'upload';
+  if (/^\/remake(?:[_@\s]|$)/i.test(value)) return 'remake';
+  if (/^\/(template[0-9_]+)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
+  if (/^\/start(?:@\w+)?(?:\s|$)/i.test(value)) return 'start';
+  if (/^\/status(?:@\w+)?(?:\s|$)/i.test(value)) return 'status';
+  if (/^\/dailyvlog(?:@\w+)?(?:\s|$)/i.test(value)) return 'dailyvlog';
+  if (/^\/auto_t3(?:@\w+)?(?:\s|$)/i.test(value)) return 'auto_t3';
+
+  const folderMatch = value.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
+  if (!folderMatch) return null;
+
+  const commandName = folderMatch[1].toLowerCase();
+  if (RESERVED_COMMANDS.has(commandName)) return 'reserved';
+  if (commandName === 'upload' || commandName.startsWith('upload_')) return 'reserved';
+  return 'folder';
+}
 
 /**
  * Sends a text message to a specific Telegram Chat ID
  */
-async function sendTelegramMessage(botToken, chatId, text) {
+async function sendTelegramMessage(botToken, chatId, text, options = {}) {
   try {
-    await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    await tgHttp.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       chat_id: chatId,
-      text: text
+      text: text,
+      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+      ...(options.reply_to_message_id ? { reply_to_message_id: options.reply_to_message_id } : {}),
     }, {
       timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
     });
@@ -43,7 +72,7 @@ async function sendTelegramMessage(botToken, chatId, text) {
  */
 async function downloadTelegramFile(botToken, fileId) {
   // 1. Get file path
-  const fileInfoRes = await axios.get(`https://api.telegram.org/bot${botToken}/getFile`, {
+  const fileInfoRes = await tgHttp.get(`https://api.telegram.org/bot${botToken}/getFile`, {
     params: { file_id: fileId }
   });
 
@@ -55,74 +84,12 @@ async function downloadTelegramFile(botToken, fileId) {
   const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
 
   // 2. Download the binary file data
-  const downloadRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+  const downloadRes = await tgHttp.get(downloadUrl, { responseType: 'arraybuffer' });
   return Buffer.from(downloadRes.data);
 }
 
-/**
- * Handle folder commands such as /p1, /p2, /m1, /m2.
- * Triggers the same drive-folder flow as `node server.js -p <n>` would.
- */
-async function handleFolderCommand(botToken, chatId, folderName) {
-  const commandName = String(folderName || '').trim().replace(/^\/+/, '').toLowerCase();
-  const driveFolderName = driveFolderByCommand.get(commandName) || commandName;
-
-  const selectedTemplate = pendingTemplateByChat.get(chatId) || null;
-  if (selectedTemplate) pendingTemplateByChat.delete(chatId);
-  const templateOptions = buildTemplateOptions(selectedTemplate);
-  let templateMessage = '';
-  if (selectedTemplate === 'template1') {
-    templateMessage = ' bằng /template1 faceless 2 cảnh';
-  } else if (selectedTemplate === 'template2') {
-    templateMessage = ' bằng /template2 review 8 cảnh (video 4s)';
-  } else if (selectedTemplate === 'template3') {
-    templateMessage = ' bằng /template3 shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s)';
-  } else if (selectedTemplate === 'template4') {
-    templateMessage = ' bằng /template4 shop pastel nữ 4 cảnh (cận cảnh 8s + POV váy 6s + góc nệm 4s + đứng thử dáng 8s)';
-  } else if (selectedTemplate === 'template5') {
-    templateMessage = ' bằng /template5 đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt, không tiếng review)';
-  } else if (selectedTemplate === 'template5_1' || selectedTemplate === 'template5.1' || selectedTemplate === 'template51') {
-    templateMessage = ' bằng /template5_1 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ, không tiếng review)';
-  } else if (selectedTemplate === 'template5_2' || selectedTemplate === 'template5.2' || selectedTemplate === 'template52') {
-    templateMessage = ' bằng /template5_2 đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
-  }
-
-  await sendTelegramMessage(botToken, chatId,
-    `📂 Đang khởi động luồng /${commandName}${templateMessage} — tìm folder, tải ảnh và tạo video...`);
-
-  const baseDir = path.resolve(__dirname, '..');
-
-  // Enqueue through FlowQueue instead of running directly
-  flowQueue.enqueue({
-    chatId: String(chatId),
-    photos: [],  // folder commands load their own images
-    baseDir,
-    templateOptions,
-    label: `Folder /${commandName}`,
-    execute: async (runId) => {
-      const result = await runFromDriveFolder(driveFolderName, baseDir, { ...templateOptions, runId });
-      if (result && result.reviewArchive?.root) {
-        lastRunByChat.set(String(chatId), {
-          runDir: result.reviewArchive.root,
-          panelsDir: result.reviewArchive.panelsDir || path.join(result.reviewArchive.root, 'panels'),
-          videosDir: path.join(result.reviewArchive.root, 'videos'),
-          panels: result.panels,
-          template: selectedTemplate,
-          analysis: result.analysis,
-          baseDir,
-        });
-      }
-      const sent = result && result.sentCount != null ? result.sentCount : '?';
-      const summary = result?.productInfo?.summary || result?.analysis?.summary ? `\n${result.productInfo?.summary || result.analysis?.summary}` : '';
-      console.log(`[Telegram Bot] /${commandName} flow completed for chat ${chatId}. Sent: ${sent}`);
-      await sendTelegramMessage(botToken, chatId, `${summary}`).catch(() => {});
-      return result;
-    },
-  }).catch((err) => {
-    console.error(`[Telegram Bot] /${commandName} flow error for chat ${chatId}:`, err.message);
-    sendTelegramMessage(botToken, chatId,
-      `⚠️ /${commandName} lỗi: ${err.message}`).catch(() => {});
-  });
+function buildTemplateReadyMessage(templateName, description) {
+  return `✅ Đã bật ${templateName}. Hãy gửi shortlink TikTok Shop (https://vt.tiktok.com/...) để tạo video.\n\n📝 ${description}`;
 }
 
 async function handleTemplate1Command(botToken, chatId) {
@@ -135,8 +102,7 @@ async function handleTemplate1Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template1');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template1 cho lượt ảnh kế tiếp: review faceless 2 cảnh, chung bối cảnh random, không voice-over.');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template1', 'Review faceless 2 cảnh, không voice-over.'));
 }
 
 async function handleTemplate2Command(botToken, chatId) {
@@ -149,8 +115,7 @@ async function handleTemplate2Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template2');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template2 cho lượt ảnh kế tiếp: review 8 cảnh, mỗi cảnh 4s, chung bối cảnh random, không voice-over.');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template2', 'Review 8 cảnh, mỗi cảnh 4s, không voice-over.'));
 }
 
 async function handleTemplate3Command(botToken, chatId) {
@@ -158,13 +123,12 @@ async function handleTemplate3Command(botToken, chatId) {
   if (activeBatch) {
     activeBatch.template = 'template3';
     await sendTelegramMessage(botToken, chatId,
-      '✅ Đã áp dụng /template3 cho album ảnh đang gom: 4 cảnh shop — top-down 8s, POV ngực 6s, góc hông 4s, đứng thử giày 8s.');
+      '✅ Đã áp dụng /template3 cho album ảnh đang gom: 3 cảnh shop — top-down 8s, góc hông 4s, đứng thử giày 8s.');
     return;
   }
 
   pendingTemplateByChat.set(chatId, 'template3');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template3 cho lượt ảnh kế tiếp: 4 cảnh shop — top-down 8s, POV ngực 6s, góc hông 4s, đứng thử giày 8s.');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template3', '3 cảnh shop — top-down 8s, góc hông 4s, đứng thử giày 8s.'));
 }
 
 async function handleTemplate4Command(botToken, chatId) {
@@ -177,8 +141,7 @@ async function handleTemplate4Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template4');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template4 cho lượt ảnh kế tiếp: review giày/dép nữ 4 cảnh boutique pastel — cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s.');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template4', 'Review giày/dép nữ 4 cảnh boutique pastel — cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s.'));
 }
 
 async function handleTemplate5Command(botToken, chatId) {
@@ -191,8 +154,7 @@ async function handleTemplate5Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template5');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template5 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s tự động phân tích (có chữ tiếng Việt trên panel, không tiếng review).');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template5', 'Review đa ngành hàng 4 cảnh 6s tự động phân tích (có chữ tiếng Việt trên panel).'));
 }
 
 async function handleTemplate5_1Command(botToken, chatId) {
@@ -205,8 +167,7 @@ async function handleTemplate5_1Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template5_1');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template5_1 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s tự động phân tích (KHÔNG CHỮ / No Text trên storyboard & panel, không tiếng review).');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template5_1', 'Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ, không tiếng review).'));
 }
 
 async function handleTemplate5_2Command(botToken, chatId) {
@@ -219,8 +180,7 @@ async function handleTemplate5_2Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template5_2');
-  await sendTelegramMessage(botToken, chatId,
-    '✅ Đã bật /template5_2 cho lượt ảnh kế tiếp: review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ trên panel + CÓ VOICE REVIEW nam/nữ theo sản phẩm, faceless 100%).');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template5_2', 'Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ VOICE REVIEW nam/nữ, faceless 100%).'));
 }
 
 async function handleTemplate6Command(botToken, chatId) {
@@ -233,12 +193,7 @@ async function handleTemplate6Command(botToken, chatId) {
   }
 
   pendingTemplateByChat.set(chatId, 'template6');
-  await sendTelegramMessage(botToken, chatId,
-    '🛒 Đã bật /template6 cho lượt ảnh kế tiếp: review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart ngẫu nhiên, không chữ, không tiếng).\n\n' +
-    '📸 Hãy gửi ảnh sản phẩm bạn muốn review vào đây! Bot sẽ tự động:\n' +
-    '1. Phân tích sản phẩm để xếp vào đúng gian hàng/kệ hàng siêu thị phù hợp.\n' +
-    '2. Tạo Storyboard 2 cảnh chuẩn iPhone 15 Pro POV (Cảnh 1: Cầm xem ngang ngực, Cảnh 2: Đưa vào giỏ hàng dưới sàn).\n' +
-    '3. Tự động sinh 2 video Veo 3 mộc dài 8 giây (8s), hoàn toàn không chữ và không tiếng.');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template6', 'Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart ngẫu nhiên, không chữ, không tiếng).'));
 }
 
 function buildTemplateOptions(template) {
@@ -258,7 +213,7 @@ function buildTemplateOptions(template) {
   if (template === 'template3') {
     return {
       template: 'template3',
-      panelCount: 4,
+      panelCount: 3,
     };
   }
   if (template === 'template4') {
@@ -428,7 +383,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
         imagePath: pPath,
         buffer: buf,
         prompt: prompt,
-        videoModelKey: template === 'template6' ? '8s' : (template === 'template2' ? '4s' : ((template === 'template3' || template === 'template4') ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s')),
+        videoModelKey: template === 'template6' ? '8s' : (template === 'template2' ? '4s' : (template === 'template3' ? ((idx === 1 || idx === 3) ? '8s' : '4s') : (template === 'template4' ? ((idx === 1 || idx === 4) ? '8s' : (idx === 2 ? '6s' : '4s')) : '6s'))),
       });
     } else {
       invalidIndices.push(idx);
@@ -517,7 +472,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       if (successCount > 0 && failedPanels.length === 0) {
         await sendTelegramMessage(botToken, chatId,
-          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /remake <số_cảnh> bất cứ lúc nào nếu muốn đổi lại video khác.`);
+          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)! Bạn có thể gõ tiếp /remake [số_cảnh] bất cứ lúc nào nếu muốn đổi lại video khác.`);
       } else if (successCount > 0 && failedPanels.length > 0) {
         await sendTelegramMessage(botToken, chatId,
           `⚠️ Đã hoàn thành ${successCount} video, nhưng có ${failedPanels.length} cảnh bị lỗi (${elapsed}s).\n👉 Gõ /remake ${failedPanels.map(f => f.panelIndex).join(' ')} để tạo lại các cảnh lỗi.`);
@@ -534,6 +489,104 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   });
 }
 
+async function forwardToN8nWebhook(payload) {
+  const n8nBaseUrl = process.env.N8N_WEBHOOK_BASE_URL || 'http://localhost:5678';
+  const testUrl = `${n8nBaseUrl}/webhook-test/tiktok-task`;
+  const prodUrl = `${n8nBaseUrl}/webhook/tiktok-task`;
+
+  // 1. Try test webhook first (if user is debugging in n8n Editor)
+  try {
+    const res = await tgHttp.post(testUrl, payload, { timeout: 3000 });
+    if (res.status === 200) {
+      console.log('[Telegram Bot] 🚀 Forwarded event to n8n TEST webhook successfully.');
+      return true;
+    }
+  } catch (_) {}
+
+  // 2. Try production webhook
+  try {
+    const res = await tgHttp.post(prodUrl, payload, { timeout: 3000 });
+    if (res.status === 200) {
+      console.log('[Telegram Bot] 🚀 Forwarded event to n8n PRODUCTION webhook successfully.');
+      return true;
+    }
+  } catch (_) {}
+
+  return false;
+}
+
+async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, template = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3') {
+  try {
+    await sendTelegramMessage(botToken, chatId, `🔍 Đang tải thông tin sản phẩm từ link TikTok Shop...`);
+    const resp = await tgHttp.get(shortlink, {
+      maxRedirects: 5,
+      validateStatus: () => true,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    const productUrl = resp.request?.res?.responseUrl || shortlink;
+    const assets = extractProductAssetsFromHtml(resp.data, productUrl);
+    if (!assets.title && assets.productImages.length === 0) {
+      await sendTelegramMessage(botToken, chatId, `⚠️ Không thể lấy thông tin sản phẩm hoặc ảnh từ link này.`);
+      return;
+    }
+
+    const enqueueResult = generationJobService.enqueueJob({
+      chatId: String(chatId),
+      sourceMessageId: messageId,
+      shortlink,
+      productUrl,
+      template,
+      productId: assets.productId,
+      productTitle: assets.title,
+      productDescription: assets.productDescription,
+      productImages: assets.productImages.slice(0, 8),
+    });
+    const job = enqueueResult.job || enqueueResult;
+
+    await sendTelegramMessage(botToken, chatId, `✅ Đã tiếp nhận sản phẩm [${assets.title || 'TikTok Shop'}]. Đang khởi tạo pipeline tạo video (Job ID: ${job.jobId})...`);
+
+    const checkInterval = setInterval(async () => {
+      const current = generationJobService.getJob(job.jobId);
+      if (!current) {
+        clearInterval(checkInterval);
+        return;
+      }
+      if (current.status === 'completed') {
+        clearInterval(checkInterval);
+        await sendTelegramMessage(botToken, chatId, `🎬 Video review hoàn chỉnh đã xong!\n\n🛒 Tên: ${current.product?.title}\n💬 Caption: ${current.caption}\n\n👉 Gõ /upload để đăng lên TikTok.`);
+      } else if (current.status === 'failed') {
+        clearInterval(checkInterval);
+        await sendTelegramMessage(botToken, chatId, `⚠️ Quá trình tạo video thất bại: ${current.error?.message || 'Lỗi không xác định'}`);
+      }
+    }, 5000);
+  } catch (err) {
+    console.error('[Telegram Bot] Direct TikTok flow error:', err.message);
+    await sendTelegramMessage(botToken, chatId, `⚠️ Lỗi xử lý link: ${err.message}`);
+  }
+}
+
+async function handleUploadDirectCommand(botToken, chatId, targetJobId) {
+  const job = targetJobId ? generationJobService.getJob(targetJobId) : generationJobService.getLatestCompletedJob(String(chatId));
+  if (!job || job.status !== 'completed') {
+    await sendTelegramMessage(botToken, chatId, '⚠️ Không tìm thấy video đã hoàn tất gần đây của bạn. Vui lòng gửi link TikTok Shop để tạo video trước.');
+    return;
+  }
+  if (job.upload?.status === 'published') {
+    await sendTelegramMessage(botToken, chatId, `ℹ️ Video này đã được đăng thành công trước đó (Publish ID: ${job.upload?.publishId || 'OK'}). Bỏ qua.`);
+    return;
+  }
+  await sendTelegramMessage(botToken, chatId, `🚀 Đang chuẩn bị ghép final video 9:16 và upload lên TikTok cho [${job.product?.title || 'Sản phẩm'}]...`);
+  try {
+    const { prepareUploadJob } = require('./generation-job');
+    await prepareUploadJob(job.jobId);
+  } catch (err) {
+    console.error('[Telegram Bot] Direct upload error:', err.message);
+    await sendTelegramMessage(botToken, chatId, `⚠️ Lỗi chuẩn bị upload: ${err.message}`);
+  }
+}
+
 /**
  * Process a single Telegram update
  */
@@ -547,19 +600,214 @@ async function handleUpdate(botToken, update) {
   if (message.text) {
     const text = message.text.trim();
 
+    // ── Check if message contains TikTok shortlink or /upload ──────────────────
+    const urlMatch = text.match(/(https?:\/\/(?:vt\.tiktok\.com|www\.tiktok\.com|shop\.tiktok\.com)\/[^\s]+)/i);
+    const commandKind = classifyTelegramCommand(text);
+    const isUploadCmd = commandKind === 'upload';
+    const isRemakeCmd = commandKind === 'remake';
+    const templateCmdMatch = text.match(/^\/(template[0-9_]+)/i);
+
+    if (isUploadCmd) {
+      const targetJobId = text.split(/\s+/)[1] || null;
+      const job = targetJobId
+        ? generationJobService.getJob(targetJobId)
+        : generationJobService.getLatestCompletedJob(String(chatId));
+
+      if (!job || job.status !== 'completed') {
+        await sendTelegramMessage(botToken, chatId, '⚠️ Đã nhận /upload nhưng chưa tìm thấy video đã hoàn tất gần đây. Vui lòng gửi shortlink TikTok Shop để tạo video trước.');
+        return;
+      }
+
+      const signal = generationJobService.setJobCommand(chatId, {
+        command: 'upload',
+        targetJobId: targetJobId || job?.jobId || null,
+        rawText: text,
+      });
+
+      if (signal.delivery === 'delivered') {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '✅ Đã nhận /upload. Workflow đang tiếp tục: ghép final video 9:16, kiểm tra giỏ hàng rồi upload TikTok.'
+        );
+        return;
+      }
+
+      // If no active execution was waiting, forward to n8n webhook to execute upload pipeline
+      const uploadChannel = getChannelForChat(path.resolve(__dirname, '..'), chatId);
+      const payload = {
+        route: 'command',
+        command: 'upload',
+        text,
+        chatId: String(chatId),
+        messageId: message.message_id || null,
+        targetJobId: targetJobId || job?.jobId || null,
+        tiktokCredentialId: uploadChannel.tiktokCredentialId,
+        tiktokCredentialName: uploadChannel.tiktokCredentialName,
+        timestamp: Date.now()
+      };
+
+      const forwarded = await forwardToN8nWebhook(payload);
+      if (!forwarded) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '✅ Đã nhận /upload. Đang xử lý đăng video lên TikTok...'
+        );
+      }
+      return;
+    } else if (isRemakeCmd) {
+      let numbers = [];
+      let customInstruction = '';
+      const underscoreMatch = text.match(/^\/remake_([0-9_]+)(?:@\w+)?(?:\s+(.*))?$/i);
+      if (underscoreMatch) {
+        numbers = underscoreMatch[1].split('_').map(d => parseInt(d, 10)).filter(n => !isNaN(n) && n > 0 && n <= 10);
+        customInstruction = (underscoreMatch[2] || '').trim();
+      } else {
+        const parts = text.replace(/^\/remake(?:@\w+)?\s*/i, '').trim();
+        const tokens = parts ? parts.split(/\s+/) : [];
+        const remaining = [];
+        for (const tok of tokens) {
+          const n = parseInt(tok, 10);
+          if (!isNaN(n) && n > 0 && n <= 10 && remaining.length === 0) {
+            numbers.push(n);
+          } else if (tok) {
+            remaining.push(tok);
+          }
+        }
+        customInstruction = remaining.join(' ').trim();
+      }
+      if (numbers.length === 0) numbers = [1];
+
+      const latestJob = generationJobService.getLatestCompletedJob(String(chatId));
+      if (latestJob) {
+        const signal = generationJobService.setJobCommand(chatId, {
+          command: 'remake',
+          targetJobId: latestJob.jobId,
+          panels: numbers,
+          instruction: customInstruction,
+          rawText: text,
+        });
+
+        if (signal.delivery === 'delivered') {
+          await sendTelegramMessage(
+            botToken,
+            chatId,
+            `✅ Đã nhận /remake${numbers.length ? ` cảnh ${numbers.join(', ')}` : ''}. Workflow đang tạo lại panel.`
+          );
+          return;
+        }
+
+        // ── Fallback: n8n không còn execution đang chờ → xử lý trực tiếp ──
+        console.log(`[Telegram Bot] /remake: no active n8n execution waiting, falling back to direct handleRemakeCommand`);
+        const remakeBaseDir = path.resolve(__dirname, '..');
+        await handleRemakeCommand(botToken, chatId, text, remakeBaseDir);
+        return;
+      }
+    } else if (templateCmdMatch) {
+      const latestJob = generationJobService.getLatestCompletedJob(String(chatId));
+      if (latestJob) {
+        generationJobService.setJobCommand(chatId, {
+          command: 'template',
+          targetJobId: latestJob.jobId,
+          template: templateCmdMatch[1],
+          rawText: text,
+        });
+      }
+    }
+
+    if (commandKind === 'auto_t3') {
+      console.log(`[Telegram Bot] Received /auto_t3 command from chat ${chatId}: ${text}`);
+      const baseDir = path.resolve(__dirname, '..');
+      await handleAutoT3Command(botToken, chatId, text, baseDir);
+      return;
+    }
+
+    // ── /auto_t4 — Lady Shop, template4 ────────────────────────────────────
+    if (/^\/auto_t4(?:@\S+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received /auto_t4 command from chat ${chatId}: ${text}`);
+      const baseDir = path.resolve(__dirname, '..');
+      await autoT4Scheduler.handleCommand(botToken, chatId, text, baseDir);
+      return;
+    }
+
+    // ── /auto_t5 — Gia dụng, template5_2 ────────────────────────────────
+    if (/^\/auto_t5(?:@\S+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received /auto_t5 command from chat ${chatId}: ${text}`);
+      const baseDir = path.resolve(__dirname, '..');
+      await autoT5Scheduler.handleCommand(botToken, chatId, text, baseDir);
+      return;
+    }
+
+    // ── /chatid — Trả về Chat ID và kênh TikTok đang dùng ───────────────────
+    if (/^\/chatid(?:@\S+)?(?:\s|$)/i.test(text) || /^\/channel(?:@\S+)?(?:\s|$)/i.test(text)) {
+      const baseDir = path.resolve(__dirname, '..');
+      const channel = getChannelForChat(baseDir, chatId);
+      const chatType = message.chat.type || 'unknown';
+      const chatTitle = message.chat.title || message.chat.first_name || '';
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `🔑 <b>Chat ID:</b> <code>${chatId}</code>\n` +
+        `📌 <b>Loại chat:</b> ${chatType}${chatTitle ? ` — ${chatTitle}` : ''}\n\n` +
+        `🛍️ <b>Kênh TikTok đang dùng:</b>\n` +
+        `• Tên: <b>${channel.label}</b>\n` +
+        `• Credential ID: <code>${channel.tiktokCredentialId}</code>\n` +
+        `• Credential Name: ${channel.tiktokCredentialName}\n\n` +
+        `👉 Copy <code>${chatId}</code> vào <code>config.json → channels</code> để gán TikTok account cho chat này.`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    if (urlMatch || isUploadCmd) {
+      console.log(`[Telegram Bot] Received TikTok / Upload command from chat ${chatId}: ${text}`);
+      let template = pendingTemplateByChat.get(chatId) || process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3';
+      const templateMatch = text.match(/\/(template[0-9_]+)/i);
+      if (templateMatch) template = templateMatch[1];
+
+      const channel = getChannelForChat(path.resolve(__dirname, '..'), chatId);
+
+      if (isUploadCmd) {
+        // /upload → forward tới n8n (upload-only workflow)
+        const payload = {
+          route: 'upload',
+          text,
+          chatId: String(chatId),
+          messageId: message.message_id || null,
+          targetJobId: text.split(/\s+/)[1] || null,
+          template,
+          channelId: channel.channelId,
+          tiktokCredentialId: channel.tiktokCredentialId,
+          tiktokCredentialName: channel.tiktokCredentialName,
+          timestamp: Date.now()
+        };
+        const forwarded = await forwardToN8nWebhook(payload);
+        if (!forwarded) {
+          await handleUploadDirectCommand(botToken, chatId, payload.targetJobId);
+        }
+      } else if (urlMatch) {
+        // shortlink → xử lý trực tiếp tại server (n8n mới không handle generate)
+        if (pendingTemplateByChat.has(chatId)) {
+          pendingTemplateByChat.delete(chatId); // clear sau khi dùng
+        }
+        await handleTikTokDirectFlow(botToken, chatId, message.message_id, urlMatch[1], template);
+      }
+      return;
+    }
+
     // /start
     if (text.startsWith('/start')) {
       await sendTelegramMessage(botToken, chatId,
-        '👋 Xin chào! Hãy gửi các ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang/sản phẩm cho bạn.\n\n' +
-        '📂 Hoặc dùng các lệnh folder trong menu bot để tải ảnh từ thư mục Drive cùng tên.\n' +
+        '👋 Xin chào! Hãy gửi link TikTok Shop hoặc gửi ảnh sản phẩm qua đây, tôi sẽ tự động phân tích và tạo video review thời trang/sản phẩm cho bạn.\n\n' +
         '👟 Dùng /template1 rồi gửi ảnh để tạo review faceless 2 cảnh, không voice-over.\n' +
         '🥿 Dùng /template2 rồi gửi ảnh để tạo review 8 cảnh, mỗi cảnh 4s, không voice-over.\n' +
-        '🏬 Dùng /template3 rồi gửi ảnh để tạo review shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s), không voice-over.\n' +
+        '🏬 Dùng /template3 rồi gửi link/ảnh để tạo review shop 3 cảnh (top-down 8s + góc hông 4s + đứng thử giày 8s), không voice-over.\n' +
         '👠 Dùng /template4 rồi gửi ảnh để tạo review giày/dép nữ shop pastel 4 cảnh (cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng thử dáng 8s), không voice-over.\n' +
         '✨ Dùng /template5 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s tự động phân tích (có chữ tiếng Việt trên panel, không tiếng review).\n' +
         '💎 Dùng /template5_1 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text, không tiếng review).\n' +
         '🎙️ Dùng /template5_2 rồi gửi ảnh để tạo review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + CÓ GIỌNG NÓI VOICE-OVER review, faceless 100%).\n' +
-        '🔄 Dùng /remake <số_cảnh> [yêu cầu] (VD: /remake 2 hoặc /remake 2 xoay góc 45 độ) để tạo lại video với prompt tùy chỉnh.\n' +
+        '🔄 Dùng /remake [số_cảnh] [yêu cầu] (VD: /remake 2 hoặc /remake 2 xoay góc 45 độ) để tạo lại video với prompt tùy chỉnh.\n' +
         '🎬 Dùng /dailyvlog để tạo video lifestyle cho Nhi.\n' +
         '📊 Dùng /status để xem hàng đợi xử lý.'
       );
@@ -648,20 +896,6 @@ async function handleUpdate(botToken, update) {
       await handleDailyVlogCommand(botToken, chatId);
       return;
     }
-
-    // Folder commands (also handles e.g. /m1@botname sent in groups).
-    // Keep reserved commands; ignore commands starting with 'p' (e.g. /p1, /p2); any other alphanumeric command maps to a folder name.
-    const folderMatch = text.match(/^\/([a-zA-Z][a-zA-Z0-9_]{0,31})(?:@\S+)?$/);
-    if (folderMatch && !RESERVED_COMMANDS.has(folderMatch[1].toLowerCase())) {
-      const folderName = folderMatch[1].toLowerCase();
-      if (folderName.startsWith('p') || folderName.startsWith('l')) {
-        // Bỏ qua các lệnh bắt đầu bằng /p hoặc /l
-        return;
-      }
-      console.log(`[Telegram Bot] Received /${folderName} command from chat ${chatId}`);
-      await handleFolderCommand(botToken, chatId, folderName);
-      return;
-    }
   }
 
   // ── 2. Handle photos ──────────────────────────────────────────────────────
@@ -704,7 +938,7 @@ async function handleUpdate(botToken, update) {
       } else if (selectedTemplate === 'template2') {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template2 review 8 cảnh (video 4s)...';
       } else if (selectedTemplate === 'template3') {
-        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template3 shop 4 cảnh...';
+        receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template3 shop 3 cảnh...';
       } else if (selectedTemplate === 'template4') {
         receiveMsg = '📥 Đã nhận được hình ảnh. Đang gom album cho /template4 giày/dép nữ shop pastel 4 cảnh...';
       } else if (selectedTemplate === 'template5') {
@@ -760,7 +994,7 @@ async function handleUpdate(botToken, update) {
       } else if (batch.template === 'template2') {
         templateMessage = ' theo /template2 review 8 cảnh (video 4s)';
       } else if (batch.template === 'template3') {
-        templateMessage = ' theo /template3 shop 4 cảnh (top-down 8s + POV ngực 6s + góc hông 4s + đứng thử giày 8s)';
+        templateMessage = ' theo /template3 shop 3 cảnh (top-down 8s + góc hông 4s + đứng thử giày 8s)';
       } else if (batch.template === 'template4') {
         templateMessage = ' theo /template4 shop pastel nữ 4 cảnh (cận cảnh 8s + POV váy 6s + góc nệm 4s + đứng thử dáng 8s)';
       } else if (batch.template === 'template5') {
@@ -815,92 +1049,35 @@ async function handleUpdate(botToken, update) {
   }
 }
 
-function getDriveParentFolderIdFromEnv() {
-  const parentFolder = (
-    process.env.DRIVE_PARENT_FOLDER_ID ||
-    process.env.DRIVE_PARENT_FOLDER_URL ||
-    process.env.DRIVE_PARENT_FOLDER ||
-    ''
-  ).trim();
-  return extractDriveFolderId(parentFolder);
-}
-
-function folderNameToTelegramCommand(folderName) {
-  const command = String(folderName || '')
-    .trim()
-    .replace(/^\/+/, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 32);
-
-  // Telegram bot commands support lowercase letters, digits and underscores.
-  if (!/^[a-z][a-z0-9_]{0,31}$/.test(command)) return null;
-  if (RESERVED_COMMANDS.has(command)) return null;
-  // Bỏ qua tất cả các lệnh bắt đầu bằng 'p' hoặc 'l' (ví dụ: p1, p2..., l1, l2...)
-  if (command.startsWith('p') || command.startsWith('l')) return null;
-  return command;
-}
-
-async function buildTelegramCommandsFromDrive() {
-  const commands = [
+function buildTelegramCommands() {
+  return [
+    { command: 'start', description: '👋 Bắt đầu / Xem hướng dẫn' },
     { command: 'status', description: '📊 Xem trạng thái hàng đợi xử lý' },
     { command: 'template1', description: '👟 Review faceless 2 cảnh, không voice-over' },
     { command: 'template2', description: '🥿 Review 8 cảnh, mỗi cảnh 4s, không voice-over' },
-    { command: 'template3', description: '🏬 Review shop 4 cảnh (8s, 6s, 4s, 8s), không voice-over' },
+    { command: 'template3', description: '🏬 Review shop 3 cảnh (8s, 4s, 8s), không voice-over' },
+    { command: 'auto_t3', description: '🤖 Tự động chạy template3 theo lịch config' },
     { command: 'template4', description: '👠 Review giày/dép nữ shop pastel 4 cảnh (8s, 6s, 4s, 8s)' },
     { command: 'template5', description: '✨ Review đa ngành hàng 4 cảnh 6s (có chữ tiếng Việt)' },
     { command: 'template5_1', description: '💎 Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ / No Text)' },
     { command: 'template5_2', description: '🎙️ Review đa ngành hàng 4 cảnh 6s (KHÔNG CHỮ + VOICE REVIEW faceless)' },
-    { command: 'template6', description: '🛒 Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh/WinMart, không chữ, không tiếng)' },
+    { command: 'template6', description: '🛒 Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh/WinMart)' },
     { command: 'remake', description: '🔄 Tạo lại video cảnh chưa ưng ý (VD: /remake 2)' },
+    { command: 'upload', description: '🚀 Đăng video review hoàn chỉnh lên TikTok' },
     { command: 'dailyvlog', description: '🎬 Tạo daily vlog lifestyle cho Nhi từ ảnh sản phẩm' },
   ];
-
-  const parentFolderId = getDriveParentFolderIdFromEnv();
-  if (!parentFolderId) {
-    console.warn('[Telegram Bot] DRIVE_PARENT_FOLDER_ID/URL is not configured; folder command menu will only include built-in commands.');
-    return commands;
-  }
-
-  try {
-    const folders = await listDriveChildFolders(parentFolderId);
-    const seen = new Set(commands.map(item => item.command));
-    driveFolderByCommand.clear();
-
-    for (const folder of folders) {
-      const command = folderNameToTelegramCommand(folder.name);
-      if (!command) continue;
-      if (seen.has(command)) continue;
-
-      commands.push({
-        command,
-        description: `Chạy luồng folder ${folder.name}`,
-      });
-      seen.add(command);
-      driveFolderByCommand.set(command, folder.name);
-
-      // Telegram Bot API allows up to 100 commands. Keep room for /start below.
-      if (commands.length >= 99) break;
-    }
-  } catch (err) {
-    console.warn('[Telegram Bot] ⚠️ Could not load Drive folder commands:', err.message);
-  }
-
-  return commands;
 }
 
 /**
- * Register bot commands so Telegram shows Drive folder names as tappable buttons.
+ * Register bot commands so Telegram shows command menu buttons.
  * Uses the setMyCommands API — called once on startup with retry.
  */
 async function registerBotCommands(botToken, retryCount = 2) {
-  const commands = await buildTelegramCommandsFromDrive();
-  commands.push({ command: 'start', description: 'Bắt đầu / Xem hướng dẫn' });
+  const commands = buildTelegramCommands();
 
   for (let attempt = 1; attempt <= retryCount; attempt++) {
     try {
-      await axios.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
+      await tgHttp.post(`https://api.telegram.org/bot${botToken}/setMyCommands`, { commands }, {
         timeout: parseInt(process.env.TELEGRAM_COMMANDS_TIMEOUT_MS || '30000', 10)
       });
       return;
@@ -926,6 +1103,7 @@ function startTelegramBot() {
 
   // Register command menu buttons on startup (fire-and-forget)
   registerBotCommands(botToken);
+  startAutoT3Scheduler(path.resolve(__dirname, '..'));
 
   isPolling = true;
 
@@ -934,14 +1112,14 @@ function startTelegramBot() {
     while (isPolling) {
       try {
         const pollTimeoutSeconds = Math.max(
-          10,
-          parseInt(process.env.TELEGRAM_POLL_TIMEOUT_SECONDS || '50', 10)
+          5,
+          parseInt(process.env.TELEGRAM_POLL_TIMEOUT_SECONDS || '20', 10)
         );
         const requestTimeoutMs = Math.max(
-          pollTimeoutSeconds * 1000 + 25000,
-          parseInt(process.env.TELEGRAM_POLL_REQUEST_TIMEOUT_MS || '75000', 10)
+          pollTimeoutSeconds * 1000 + 15000,
+          parseInt(process.env.TELEGRAM_POLL_REQUEST_TIMEOUT_MS || '45000', 10)
         );
-        const response = await axios.get(`https://api.telegram.org/bot${botToken}/getUpdates`, {
+        const response = await tgHttp.get(`https://api.telegram.org/bot${botToken}/getUpdates`, {
           params: {
             offset: pollingOffset,
             timeout: pollTimeoutSeconds,
@@ -951,18 +1129,30 @@ function startTelegramBot() {
         });
 
         const updates = response.data.result || [];
+        if (updates.length > 0) {
+          console.log(`[Telegram Bot] 📥 Nhận ${updates.length} update(s) mới từ Telegram...`);
+        }
         for (const update of updates) {
           pollingOffset = update.update_id + 1;
           await handleUpdate(botToken, update);
         }
+
+        // Small 1s cooldown between poll requests to prevent Telegram TCP overlap
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
-          console.warn('[Telegram Bot] Polling request timed out; retrying...');
+        const isConflict = error.response?.status === 409 || /409/i.test(error.message || '');
+        const isTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '');
+
+        if (isTimeout) {
+          // Normal timeout on long-polling — wait 1s before next cycle
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else if (isConflict) {
+          // Wait 2s for previous session to terminate gracefully
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           console.error('[Telegram Bot] Polling error:', error.message);
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
-        // Wait 5 seconds on failure before retrying to avoid high CPU loop
-        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
   })();
@@ -978,5 +1168,9 @@ function stopTelegramBot() {
 
 module.exports = {
   startTelegramBot,
-  stopTelegramBot
+  stopTelegramBot,
+  lastRunByChat,
+  _test: {
+    classifyTelegramCommand,
+  },
 };

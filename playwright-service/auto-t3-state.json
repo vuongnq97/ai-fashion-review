@@ -1,0 +1,53 @@
+{
+  "lastRunSlots": {
+    "2026-09-02 09:40": {
+      "jobId": "tg_5390758681_1734792291774334057_1788316856771",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8mj6sRhW-yI9qr/",
+      "ranAt": "2026-09-02T02:40:56.775Z",
+      "forced": true
+    },
+    "2026-09-02 09:41": {
+      "jobId": "tg_5390758681_1731351188362528615_1788316919885",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8m55Cv3H-AV506/",
+      "ranAt": "2026-09-02T02:42:00.318Z",
+      "forced": true
+    },
+    "2026-09-02 09:48": {
+      "jobId": "tg_5390758681_1732183514480610199_1788317306359",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8Qh4KQcq-SrZcL/",
+      "ranAt": "2026-09-02T02:48:26.808Z",
+      "forced": false
+    },
+    "2026-09-02 18:10": {
+      "jobId": "tg_5390758681_1732248719413054078_1788347415469",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8ugvvryV-QJCoN/",
+      "ranAt": "2026-09-02T11:10:15.914Z",
+      "forced": false
+    },
+    "2026-09-02 18:28": {
+      "jobId": "tg_-5593429194_1730195528870628199_1788348493843",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8ANQrrWb-e1KNu/",
+      "ranAt": "2026-09-02T11:28:14.234Z",
+      "forced": false
+    },
+    "2026-09-02 19:00": {
+      "jobId": "tg_-5593429194_1734792291774334057_1788350406567",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8mj6sRhW-yI9qr/",
+      "ranAt": "2026-09-02T12:00:07.928Z",
+      "forced": false
+    },
+    "2026-09-02 20:00": {
+      "jobId": "tg_-5593429194_1731351188362528615_1788354025908",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8m55Cv3H-AV506/",
+      "ranAt": "2026-09-02T13:00:26.650Z",
+      "forced": false
+    },
+    "2026-09-02 21:37": {
+      "jobId": "tg_-5593429194_1732183514480610199_1788359830274",
+      "shortlink": "https://vt.tiktok.com/ZS9Bt8Qh4KQcq-SrZcL/",
+      "ranAt": "2026-09-02T14:37:10.671Z",
+      "forced": false
+    }
+  },
+  "nextLinkIndex": 4
+}

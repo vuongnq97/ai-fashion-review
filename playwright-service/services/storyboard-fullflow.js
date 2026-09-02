@@ -96,7 +96,7 @@ function buildProductTelegramText(analysis) {
   return {
     productName,
     hashtags,
-    summary: `${productName}\n ${hashtags.join(' ')}`,
+    summary: `📌 <b>${productName}</b>\n🏷️ ${hashtags.join(' ')}`,
   };
 }
 
@@ -114,10 +114,19 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
   try {
     const provider = getStoryboardProvider(baseDir, options);
     console.log(`[FullFlow] Storyboard provider: ${provider.name}`);
+    const progress = typeof options.onProgress === 'function' ? options.onProgress : async () => {};
+    await progress({
+      currentStep: 'product_analyzed',
+      stepOrder: 2,
+      progressPercent: 25,
+      message: `Đã nhận ${filePayloads.length} ảnh local. Đang phân tích bằng ${provider.name}...`,
+    });
     await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
 
     const result = await provider.generateStoryboard(baseDir, filePayloads, {
       ...options,
+      chatId,
+      telegramChatId: chatId,
       generateVideos: true,
       includeVideoBase64: true,
       aspectRatio: options.aspectRatio || '9:16',
@@ -125,35 +134,44 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       cleanupFiles: options.cleanupFiles,
     });
 
+    await progress({
+      currentStep: 'generating_videos',
+      stepOrder: 5,
+      progressPercent: 72,
+      message: 'Storyboard/panels đã xong. Đang kiểm tra video panel...',
+    });
+
     const videos = Array.isArray(result.videos) ? result.videos : [];
     if (videos.length === 0) {
       throw new Error('No videos returned from storyboard/video generation.');
     }
     const productInfo = buildProductTelegramText(result.analysis);
-    if (result.reviewArchive?.root) {
-      await sendTelegramMessage(chatId, `Đã lưu prompt + storyboard để review:\n${result.reviewArchive.root}`);
-    }
 
     let sentCount = 0;
-    for (const video of videos) {
-      if (video.error) {
-        await sendTelegramMessage(chatId, `Lỗi tạo video panel ${video.panelIndex || '?'}: ${video.error}`);
-        continue;
-      }
+    if (options.sendPanelVideos !== false) {
+      for (const video of videos) {
+        const pIdx = video.panelIndex || (sentCount + 1);
+        if (video.error) {
+          await sendTelegramMessage(chatId, `⚠️ Lỗi tạo video Cảnh ${pIdx}: ${video.error}\n👉 Nhấn để thử tạo lại cảnh này: /remake_${pIdx}`);
+          continue;
+        }
 
-      const base64 = video.video?.base64 || video.videoBase64 || null;
-      if (!base64) {
-        await sendTelegramMessage(chatId, `Video panel ${video.panelIndex || '?'} thiếu base64 output.`);
-        continue;
-      }
+        const base64 = video.video?.base64 || video.videoBase64 || null;
+        if (!base64) {
+          await sendTelegramMessage(chatId, `⚠️ Video Cảnh ${pIdx} thiếu dữ liệu video.\n👉 Nhấn để thử tạo lại cảnh này: /remake_${pIdx}`);
+          continue;
+        }
 
-      const panelName = `Panel ${video.panelIndex || sentCount + 1}`;
-      const caption = `${panelName} đã sẵn sàng.`;
-      const ok = await sendVideoToTelegramDirect(chatId, base64, video.panelIndex, panelName, caption);
-      if (ok) sentCount++;
+        const panelName = `Panel ${pIdx}`;
+        const caption = `🎬 Video Cảnh ${pIdx}/${videos.length} hoàn tất.\n👉 Nhấn để tạo lại cảnh này: /remake_${pIdx}`;
+        const ok = await sendVideoToTelegramDirect(chatId, base64, pIdx, panelName, caption);
+        if (ok) sentCount++;
+      }
     }
 
-    await sendTelegramMessage(chatId, `${productInfo.summary}`);
+    if (options.sendSummary !== false) {
+      await sendTelegramMessage(chatId, `${productInfo.summary}`);
+    }
     return { ...result, sentCount, productInfo };
   } finally {
     if (options.cleanupUploads !== false) {

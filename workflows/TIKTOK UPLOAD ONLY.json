@@ -1,0 +1,882 @@
+{
+  "name": "TikTok Upload Only",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tiktok-task",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "node-webhook-trigger",
+      "name": "Webhook — Telegram Event"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.body || $json;\nconst chatId = String(data.chatId || '');\nconst targetJobId = data.targetJobId || null;\nconst tiktokCredentialId = data.tiktokCredentialId || 'cJDNuW2i1tFFXivi';\nconst tiktokCredentialName = data.tiktokCredentialName || 'TikTok Credential account';\nreturn { json: { route: 'command', command: 'upload', chatId, targetJobId, tiktokCredentialId, tiktokCredentialName, rawText: String(data.text || '/upload') } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "node-parse-telegram",
+      "name": "Parse Telegram Message"
+    },
+    {
+      "parameters": {
+        "url": "={{\n$json.targetJobId\n  ? (\"http://host.docker.internal:3000/api/jobs/\" + $json.targetJobId)\n  : ($('Parse Telegram Message').item.json.targetJobId\n      ? (\"http://host.docker.internal:3000/api/jobs/\" + $('Parse Telegram Message').item.json.targetJobId)\n      : (\"http://host.docker.internal:3000/api/jobs/latest?chatId=\" + $('Parse Telegram Message').item.json.chatId))\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        400
+      ],
+      "id": "node-http-find-completed-job",
+      "name": "Find Completed Job For Chat"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.jobId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        400
+      ],
+      "id": "node-if-valid-job-found",
+      "name": "Validate Job Found"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').item.json.chatId }}",
+        "text": "⚠️ Không tìm thấy video đã hoàn tất gần đây của bạn. Vui lòng gửi shortlink TikTok Shop để tạo video trước.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        550
+      ],
+      "id": "node-tg-no-job",
+      "name": "Telegram — No Completed Job",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegramAccount",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.upload?.status }}",
+              "rightValue": "published",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        350
+      ],
+      "id": "node-if-idempotency",
+      "name": "Check Upload Idempotency"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').item.json.chatId }}",
+        "text": "={{ \"ℹ️ Video này đã được đăng thành công trước đó (Publish ID: \" + ($json.upload?.publishId || \"OK\") + \"). Bỏ qua để tránh đăng trùng.\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        500
+      ],
+      "id": "node-tg-already-published",
+      "name": "Telegram — Already Published",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegramAccount",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 200
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        250
+      ],
+      "id": "node-tiktok-get-affiliate",
+      "name": "Get Link Affiliate",
+      "credentials": {
+        "tiktokApi": {
+          "id": "cJDNuW2i1tFFXivi",
+          "name": "TikTok Credential account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst job = $('Validate Job Found').item.json;\nconst affiliateData = $input.item.json;\nconst products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);\nconst matched = products.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: matched ? (matched.title || job.product?.title) : (job.product?.title || 'Sản phẩm TikTok Shop'),\n    caption: job.caption || job.product?.title || 'Review sản phẩm #review #tiktokshop',\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        250
+      ],
+      "id": "node-code-match-product",
+      "name": "Find Product By product_id"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.canAttachCart }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        250
+      ],
+      "id": "node-if-can-attach",
+      "name": "Product Can Attach Cart?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ \"⚠️ Sản phẩm (ID: \" + $json.productId + \" - \" + $json.productTitle + \") không nằm trong danh sách affiliate/showcase của tài khoản TikTok. Dừng upload để tránh mất liên kết giỏ hàng.\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2160,
+        400
+      ],
+      "id": "node-tg-cannot-attach",
+      "name": "Telegram — Product Cannot Attach Cart",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegramAccount",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://host.docker.internal:3000/api/jobs/\" + $json.jobId + \"/prepare-upload\" }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        200
+      ],
+      "id": "node-http-prepare-upload",
+      "name": "Prepare Final Video For Upload"
+    },
+    {
+      "parameters": {
+        "url": "={{ \"http://host.docker.internal:3000/api/jobs/\" + $json.jobId + \"/final-video\" }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        200
+      ],
+      "id": "node-http-download-final-video",
+      "name": "Download Final Generated Video"
+    },
+    {
+      "parameters": {
+        "postSettings": {
+          "text": "={{ $('Find Product By product_id').item.json.caption }}",
+          "visibilityType": 0,
+          "allowComment": 1,
+          "scheduleTime": "=0",
+          "anchors": {
+            "anchor": [
+              {
+                "type": "product",
+                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
+                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-social-tiktok.tikTokUpload",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        200
+      ],
+      "id": "node-tiktok-upload",
+      "name": "TikTok Upload With Product",
+      "credentials": {
+        "tiktokApi": {
+          "id": "cJDNuW2i1tFFXivi",
+          "name": "TikTok Credential account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://host.docker.internal:3000/api/jobs/\" + $('Find Product By product_id').item.json.jobId + \"/upload-state\" }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: \"published\", publishId: $json.publish_id || $json.id || \"published\" }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2880,
+        200
+      ],
+      "id": "node-http-save-publish-state",
+      "name": "Save Publish Result"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ \"http://host.docker.internal:3000/api/jobs/\" + $('Find Product By product_id').item.json.jobId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        200
+      ],
+      "id": "node-http-cleanup-job",
+      "name": "Cleanup Generation Job"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Find Product By product_id').item.json.chatId }}",
+        "text": "={{ \"🎉 Video đã upload thành công lên TikTok!\\n\\n🛒 Sản phẩm gắn giỏ: \" + $('Find Product By product_id').item.json.productTitle + \"\\n🆔 Publish ID: \" + ($('TikTok Upload With Product').item.json.publish_id || \"OK\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3360,
+        200
+      ],
+      "id": "node-tg-upload-completed",
+      "name": "Telegram — Upload Completed",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegramAccount",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "postSettings": {
+          "text": "={{ $('Find Product By product_id').item.json.caption }}",
+          "visibilityType": 0,
+          "allowComment": 1,
+          "scheduleTime": "=0",
+          "anchors": {
+            "anchor": [
+              {
+                "type": "product",
+                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
+                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-social-tiktok.tikTokUpload",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        500
+      ],
+      "id": "node-tiktok-upload-1",
+      "name": "TikTok Upload (Lady)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "WIFMkBwL39jBHjxo",
+          "name": "Lady Shop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 200
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        550
+      ],
+      "id": "node-affiliate-1",
+      "name": "Get Link Affiliate (Lady)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "WIFMkBwL39jBHjxo",
+          "name": "Lady Shop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "postSettings": {
+          "text": "={{ $('Find Product By product_id').item.json.caption }}",
+          "visibilityType": 0,
+          "allowComment": 1,
+          "scheduleTime": "=0",
+          "anchors": {
+            "anchor": [
+              {
+                "type": "product",
+                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
+                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-social-tiktok.tikTokUpload",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        800
+      ],
+      "id": "node-tiktok-upload-2",
+      "name": "TikTok Upload (Nhi)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "Q9JStYDsDEzn5Tg3",
+          "name": "Nhi SHop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 200
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        850
+      ],
+      "id": "node-affiliate-2",
+      "name": "Get Link Affiliate (Nhi)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "Q9JStYDsDEzn5Tg3",
+          "name": "Nhi SHop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "WIFMkBwL39jBHjxo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "lady"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "Q9JStYDsDEzn5Tg3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "nhi"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1160,
+        400
+      ],
+      "id": "node-switch-tiktok-channel",
+      "name": "Switch TikTok Channel"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "WIFMkBwL39jBHjxo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "lady"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "Q9JStYDsDEzn5Tg3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "nhi"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2360,
+        350
+      ],
+      "id": "node-switch-upload-channel",
+      "name": "Switch Upload Channel"
+    }
+  ],
+  "connections": {
+    "Webhook — Telegram Event": {
+      "main": [
+        [
+          {
+            "node": "Parse Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Completed Job For Chat": {
+      "main": [
+        [
+          {
+            "node": "Validate Job Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Job Found": {
+      "main": [
+        [
+          {
+            "node": "Check Upload Idempotency",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram — No Completed Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Upload Idempotency": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Already Published",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch TikTok Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Product By product_id": {
+      "main": [
+        [
+          {
+            "node": "Product Can Attach Cart?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Can Attach Cart?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Video For Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram — Product Cannot Attach Cart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Video For Upload": {
+      "main": [
+        [
+          {
+            "node": "Download Final Generated Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Final Generated Video": {
+      "main": [
+        [
+          {
+            "node": "Switch Upload Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Upload With Product": {
+      "main": [
+        [
+          {
+            "node": "Save Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Publish Result": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Generation Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Generation Job": {
+      "main": [
+        [
+          {
+            "node": "Telegram — Upload Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch TikTok Channel": {
+      "main": [
+        [
+          {
+            "node": "Get Link Affiliate (Lady)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Link Affiliate (Nhi)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Link Affiliate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Lady)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Nhi)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Upload (Lady)": {
+      "main": [
+        [
+          {
+            "node": "Save Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Upload (Nhi)": {
+      "main": [
+        [
+          {
+            "node": "Save Publish Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Upload Channel": {
+      "main": [
+        [
+          {
+            "node": "TikTok Upload (Lady)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TikTok Upload (Nhi)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TikTok Upload With Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Find Completed Job For Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dea97fbe9bb9b26f154b560d4e59b92e5847b07b97005bbe5e516f9705157079"
+  },
+  "id": "0e2fc3f8b32d4b0d"
+}

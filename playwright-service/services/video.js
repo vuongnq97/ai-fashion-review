@@ -138,39 +138,60 @@ async function startVideoGeneration(page, context, {
 
   const apiUrl = 'https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoStartImage';
 
-  const response = await context.request.fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=UTF-8',
-      'Authorization': `Bearer ${bearerToken}`,
-      'Origin': 'https://labs.google',
-      'Referer': 'https://labs.google/',
-      'x-browser-channel': 'stable',
-      'x-browser-copyright': 'Copyright 2026 Google LLC. All Rights Reserved.',
-      'x-browser-year': '2026'
-    },
-    data: JSON.stringify(requestBody),
-    timeout: 60000
-  });
+  let lastError = null;
+  const maxRetries = 3;
 
-  const status = response.status();
-  const body = await response.text();
-
-  if (status !== 200) {
-    let quotaReason = '';
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const errorBody = JSON.parse(body);
-      const reason = errorBody.error?.details?.find(detail => detail.reason)?.reason;
-      quotaReason = reason ? ` reason=${reason}` : '';
-    } catch (_) {}
-    throw new Error(`[VideoGen] API returned HTTP ${status}${quotaReason} model=${videoModelKey} ratio=${apiAspect}: ${body.substring(0, 500)}`);
+      if (attempt > 1) {
+        console.log(`[VideoGen] 🔄 Retrying batchAsyncGenerateVideoStartImage API (Attempt ${attempt}/${maxRetries})...`);
+      }
+
+      const response = await context.request.fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Authorization': `Bearer ${bearerToken}`,
+          'Origin': 'https://labs.google',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-copyright': 'Copyright 2026 Google LLC. All Rights Reserved.',
+          'x-browser-year': '2026'
+        },
+        data: JSON.stringify(requestBody),
+        timeout: 90000
+      });
+
+      const status = response.status();
+      const body = await response.text();
+
+      if (status !== 200) {
+        let quotaReason = '';
+        try {
+          const errorBody = JSON.parse(body);
+          const reason = errorBody.error?.details?.find(detail => detail.reason)?.reason;
+          quotaReason = reason ? ` reason=${reason}` : '';
+        } catch (_) {}
+        throw new Error(`API returned HTTP ${status}${quotaReason} model=${videoModelKey} ratio=${apiAspect}: ${body.substring(0, 500)}`);
+      }
+
+      const result = JSON.parse(body);
+      console.log(`[VideoGen] ✅ Video generation started!`);
+      console.log(`[VideoGen] API response: ${JSON.stringify(result).substring(0, 500)}`);
+
+      return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[VideoGen] ⚠️ startVideoGeneration attempt ${attempt}/${maxRetries} failed: ${err.message}`);
+      if (attempt < maxRetries) {
+        const waitMs = Math.min(3000 * Math.pow(2, attempt - 1), 12000);
+        console.log(`[VideoGen] Waiting ${Math.round(waitMs / 1000)}s before retry...`);
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+    }
   }
 
-  const result = JSON.parse(body);
-  console.log(`[VideoGen] ✅ Video generation started!`);
-  console.log(`[VideoGen] API response: ${JSON.stringify(result).substring(0, 500)}`);
-
-  return result;
+  throw new Error(`[VideoGen] Failed to start video generation after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -39,7 +39,6 @@ function buildTemplate3ReferenceAssets(baseDir) {
   const shopPath = path.join(baseDir, 'assets', 'shopgiay.png');
   const scene1ShoeboxPath = path.join(baseDir, 'assets', 'template3-scene1-shoebox-reference.png');
   const scene1StandPath = path.join(baseDir, 'assets', 'template3-scene1-stand-reference.png');
-  const scene2Path = path.join(baseDir, 'assets', 'cảnh2.jpeg');
   const scene3Path = path.join(baseDir, 'assets', 'canhr3.jpeg');
   const assets = [];
 
@@ -88,23 +87,11 @@ function buildTemplate3ReferenceAssets(baseDir) {
     console.warn(`[GeminiWebAPI] Template3 scene1 stand reference not found: ${scene1StandPath}`);
   }
 
-  // Scene 2 reference: POV from chest looking down at legs
-  if (fs.existsSync(scene2Path)) {
-    assets.push({
-      name: 'canh2-reference.jpeg',
-      role: 'template3_scene2_pov_chest_reference',
-      mimeType: 'image/jpeg',
-      base64: fs.readFileSync(scene2Path).toString('base64'),
-    });
-  } else {
-    console.warn(`[GeminiWebAPI] Template3 scene2 reference not found: ${scene2Path}`);
-  }
-
-  // Scene 3 reference: side-angle bar stool
+  // Scene 2 reference: side-angle bar stool
   if (fs.existsSync(scene3Path)) {
     assets.push({
       name: 'canh3-reference.jpeg',
-      role: 'template3_scene3_side_angle_reference',
+      role: 'template3_scene2_side_angle_reference',
       mimeType: 'image/jpeg',
       base64: fs.readFileSync(scene3Path).toString('base64'),
     });
@@ -265,7 +252,7 @@ function buildRequest(filePayloads, options, baseDir) {
     mergedOptions.category = mergedOptions.category || 'Giày dép / Footwear';
   } else if (template === 'template3') {
     mergedOptions.template = 'template3';
-    mergedOptions.panelCount = 2;
+    mergedOptions.panelCount = 3;
     mergedOptions.noVoiceOver = true;
     mergedOptions.category = mergedOptions.category || 'Giày dép / Footwear';
   }

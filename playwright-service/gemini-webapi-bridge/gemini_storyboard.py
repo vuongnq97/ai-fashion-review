@@ -157,6 +157,22 @@ def resolve_panel_count(options: Dict[str, Any]) -> int:
     return int(options.get("panelCount") or 3)
 
 
+def format_product_context(options: Dict[str, Any]) -> str:
+    ctx = options.get("productContext") if isinstance(options.get("productContext"), dict) else {}
+    lines: List[str] = []
+    if ctx.get("productTitle"):
+        lines.append(f"Product title: {ctx.get('productTitle')}")
+    if ctx.get("productId"):
+        lines.append(f"Product ID: {ctx.get('productId')}")
+    if ctx.get("productUrl"):
+        lines.append(f"Product URL: {ctx.get('productUrl')}")
+    if ctx.get("productDescription"):
+        lines.append(f"Product description from TikTok Shop:\n{ctx.get('productDescription')}")
+    if not lines:
+        return ""
+    return "\nTikTok Shop source metadata:\n" + "\n".join(lines) + "\nPrefer this metadata when it is more specific than image OCR.\n"
+
+
 TEMPLATE3_REALISM_FULL = """
 Photography style: authentic faceless footwear shop review captured with a normal smartphone camera, not a studio advertisement, not a 3D render, not AI-looking product art.
 Smartphone camera: main 1x lens 24-28mm equivalent, vertical 9:16, auto mode, tiny hand shake, slight white-balance drift from mixed shop lighting, minor edge softness, faint sensor noise, no fake bokeh, no artificial blur.
@@ -239,12 +255,14 @@ def build_analysis_prompt(options: Dict[str, Any]) -> str:
     category = options.get("category") or "Fashion product"
     vietnamese_model = bool(options.get("useVietnameseModel", True))
     style_fast = bool(options.get("styleCuonHut", True))
+    product_context = format_product_context(options)
 
     if is_template1(options):
         return f"""
 TEXT-ONLY TASK. Do not generate images. Do not call image generation. Do not create a visual storyboard asset.
 You are a senior footwear product analyst, faceless commercial storyboard director, and Veo 3 prompt writer.
 Analyze the uploaded footwear product reference images and create a reusable faceless review storyboard as JSON text only.
+{product_context}
 
 Requirements:
 - Template: template1 faceless footwear review.
@@ -333,6 +351,7 @@ Important:
 TEXT-ONLY TASK. Do not generate images. Do not call image generation. Do not create a visual storyboard asset.
 You are a senior footwear product analyst, faceless shop-review storyboard director, and Veo 3 prompt writer.
 Analyze ONLY the uploaded footwear product reference images as the product source of truth, then create a reusable template3 storyboard as JSON text only.
+{product_context}
 
 IMPORTANT — VISUAL REALISM DIRECTION:
 {TEMPLATE3_REALISM_FULL}
@@ -458,6 +477,7 @@ Important:
     return f"""
 You are a senior fashion product analyst, storyboard director, and Veo 3 prompt writer.
 Analyze the uploaded product images and create a short Vietnamese review storyboard.
+{product_context}
 
 Requirements:
 - Category: {category}

@@ -1,0 +1,382 @@
+{
+  "name": "AUTO UPLOAD VIDEO +AFFILITATE LIINK TIKTOK",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $json.video_filename }}",
+          "__regex": "https:\\/\\/(?:drive|docs)\\.google\\.com(?:\\/.*|)\\/d\\/([0-9a-zA-Z\\-_]+)(?:\\/.*|)"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "0863fcba-a91a-4f9e-a14b-f583ad4fce4c",
+      "name": "Tải video từ Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pIuEAgcvrQKD8tBz",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product"
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "id": "2e21a290-cdbe-4b37-aafb-0c8547443a31",
+      "name": "Get Link Affiliate",
+      "credentials": {
+        "tiktokApi": {
+          "id": "cJDNuW2i1tFFXivi",
+          "name": "TikTok Credential account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "Đã đăng",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "id": "a792a227-83a5-43eb-b291-f6059dd4e796"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "39666643-cd70-4e57-b4f3-7b1281f9886a",
+      "name": "Lọc video chưa đăng"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        960,
+        0
+      ],
+      "id": "890475ee-3acd-4798-9662-029564d35693",
+      "name": "Xử lý từng video một"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM",
+          "mode": "list",
+          "cachedResultName": "TIKTOK UPLOAD LINK AFFLIATE",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 435356731,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM/edit#gid=435356731"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        0
+      ],
+      "id": "b4f1594d-4075-4390-9bfb-ae3d0f1c14c9",
+      "name": "Đọc danh sách video",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PXwdi8PccQFnwH8i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "postSettings": {
+          "text": "={{ $('Xử lý từng video một').item.json.caption }}",
+          "visibilityType": 0,
+          "allowComment": 1,
+          "scheduleTime": "=0",
+          "anchors": {
+            "anchor": [
+              {
+                "type": "product",
+                "productId": "={{ $('Get Link Affiliate').first().json.products.find(p => p.product_id === $('Xử lý từng video một').item.json.product_id).product_id }}",
+                "displayName": "={{ $('Get Link Affiliate').first().json.products.find(p => p.product_id === $('Xử lý từng video một').item.json.product_id).title }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-social-tiktok.tikTokUpload",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        0
+      ],
+      "id": "884b07fd-6c96-4ec4-8654-360cbc392b55",
+      "name": "TikTok Upload With Product",
+      "credentials": {
+        "tiktokApi": {
+          "id": "cJDNuW2i1tFFXivi",
+          "name": "TikTok Credential account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM",
+          "mode": "list",
+          "cachedResultName": "TIKTOK UPLOAD LINK AFFLIATE",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 435356731,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1R00ZEsNj0KZjb-Kg0Ile4qDTaTxNqtTfrDhyboFD8oM/edit#gid=435356731"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "product_id": "={{ $('Đọc danh sách video').item.json.product_id }}",
+            "status": "Đã đăng"
+          },
+          "matchingColumns": [
+            "product_id"
+          ],
+          "schema": [
+            {
+              "id": "video_filename",
+              "displayName": "video_filename",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "product_id",
+              "displayName": "product_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1728,
+        0
+      ],
+      "id": "dac48f6f-dd39-4e54-af27-32b559c202eb",
+      "name": "Đánh dấu đã đăng",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PXwdi8PccQFnwH8i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1a367760-5a92-48bd-b71f-c8fd39420e82",
+      "name": "Lịch đăng hàng ngày 8h"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tải video từ Drive": {
+      "main": [
+        [
+          {
+            "node": "TikTok Upload With Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate": {
+      "main": [
+        [
+          {
+            "node": "Đọc danh sách video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lọc video chưa đăng": {
+      "main": [
+        [
+          {
+            "node": "Xử lý từng video một",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xử lý từng video một": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Tải video từ Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Đọc danh sách video": {
+      "main": [
+        [
+          {
+            "node": "Lọc video chưa đăng",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Upload With Product": {
+      "main": [
+        [
+          {
+            "node": "Đánh dấu đã đăng",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lịch đăng hàng ngày 8h": {
+      "main": [
+        [
+          {
+            "node": "Get Link Affiliate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0184e82e-44ff-4906-98b9-2485de41e25d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dea97fbe9bb9b26f154b560d4e59b92e5847b07b97005bbe5e516f9705157079"
+  },
+  "nodeGroups": [],
+  "id": "FbT094ztJLk8Ez5j",
+  "tags": []
+}

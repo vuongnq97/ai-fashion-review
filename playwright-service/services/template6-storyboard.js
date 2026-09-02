@@ -524,11 +524,12 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     throw new Error('Template 6 requires at least one product reference image.');
   }
 
+  const effectiveBaseDir = baseDir || path.resolve(__dirname, '..');
   const secure1Psid = process.env.GEMINI_SECURE_1PSID;
   const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
-    : path.join(baseDir, 'gemini.cookies.json');
+    ? path.resolve(effectiveBaseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(effectiveBaseDir, 'gemini.cookies.json');
 
   if (!secure1Psid && !cookieFilePath) {
     throw new Error('GEMINI_SECURE_1PSID or GEMINI_COOKIE_PATH is required for Template 6 storyboard generation');

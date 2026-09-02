@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
 const { GeminiApiClient } = require('./gemini-client/gemini-api');
+const { sendPhotoToTelegram, sendOrUpdateLivePanel } = require('./telegram-send');
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -51,15 +52,27 @@ function parseJsonObject(text) {
 /**
  * Xây dựng Analysis Prompt đa ngành hàng theo cấu trúc chuẩn của default template
  */
-function buildTemplate5AnalysisPrompt() {
+function buildProductContextSection(options = {}) {
+  const ctx = options.productContext || {};
+  const lines = [];
+  if (ctx.productTitle) lines.push(`Product title: ${ctx.productTitle}`);
+  if (ctx.productId) lines.push(`Product ID: ${ctx.productId}`);
+  if (ctx.productUrl) lines.push(`Product URL: ${ctx.productUrl}`);
+  if (ctx.productDescription) lines.push(`Product description from TikTok Shop:\n${ctx.productDescription}`);
+  return lines.length ? `\nTikTok Shop source metadata:\n${lines.join('\n')}\n` : '';
+}
+
+function buildTemplate5AnalysisPrompt(options = {}) {
   return `TEXT-ONLY TASK. Do not generate images. Do not call image generation. Do not create a visual storyboard asset.
 You are a senior multi-category product marketing analyst, lifestyle content director, and Veo 3 prompt writer.
 Analyze the uploaded product reference images (which can be any product: Fashion, Clothing, Bags, Footwear, Cosmetics/Skincare, Home Appliances/Kitchenware, Tech Gadgets, Accessories, etc.) and write a comprehensive product review plan as JSON text only.
+${buildProductContextSection(options)}
 
 Requirements:
 - Panel count: exactly 4.
 - Scene ratio for each panel: 9:16 vertical.
 - Identify the product name in Vietnamese, category, materials/ingredients, key selling points, and target audience.
+- Prefer the TikTok Shop product title and Product description metadata when they are more specific than image OCR.
 - Design an aesthetic, authentic lifestyle setting (e.g., modern sunlit living room, luxury marble vanity, contemporary kitchen countertop, aesthetic desk setup, minimalist cafe, or chic boutique) that best showcases this product naturally.
 - For each of the 4 panels, extract RICH & FLEXIBLE VIETNAMESE TEXT OVERLAYS consisting of:
   1. "headline": Short, punchy uppercase title (1-4 words).
@@ -244,7 +257,7 @@ function normalizePanelOverlays(parsed) {
 /**
  * Phân tích sản phẩm qua Gemini API
  */
-async function analyzeProductTemplate5(geminiClient, filePayloads) {
+async function analyzeProductTemplate5(geminiClient, filePayloads, options = {}) {
   console.log(`[Template5] Step 1a: Uploading ${filePayloads.length} product image(s)...`);
 
   const uploadedFiles = [];
@@ -262,7 +275,7 @@ async function analyzeProductTemplate5(geminiClient, filePayloads) {
   }
 
   console.log(`[Template5] Step 1b: Analyzing product metadata via Gemini API...`);
-  const analysisPrompt = buildTemplate5AnalysisPrompt();
+  const analysisPrompt = buildTemplate5AnalysisPrompt(options);
 
   try {
     const res = await geminiClient.generateContent({
@@ -546,10 +559,11 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
  * Lưu trữ metadata và kết quả vào thư mục storyboard-review-runs
  */
 function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64, panels, analysis, options = {}) {
+  const effectiveBaseDir = baseDir || path.resolve(__dirname, '..');
   const template = options.template || (options.noText ? (options.hasVoice ? 'template5_2' : 'template5_1') : 'template5');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runId = Math.random().toString(36).substring(2, 8);
-  const runDir = path.join(baseDir, 'storyboard-review-runs', `${timestamp}-${template}-flow-${runId}`);
+  const runDir = path.join(effectiveBaseDir, 'storyboard-review-runs', `${timestamp}-${template}-flow-${runId}`);
   ensureDir(runDir);
 
   const inputsDir = path.join(runDir, 'inputs');
@@ -562,13 +576,16 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
   });
 
   const storyboardPath = path.join(runDir, 'storyboard.png');
-  fs.writeFileSync(storyboardPath, Buffer.from(storyboardBase64, 'base64'));
+  if (storyboardBase64) {
+    fs.writeFileSync(storyboardPath, Buffer.from(storyboardBase64, 'base64'));
+  }
 
   const panelsDir = path.join(runDir, 'panels');
   ensureDir(panelsDir);
   panels.forEach(p => {
     const pPath = path.join(panelsDir, `panel-${p.index}.png`);
-    fs.writeFileSync(pPath, Buffer.from(p.imageBase64, 'base64'));
+    const pBuf = Buffer.isBuffer(p.buffer) ? p.buffer : (p.base64 ? Buffer.from(p.base64, 'base64') : null);
+    if (pBuf) fs.writeFileSync(pPath, pBuf);
     p.imagePath = pPath;
   });
 
@@ -586,7 +603,8 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
     : overlays.map(p => `### Panel ${p.id}: ${p.headline}\n${(p.subtexts || []).map(s => `- ${s}`).join('\n')}`).join('\n\n');
 
   const mdContent = [
-    `# Storyboard Run: ${template}`,
+    `# Template 5 Storyboard Run - ${template.toUpperCase()}`,
+    `Run ID: ${runId}`,
     `Date: ${new Date().toISOString()}`,
     `Product: ${analysis?.productName || 'Unknown'}`,
     `Category: ${analysis?.category || 'general'}`,
@@ -634,11 +652,12 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
   console.log(`[Template5] Starting ${template.toUpperCase()} (${isNoText ? 'No Text' : 'With Text'}${hasVoice ? ' + Voice' : ''}) review generation for ${filePayloads.length} input image(s)...`);
 
+  const effectiveBaseDir = baseDir || path.resolve(__dirname, '..');
   const secure1Psid = process.env.GEMINI_SECURE_1PSID;
   const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
-    : path.join(baseDir, 'gemini.cookies.json');
+    ? path.resolve(effectiveBaseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(effectiveBaseDir, 'gemini.cookies.json');
 
   if (!secure1Psid && !cookieFilePath) {
     throw new Error('GEMINI_SECURE_1PSID or GEMINI_COOKIE_PATH is required for Template 5 storyboard generation');
@@ -659,7 +678,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
   try {
     // 1. Phân tích sản phẩm
-    const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate5(geminiClient, filePayloads);
+    const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate5(geminiClient, filePayloads, promptOptions);
     analysis = analyzedData;
 
     // 2. Sinh Master Storyboard qua Gemini API (Không dùng ảnh ref tĩnh)
@@ -697,6 +716,12 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       throw new Error(`Failed to generate Master Storyboard: ${lastMasterErr?.message || 'Unknown error'}`);
     }
 
+    const targetChatId = options.chatId || options.telegramChatId || null;
+    if (targetChatId && storyboardBuf) {
+      sendPhotoToTelegram(targetChatId, storyboardBuf, `🎨 Master Storyboard (${template.toUpperCase()}) đã tạo xong. Đang tiến hành sinh 4 panel...`)
+        .catch(err => console.error('[Template5] sendPhoto error:', err.message));
+    }
+
     // Upload storyboard image for panel generation reference
     const sbUploadUrl = await geminiClient.uploadFile(storyboardBuf, 'master_storyboard.png', 'image/png');
     const combinedFiles = [
@@ -706,6 +731,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
     // 3. Tách / Sinh 4 Panel 9:16 riêng biệt (có chữ hoặc không chữ) qua Gemini API
     const videoPrompts = getTemplate5VideoPrompts(analysis, promptOptions);
+    let livePanelMsgId = null;
     for (let i = 1; i <= 4; i++) {
       console.log(`[Template5] Step 3: Generating Panel ${i}/4 (9:16) [${isNoText ? 'No Text' : 'With Text'}] via Gemini API...`);
       const panelPrompt = buildTemplate5PanelPrompt(i, analysis, promptOptions);
@@ -747,10 +773,24 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         mimeType: 'image/png',
         prompt: videoPrompts[i - 1],
       });
+
+      if (targetChatId && panelBuf) {
+        try {
+          livePanelMsgId = await sendOrUpdateLivePanel(targetChatId, livePanelMsgId, panelBuf, i, 4);
+        } catch (_) {}
+      }
     }
   } finally {
     try { await geminiClient.close(); } catch (_) {}
   }
+
+  const progress = typeof options.onProgress === 'function' ? options.onProgress : async () => {};
+  await progress({
+    currentStep: 'panels_generated',
+    stepOrder: 4,
+    progressPercent: 60,
+    message: 'Đã tạo xong 4 panel ảnh. Đang tiến hành tạo video...',
+  });
 
   // 4. Archive kết quả
   const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis, promptOptions);
@@ -759,12 +799,24 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   let videos = [];
   if (options.generateVideos !== false) {
     console.log('[Template5] Step 5: Generating 4 Veo 3 6-second videos on Google Flow...');
+    await progress({
+      currentStep: 'generating_videos',
+      stepOrder: 5,
+      progressPercent: 75,
+      message: 'Đang tạo 4 video bằng Veo 3...',
+    });
     videos = await generateVideosFromPanelsDirect(baseDir, panels, {
       aspectRatio: '9:16',
       videoModelKey: options.videoModelKey || null,
       includeVideoBase64: !!options.includeVideoBase64,
     });
     console.log(`[Template5] Video result: ${videos.filter(v => !v.error).length}/${videos.length} completed`);
+    await progress({
+      currentStep: 'videos_generated',
+      stepOrder: 6,
+      progressPercent: 90,
+      message: `Đã tạo xong ${videos.filter(v => !v.error).length}/${videos.length} video panel.`,
+    });
 
     if (reviewArchive && reviewArchive.root) {
       const videosDir = path.join(reviewArchive.root, 'videos');

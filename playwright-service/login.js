@@ -1,14 +1,27 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
 const path = require('path');
 const { EXTENSION_ID, getExtensionArgs } = require('./utils/extension-loader');
 
 (async () => {
   const userDataDir = path.join(__dirname, 'chrome-data');
+  try {
+    if (fs.existsSync(userDataDir)) {
+      for (const f of fs.readdirSync(userDataDir)) {
+        if (f.startsWith('Singleton')) {
+          try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+
   console.log('----------------------------------------------------');
   console.log('Mở trình duyệt để bạn đăng nhập Google. Vui lòng không đóng trình duyệt cho đến khi đăng nhập xong.');
   console.log('----------------------------------------------------');
   
+  const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
   const context = await chromium.launchPersistentContext(userDataDir, {
+    channel: chromeChannel,
     headless: false,
     args: [
       '--disable-blink-features=AutomationControlled',

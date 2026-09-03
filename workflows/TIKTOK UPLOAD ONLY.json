@@ -166,7 +166,8 @@
     {
       "parameters": {
         "resource": "product",
-        "count": 200
+        "count": 100,
+        "offset": 0
       },
       "type": "n8n-nodes-social-tiktok.tiktokAll",
       "typeVersion": 1,
@@ -185,12 +186,12 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst job = $('Validate Job Found').item.json;\nconst affiliateData = $input.item.json;\nconst products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);\nconst matched = products.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: matched ? (matched.title || job.product?.title) : (job.product?.title || 'Sản phẩm TikTok Shop'),\n    caption: job.caption || job.product?.title || 'Review sản phẩm #review #tiktokshop',\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};\n"
+        "jsCode": "const job = $('Validate Job Found').item.json;\n\nfunction getProductsFromNode(nodeName) {\n  try {\n    const data = $(nodeName).first()?.json;\n    if (!data) return [];\n    return Array.isArray(data.products) ? data.products : (Array.isArray(data) ? data : []);\n  } catch (e) {\n    return [];\n  }\n}\n\n// Lấy sản phẩm từ input hiện tại (Page 2 của shop đang chạy)\nconst currentData = $input.item.json;\nconst currentProducts = Array.isArray(currentData.products) ? currentData.products : (Array.isArray(currentData) ? currentData : []);\n\n// Thu thập từ cả Page 1 và Page 2 của tất cả các node affiliate\nconst allProducts = [\n  ...currentProducts,\n  ...getProductsFromNode('Get Link Affiliate'),\n  ...getProductsFromNode('Get Link Affiliate (P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady - P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi - P2)')\n];\n\n// Deduplicate theo product_id\nconst uniqueProducts = [];\nconst seenIds = new Set();\nfor (const p of allProducts) {\n  if (p && p.product_id && !seenIds.has(String(p.product_id))) {\n    seenIds.add(String(p.product_id));\n    uniqueProducts.push(p);\n  }\n}\n\nconst matched = uniqueProducts.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: matched ? (matched.title || job.product?.title) : (job.product?.title || 'Sản phẩm TikTok Shop'),\n    caption: job.caption || job.product?.title || 'Review sản phẩm #review #tiktokshop',\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    totalProductsFound: uniqueProducts.length,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
+        1920,
         250
       ],
       "id": "node-code-match-product",
@@ -221,7 +222,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1920,
+        2160,
         250
       ],
       "id": "node-if-can-attach",
@@ -239,7 +240,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2160,
+        2400,
         400
       ],
       "id": "node-tg-cannot-attach",
@@ -260,7 +261,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2160,
+        2400,
         200
       ],
       "id": "node-http-prepare-upload",
@@ -280,7 +281,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2400,
+        2640,
         200
       ],
       "id": "node-http-download-final-video",
@@ -307,7 +308,7 @@
       "type": "n8n-nodes-social-tiktok.tikTokUpload",
       "typeVersion": 1,
       "position": [
-        2640,
+        2880,
         200
       ],
       "id": "node-tiktok-upload",
@@ -331,7 +332,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2880,
+        3120,
         200
       ],
       "id": "node-http-save-publish-state",
@@ -346,7 +347,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3360,
         200
       ],
       "id": "node-http-cleanup-job",
@@ -364,7 +365,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3360,
+        3600,
         200
       ],
       "id": "node-tg-upload-completed",
@@ -397,7 +398,7 @@
       "type": "n8n-nodes-social-tiktok.tikTokUpload",
       "typeVersion": 1,
       "position": [
-        2640,
+        2880,
         500
       ],
       "id": "node-tiktok-upload-1",
@@ -412,7 +413,8 @@
     {
       "parameters": {
         "resource": "product",
-        "count": 200
+        "count": 100,
+        "offset": 0
       },
       "type": "n8n-nodes-social-tiktok.tiktokAll",
       "typeVersion": 1,
@@ -450,7 +452,7 @@
       "type": "n8n-nodes-social-tiktok.tikTokUpload",
       "typeVersion": 1,
       "position": [
-        2640,
+        2880,
         800
       ],
       "id": "node-tiktok-upload-2",
@@ -465,7 +467,8 @@
     {
       "parameters": {
         "resource": "product",
-        "count": 200
+        "count": 100,
+        "offset": 0
       },
       "type": "n8n-nodes-social-tiktok.tiktokAll",
       "typeVersion": 1,
@@ -602,11 +605,74 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        2360,
+        2600,
         350
       ],
       "id": "node-switch-upload-channel",
       "name": "Switch Upload Channel"
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 100,
+        "offset": 100
+      },
+      "id": "node-affiliate-men-p2",
+      "name": "Get Link Affiliate (P2)",
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        250
+      ],
+      "credentials": {
+        "tiktokApi": {
+          "id": "cJDNuW2i1tFFXivi",
+          "name": "MenShop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 100,
+        "offset": 100
+      },
+      "id": "node-affiliate-lady-p2",
+      "name": "Get Link Affiliate (Lady - P2)",
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        550
+      ],
+      "credentials": {
+        "tiktokApi": {
+          "id": "WIFMkBwL39jBHjxo",
+          "name": "Lady Shop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 100,
+        "offset": 100
+      },
+      "id": "node-affiliate-nhi-p2",
+      "name": "Get Link Affiliate (Nhi - P2)",
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        850
+      ],
+      "credentials": {
+        "tiktokApi": {
+          "id": "Q9JStYDsDEzn5Tg3",
+          "name": "Nhi SHop"
+        }
+      }
     }
   ],
   "connections": {
@@ -672,7 +738,7 @@
       "main": [
         [
           {
-            "node": "Find Product By product_id",
+            "node": "Get Link Affiliate (P2)",
             "type": "main",
             "index": 0
           }
@@ -792,7 +858,7 @@
       "main": [
         [
           {
-            "node": "Find Product By product_id",
+            "node": "Get Link Affiliate (Lady - P2)",
             "type": "main",
             "index": 0
           }
@@ -803,7 +869,7 @@
       "main": [
         [
           {
-            "node": "Find Product By product_id",
+            "node": "Get Link Affiliate (Nhi - P2)",
             "type": "main",
             "index": 0
           }
@@ -862,6 +928,39 @@
         [
           {
             "node": "Find Completed Job For Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (P2)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Lady - P2)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Nhi - P2)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
             "type": "main",
             "index": 0
           }

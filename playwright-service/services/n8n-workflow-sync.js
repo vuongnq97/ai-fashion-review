@@ -259,14 +259,20 @@ process.stdin.on('end', () => {
 
     // Lưu workflow đã update vào database với trạng thái published/active
     const newVersionId = crypto.randomUUID();
-    db.prepare("UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, versionId = ?, activeVersionId = ?, versionCounter = versionCounter + 1, updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW') WHERE id = ?")
-      .run(JSON.stringify(nodes), JSON.stringify(conns), newVersionId, newVersionId, targetWfId);
+    const nodesJson = JSON.stringify(nodes);
+    const connsJson = JSON.stringify(conns);
 
-    // Ghi nhận lịch sử version trong workflow_history
+    // 1. Ghi nhận lịch sử version trong workflow_history TRƯỚC để thoả mãn Foreign Key constraint
     try {
       db.prepare("INSERT INTO workflow_history (versionId, workflowId, authors, nodes, connections, name, autosaved, createdAt, updatedAt) VALUES (?, ?, 'automation', ?, ?, 'TikTok Upload Only', 0, STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'), STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))")
-        .run(newVersionId, targetWfId, JSON.stringify(nodes), JSON.stringify(conns));
-    } catch (_) {}
+        .run(newVersionId, targetWfId, nodesJson, connsJson);
+    } catch (hErr) {
+      console.error('workflow_history insert error:', hErr.message);
+    }
+
+    // 2. Cập nhật workflow_entity với active = 1 và versionId/activeVersionId khớp nhau (Published hoàn toàn)
+    db.prepare("UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, versionId = ?, activeVersionId = ?, versionCounter = versionCounter + 1, updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW') WHERE id = ?")
+      .run(nodesJson, connsJson, newVersionId, newVersionId, targetWfId);
 
     console.log(JSON.stringify({
       success: true,

@@ -18,8 +18,11 @@ const { flowQueue } = require('./flow-queue');
 const { generationJobService } = require('./generation-job');
 const { extractProductAssetsFromHtml } = require('./product-assets');
 const { autoT3Scheduler, autoT4Scheduler, autoT5Scheduler } = require('./auto-template-scheduler');
-const { getChannelForChat } = require('../utils/config-manager');
+const { getChannelForChat, registerChannelForChat, updateChannelCredential } = require('../utils/config-manager');
 const { normalizeTemplateName } = require('./template-options');
+const { startTikTokQrLoginSession, cancelSession } = require('./tiktok-qr-login');
+const { sendPhotoToTelegram } = require('./telegram-send');
+const { loadAccounts, getAccount } = require('./tiktok-web-upload');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
@@ -30,7 +33,7 @@ let isPolling = false;
 let pollingOffset = 0;
 
 const RESERVED_COMMANDS = new Set([
-  'start', 'help', 'menu', 'upload', 'dailyvlog',
+  'start', 'help', 'menu', 'upload', 'dailyvlog', 'register',
   'auto_t3', 'auto_t3_run', 'auto_t3_off',
   'auto_t4', 'auto_t4_run', 'auto_t4_off',
   'auto_t5', 'auto_t5_run', 'auto_t5_off',
@@ -48,6 +51,7 @@ function classifyTelegramCommand(text = '') {
   const value = String(text || '').trim();
   if (/^\/upload(?:@\w+)?(?:\s|$)/i.test(value)) return 'upload';
   if (/^\/remake(?:[_@\s]|$)/i.test(value)) return 'remake';
+  if (/^\/register(?:@\w+)?(?:\s|$)/i.test(value)) return 'register';
   if (/^\/(?:template[0-9_.]+|t[0-9_.]+)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
   if (/^\/(start|help|menu)(?:@\w+)?(?:\s|$)/i.test(value)) return 'start';
   if (/^\/status(?:@\w+)?(?:\s|$)/i.test(value)) return 'status';
@@ -74,6 +78,7 @@ async function sendTelegramMessage(botToken, chatId, text, options = {}) {
       text: text,
       ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
       ...(options.reply_to_message_id ? { reply_to_message_id: options.reply_to_message_id } : {}),
+      ...(options.reply_markup ? { reply_markup: options.reply_markup } : {}),
     }, {
       timeout: parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || '15000', 10)
     });
@@ -634,10 +639,167 @@ async function handleUploadDirectCommand(botToken, chatId, targetJobId, uploadMs
   }
 }
 
+async function answerCallbackQuery(botToken, callbackQueryId, text = '') {
+  try {
+    await tgHttp.post(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+      callback_query_id: callbackQueryId,
+      ...(text ? { text } : {})
+    }, { timeout: 10000 });
+  } catch (_) { }
+}
+
+/**
+ * Handle inline button click (callback_query)
+ */
+async function handleCallbackQuery(botToken, callbackQuery) {
+  const queryId = callbackQuery.id;
+  const message = callbackQuery.message;
+  if (!message) return;
+  const chatId = message.chat.id;
+  const data = String(callbackQuery.data || '').trim();
+  const baseDir = path.resolve(__dirname, '..');
+
+  // 1. Quét mã QR TikTok
+  if (data.startsWith('qr_login')) {
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang khởi tạo mã QR...');
+    await sendTelegramMessage(botToken, chatId, '⏳ <b>Đang mở trang đăng nhập TikTok và tạo mã QR...</b> Vui lòng đợi vài giây!', { parse_mode: 'HTML' });
+
+    startTikTokQrLoginSession(chatId, {
+      onQrReady: async (qrBuffer) => {
+        await sendPhotoToTelegram(
+          chatId,
+          qrBuffer,
+          '📱 <b>HƯỚNG DẪN QUÉT MÃ QR TIKTOK:</b>\n\n' +
+          '1️⃣ Mở app <b>TikTok</b> trên điện thoại của bạn.\n' +
+          '2️⃣ Vào tab <b>Hồ sơ</b> (Profile) → bấm menu <b>☰</b> ở góc trên bên phải.\n' +
+          '3️⃣ Chọn <b>Mã QR của tôi</b> → bấm biểu tượng <b>Quét</b> ở góc trên bên phải.\n' +
+          '4️⃣ Hướng camera quét mã QR ở trên và bấm <b>"Xác nhận đăng nhập"</b>.\n\n' +
+          '⏳ <i>Mã có hiệu lực trong 90 giây. Server sẽ tự động lưu và liên kết ngay khi bạn xác nhận!</i>',
+          { parse_mode: 'HTML' }
+        );
+      },
+      onSuccess: async (info) => {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `🎉 <b>LIÊN KẾT TIKTOK SHOP THÀNH CÔNG!</b>\n\n` +
+          `👤 Kênh TikTok: <b>@${info.username}</b> (${info.screenName})\n` +
+          `🏪 Gán cho Shop: <b>${info.label}</b>\n` +
+          `🔑 Mã Credential: <code>${info.credentialId}</code>\n\n` +
+          `✅ <i>Từ bây giờ, tất cả video tạo trong group này sẽ tự động được gán và upload lên kênh @${info.username}!</i>\n\n` +
+          `👉 Bạn có thể gửi link sản phẩm TikTok Shop hoặc gõ <b>/start</b> để bắt đầu!`,
+          { parse_mode: 'HTML' }
+        );
+      },
+      onTimeout: async () => {
+        const retryKeyboard = {
+          inline_keyboard: [
+            [{ text: '🔄 Tạo lại mã QR mới', callback_data: `qr_login:${chatId}` }]
+          ]
+        };
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `⏱️ <b>Mã QR TikTok đã hết hạn</b> (quá 90 giây chưa xác nhận).\n` +
+          `👉 Bạn có thể bấm nút bên dưới để tạo lại mã QR mới bất kỳ lúc nào:`,
+          { parse_mode: 'HTML', reply_markup: retryKeyboard }
+        );
+      },
+      onError: async (errMsg) => {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `❌ <b>Lỗi khi tạo mã QR:</b> ${errMsg}\n` +
+          `👉 Vui lòng thử lại sau giây lát hoặc chọn shop có sẵn.`,
+          { parse_mode: 'HTML' }
+        );
+      },
+      baseDir
+    });
+    return;
+  }
+
+  // 2. Chọn shop có sẵn
+  if (data.startsWith('select_shop')) {
+    await answerCallbackQuery(botToken, queryId);
+    const accounts = loadAccounts();
+    const accountIds = Object.keys(accounts);
+
+    if (accountIds.length === 0) {
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        '⚠️ Chưa có tài khoản TikTok nào trong hệ thống.\n' +
+        '👉 Vui lòng chọn <b>📸 Quét mã QR liên kết TikTok</b> để kết nối tài khoản đầu tiên!',
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+
+    const buttons = [];
+    for (const id of accountIds) {
+      const acc = accounts[id];
+      const label = acc.label || acc.name || `@${acc.username || id}`;
+      buttons.push([{ text: `🏪 ${label}`, callback_data: `set_shop:${id}` }]);
+    }
+    buttons.push([{ text: '➕ Quét mã QR Shop mới', callback_data: `qr_login:${chatId}` }]);
+
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      '📋 <b>DANH SÁCH SHOP HIỆN CÓ:</b>\n\n' +
+      'Vui lòng chọn tài khoản TikTok bạn muốn gán cho group này:',
+      {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buttons }
+      }
+    );
+    return;
+  }
+
+  // 3. Gán shop được chọn
+  if (data.startsWith('set_shop:')) {
+    await answerCallbackQuery(botToken, queryId);
+    const targetId = data.replace('set_shop:', '').trim();
+    const account = getAccount(targetId);
+
+    if (!account) {
+      await sendTelegramMessage(botToken, chatId, '❌ Không tìm thấy thông tin tài khoản TikTok này.');
+      return;
+    }
+
+    const accountLabel = account.label || account.name || targetId;
+    updateChannelCredential(baseDir, chatId, targetId, accountLabel);
+
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      `✅ <b>ĐÃ LIÊN KẾT SHOP THÀNH CÔNG!</b>\n\n` +
+      `🏪 Group này đã được gán với: <b>${accountLabel}</b>\n` +
+      `🔑 Credential ID: <code>${targetId}</code>\n\n` +
+      `👉 Giờ bạn có thể gửi link sản phẩm TikTok Shop hoặc gõ <b>/start</b> để tạo video!`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+}
+
 /**
  * Process a single Telegram update
  */
 async function handleUpdate(botToken, update) {
+  if (update.callback_query) {
+    await handleCallbackQuery(botToken, update.callback_query);
+    return;
+  }
+
   const message = update.message;
   if (!message) return;
 
@@ -789,8 +951,52 @@ async function handleUpdate(botToken, update) {
         `• Tên: <b>${channel.label}</b>\n` +
         `• Credential ID: <code>${channel.tiktokCredentialId}</code>\n` +
         `• Credential Name: ${channel.tiktokCredentialName}\n\n` +
-        `👉 Copy <code>${chatId}</code> vào <code>config.json → channels</code> để gán TikTok account cho chat này.`,
+        `👉 Dùng lệnh <code>/register [Tên Shop]</code> để đăng ký và quét QR liên kết shop mới cho group này!`,
         { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // ── /register [Tên Shop] — Đăng ký group và liên kết TikTok Shop ─────────
+    const registerMatch = text.match(/^\/register(?:@\S+)?(?:\s+(.+))?$/i);
+    if (registerMatch) {
+      const rawLabel = registerMatch[1] ? registerMatch[1].trim() : '';
+      if (!rawLabel) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '👉 <b>HƯỚNG DẪN ĐĂNG KÝ GROUP:</b>\n\n' +
+          'Vui lòng nhập kèm tên shop theo cú pháp:\n' +
+          '<code>/register [Tên Shop của bạn]</code>\n\n' +
+          '<i>Ví dụ:</i> <code>/register Shop Giày GenZ</code>\n' +
+          '<i>Ví dụ:</i> <code>/register Gia Dụng Thông Minh</code>',
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const baseDir = path.resolve(__dirname, '..');
+      const channel = registerChannelForChat(baseDir, chatId, rawLabel);
+
+      const inlineKeyboard = {
+        inline_keyboard: [
+          [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }],
+          [{ text: '📋 Chọn Shop đã có sẵn', callback_data: `select_shop:${chatId}` }]
+        ]
+      };
+
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `✅ <b>ĐÃ ĐĂNG KÝ GROUP THÀNH CÔNG!</b>\n\n` +
+        `🏪 Tên Shop: <b>${channel.label}</b>\n` +
+        `🔑 Chat ID: <code>${chatId}</code>\n` +
+        `📌 Trạng thái: <i>Chờ liên kết tài khoản TikTok Shop</i>\n\n` +
+        `👉 <b>Bước tiếp theo:</b> Hãy chọn một trong hai cách bên dưới để liên kết tài khoản TikTok đăng video:`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: inlineKeyboard
+        }
       );
       return;
     }
@@ -857,6 +1063,7 @@ async function handleUpdate(botToken, update) {
         '• /t53 (hoặc /template5_3) — Review spam đa ngành hàng (4 video 4s, model Veo, KHÔNG CHỮ + VOICE REVIEW faceless)\n' +
         '• /t6 (hoặc /template6) — Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart)\n\n' +
         '⚡ <b>CÁC LỆNH ĐIỀU KHIỂN & HỖ TRỢ:</b>\n' +
+        '• /register [Tên Shop] — Đăng ký group & quét QR liên kết TikTok Shop\n' +
         '• /upload — Ghép các cảnh video thành video 9:16 và đăng lên TikTok\n' +
         '• /remake [số_cảnh] — Tạo lại cảnh video chưa ưng ý (VD: /remake 1 hoặc /remake_2)\n' +
         '• /status — Xem trạng thái hàng đợi xử lý\n' +
@@ -1129,6 +1336,7 @@ function buildTelegramCommands() {
   return [
     { command: 'start', description: '🚀 Bắt đầu / Xem toàn bộ hướng dẫn & lệnh' },
     { command: 'help', description: '❓ Hướng dẫn sử dụng & danh sách lệnh' },
+    { command: 'register', description: '📝 Đăng ký Shop' },
     { command: 'auto_t3', description: '🤖 Bật auto Template 3 theo lịch' },
     { command: 'auto_t3_run', description: '▶️ Chạy thử ngay 1 video Template 3' },
     { command: 'auto_t3_off', description: '⏸️ Tắt tự động chạy Template 3' },
@@ -1211,7 +1419,7 @@ function startTelegramBot() {
           params: {
             offset: pollingOffset,
             timeout: pollTimeoutSeconds,
-            allowed_updates: JSON.stringify(['message'])
+            allowed_updates: JSON.stringify(['message', 'callback_query'])
           },
           timeout: requestTimeoutMs
         });

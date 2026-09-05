@@ -115,11 +115,36 @@ Bot hỗ trợ đầy đủ các lệnh ngắn gọn tiền tố `/t` (vẫn h�
 
 | Lệnh | Chức Năng |
 |---|---|
+| `/register <Tên Shop>` | Đăng ký nhóm vào hệ thống và liên kết tài khoản TikTok Shop qua QR code |
 | `/upload` | Ghép các cảnh video thành video dọc 9:16 và đăng lên kênh TikTok liên kết của chat |
 | `/remake <cảnh> [prompt]` | Tạo lại cảnh video chưa ưng ý (VD: `/remake 1` hoặc `/remake 4 quay góc cận hơn`) |
 | `/status` | Xem trạng thái hàng đợi đang xử lý video |
 | `/chatid` | Xem Chat ID Telegram và tài khoản TikTok Shop đang gán cho nhóm này |
 | `/start` hoặc `/help` | Mở lại danh sách toàn bộ lệnh và hướng dẫn |
+
+---
+
+## 📱 Đăng Ký Group Mới & Liên Kết TikTok Bằng Mã QR (`/register`)
+
+Hệ thống cho phép thêm nhóm Telegram mới và liên kết tài khoản TikTok hoàn toàn tự động ngay trong khung chat Telegram mà **không cần copy-paste cookie thủ công**:
+
+1. **Thêm bot vào nhóm Telegram mới**.
+2. **Gõ lệnh đăng ký**:
+   ```text
+   /register Shop Giày GenZ
+   ```
+   * Bot tự động ghi nhận nhóm vào `config.json` với trạng thái `pending_link`.
+   * Bot gửi thông báo phản hồi kèm 2 nút bấm thao tác nhanh.
+
+3. **Chọn phương thức liên kết tài khoản TikTok**:
+   * 🌟 **Cách 1: Quét Mã QR TikTok (Nhanh & Tiện lợi nhất)**:
+     * Bấm nút **`[📱 Quét mã QR TikTok]`**.
+     * Bot mở phiên đăng nhập bảo mật và gửi ảnh mã QR trực tiếp vào nhóm Telegram (mã có hiệu lực trong 100 giây).
+     * Mở app **TikTok trên điện thoại** $\rightarrow$ Vào trang cá nhân $\rightarrow$ Chọn biểu tượng Quét mã QR $\rightarrow$ Quét ảnh và bấm **Xác nhận đăng nhập**.
+     * Server tự động bắt session cookies, lấy thông tin nick/ID TikTok, lưu vào `tiktok-accounts.json`, cập nhật `config.json` và thông báo hoàn tất ngay trong nhóm.
+   * 📋 **Cách 2: Chọn Shop đã có sẵn**:
+     * Bấm nút **`[📋 Chọn Shop đã có sẵn]`** nếu tài khoản TikTok của shop này đã từng đăng nhập trước đó trên server.
+     * Chọn nhanh tài khoản từ danh sách nút hiển thị để liên kết ngay lập tức mà không cần quét lại.
 
 ---
 

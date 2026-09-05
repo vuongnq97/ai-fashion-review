@@ -106,7 +106,7 @@ async function deleteTelegramMessage(chatId, messageId) {
   }
 }
 
-async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '') {
+async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', options = {}) {
   const botToken = getBotToken();
   if (!botToken) return null;
 
@@ -119,6 +119,15 @@ async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '') {
     const blob = new Blob([buf], { type: 'image/png' });
     formData.append('photo', blob, 'image.png');
     if (caption) formData.append('caption', caption);
+    if (options.parse_mode) formData.append('parse_mode', options.parse_mode);
+    if (options.reply_markup) {
+      formData.append(
+        'reply_markup',
+        typeof options.reply_markup === 'string'
+          ? options.reply_markup
+          : JSON.stringify(options.reply_markup)
+      );
+    }
 
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
       method: 'POST',

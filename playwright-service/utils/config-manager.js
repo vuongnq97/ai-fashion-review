@@ -102,6 +102,74 @@ function getChannelForChat(baseDir, chatId) {
 }
 
 /**
+ * Register or update a channel label for a given chatId.
+ * @param {string} baseDir
+ * @param {string|number} chatId
+ * @param {string} label
+ */
+function registerChannelForChat(baseDir = path.resolve(__dirname, '..'), chatId, label) {
+  const configPath = path.join(baseDir, 'config.json');
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('[ConfigManager] Error reading config.json for register:', err.message);
+  }
+
+  if (!config.channels) config.channels = {};
+  const key = String(chatId || '').trim();
+  const existing = config.channels[key] || {};
+
+  config.channels[key] = {
+    ...existing,
+    label: (label && String(label).trim()) || existing.label || 'Shop Mới',
+    status: existing.tiktokCredentialId ? 'active' : 'pending_link',
+    updatedAt: new Date().toISOString()
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+  console.log(`[ConfigManager] ✅ Registered channel for chat ${key}: "${config.channels[key].label}"`);
+  return config.channels[key];
+}
+
+/**
+ * Update TikTok credential for a given chatId.
+ * @param {string} baseDir
+ * @param {string|number} chatId
+ * @param {string} credentialId
+ * @param {string} credentialName
+ */
+function updateChannelCredential(baseDir = path.resolve(__dirname, '..'), chatId, credentialId, credentialName) {
+  const configPath = path.join(baseDir, 'config.json');
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('[ConfigManager] Error reading config.json for update credential:', err.message);
+  }
+
+  if (!config.channels) config.channels = {};
+  const key = String(chatId || '').trim();
+  const existing = config.channels[key] || { label: 'Shop Mới' };
+
+  config.channels[key] = {
+    ...existing,
+    tiktokCredentialId: credentialId,
+    tiktokCredentialName: credentialName || existing.label || 'TikTok Account',
+    status: 'active',
+    linkedAt: new Date().toISOString()
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+  console.log(`[ConfigManager] ✅ Updated credential for chat ${key}: ${credentialId} (${config.channels[key].tiktokCredentialName})`);
+  return config.channels[key];
+}
+
+/**
  * Automates setting configuration values on the UI using Playwright.
  * @param {import('playwright').Frame} frame Frame representing the storyboard creator UI applet.
  * @param {string} baseDir Base directory containing config.json.
@@ -213,5 +281,7 @@ async function applyConfigToUI(frame, baseDir = path.resolve(__dirname, '..')) {
 module.exports = {
   getConfig,
   getChannelForChat,
+  registerChannelForChat,
+  updateChannelCredential,
   applyConfigToUI
 };

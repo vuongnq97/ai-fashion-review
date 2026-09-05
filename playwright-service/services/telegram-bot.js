@@ -18,7 +18,7 @@ const { flowQueue } = require('./flow-queue');
 const { generationJobService } = require('./generation-job');
 const { extractProductAssetsFromHtml } = require('./product-assets');
 const { autoT3Scheduler, autoT4Scheduler, autoT5Scheduler } = require('./auto-template-scheduler');
-const { getChannelForChat, registerChannelForChat, updateChannelCredential } = require('../utils/config-manager');
+const { getChannelForChat, getRawChannelForChat, registerChannelForChat, updateChannelCredential } = require('../utils/config-manager');
 const { normalizeTemplateName } = require('./template-options');
 const { startTikTokQrLoginSession, cancelSession } = require('./tiktok-qr-login');
 const { sendPhotoToTelegram } = require('./telegram-send');
@@ -960,8 +960,61 @@ async function handleUpdate(botToken, update) {
     // ── /register [Tên Shop] — Đăng ký group và liên kết TikTok Shop ─────────
     const registerMatch = text.match(/^\/register(?:@\S+)?(?:\s+(.+))?$/i);
     if (registerMatch) {
+      const baseDir = path.resolve(__dirname, '..');
       const rawLabel = registerMatch[1] ? registerMatch[1].trim() : '';
+      const existingChannel = getRawChannelForChat(baseDir, chatId);
+
+      // Trường hợp 1: Người dùng chỉ gõ /register (không kèm tên shop)
       if (!rawLabel) {
+        if (existingChannel) {
+          if (existingChannel.tiktokCredentialId) {
+            await sendTelegramMessage(
+              botToken,
+              chatId,
+              `ℹ️ <b>THÔNG TIN ĐĂNG KÝ SHOP HIỆN TẠI:</b>\n\n` +
+              `🏪 Tên Shop: <b>${existingChannel.label}</b>\n` +
+              `🔑 Chat ID: <code>${chatId}</code>\n` +
+              `👤 Tài khoản TikTok: <b>${existingChannel.tiktokCredentialName || existingChannel.tiktokCredentialId}</b>\n` +
+              `📌 Trạng thái: 🟢 <b>Đang hoạt động</b>\n\n` +
+              `✅ <i>Nhóm này đã được đăng ký và liên kết tài khoản TikTok hoàn tất! Bạn có thể gửi link sản phẩm để tạo video ngay.</i>\n\n` +
+              `⚙️ <b>TÙY CHỌN THAY ĐỔI:</b>\n` +
+              `• Để đổi tên shop: Gõ <code>/register [Tên Shop Mới]</code>\n` +
+              `• Để đổi tài khoản TikTok: Chọn một nút bên dưới:`,
+              {
+                parse_mode: 'HTML',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '🔄 Đổi TikTok khác bằng mã QR', callback_data: `qr_login:${chatId}` }],
+                    [{ text: '📋 Chọn Shop khác có sẵn', callback_data: `select_shop:${chatId}` }]
+                  ]
+                }
+              }
+            );
+            return;
+          } else {
+            await sendTelegramMessage(
+              botToken,
+              chatId,
+              `⚠️ <b>NHÓM ĐÃ ĐĂNG KÝ (CHƯA LIÊN KẾT TIKTOK):</b>\n\n` +
+              `🏪 Tên Shop: <b>${existingChannel.label}</b>\n` +
+              `🔑 Chat ID: <code>${chatId}</code>\n` +
+              `📌 Trạng thái: 🟡 <b>Chờ liên kết tài khoản TikTok Shop</b>\n\n` +
+              `👉 Vui lòng chọn một trong hai cách bên dưới để hoàn tất liên kết:`,
+              {
+                parse_mode: 'HTML',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }],
+                    [{ text: '📋 Chọn Shop đã có sẵn', callback_data: `select_shop:${chatId}` }]
+                  ]
+                }
+              }
+            );
+            return;
+          }
+        }
+
+        // Chưa từng đăng ký mà gõ /register
         await sendTelegramMessage(
           botToken,
           chatId,
@@ -975,27 +1028,73 @@ async function handleUpdate(botToken, update) {
         return;
       }
 
-      const baseDir = path.resolve(__dirname, '..');
-      const channel = registerChannelForChat(baseDir, chatId, rawLabel);
+      // Trường hợp 2: Người dùng gõ /register [Tên Shop]
+      const channelResult = registerChannelForChat(baseDir, chatId, rawLabel);
 
-      const inlineKeyboard = {
-        inline_keyboard: [
-          [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }],
-          [{ text: '📋 Chọn Shop đã có sẵn', callback_data: `select_shop:${chatId}` }]
-        ]
-      };
+      if (channelResult.isAlreadyRegistered && channelResult.hadCredential) {
+        // Đã đăng ký và ĐÃ có tài khoản TikTok đang liên kết
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `ℹ️ <b>NHÓM NÀY ĐÃ ĐƯỢC ĐĂNG KÝ TỪ TRƯỚC!</b>\n\n` +
+          `✏️ <b>Đã cập nhật tên shop thành:</b> <b>${channelResult.label}</b>\n` +
+          `👤 <b>Tài khoản TikTok đang gán:</b> <b>${channelResult.tiktokCredentialName}</b> <i>(vẫn được giữ nguyên)</i>\n` +
+          `🔑 Chat ID: <code>${chatId}</code>\n` +
+          `📌 Trạng thái: 🟢 <b>Đang hoạt động</b>\n\n` +
+          `👉 <i>Bạn có thể gửi link sản phẩm để tạo video ngay!</i>\n` +
+          `👉 <i>Nếu bạn muốn đổi sang tài khoản TikTok khác, bấm chọn bên dưới:</i>`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔄 Đổi TikTok khác bằng mã QR', callback_data: `qr_login:${chatId}` }],
+                [{ text: '📋 Chọn Shop khác có sẵn', callback_data: `select_shop:${chatId}` }]
+              ]
+            }
+          }
+        );
+        return;
+      }
 
+      if (channelResult.isAlreadyRegistered && !channelResult.hadCredential) {
+        // Đã đăng ký trước đó nhưng chưa liên kết credential
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `✏️ <b>ĐÃ CẬP NHẬT TÊN SHOP:</b> <b>${channelResult.label}</b>\n\n` +
+          `🔑 Chat ID: <code>${chatId}</code>\n` +
+          `📌 Trạng thái: 🟡 <b>Chờ liên kết tài khoản TikTok Shop</b>\n\n` +
+          `👉 <b>Bước tiếp theo:</b> Hãy chọn một trong hai cách bên dưới để liên kết tài khoản TikTok đăng video:`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }],
+                [{ text: '📋 Chọn Shop đã có sẵn', callback_data: `select_shop:${chatId}` }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      // Đăng ký mới lần đầu tiên
       await sendTelegramMessage(
         botToken,
         chatId,
         `✅ <b>ĐÃ ĐĂNG KÝ GROUP THÀNH CÔNG!</b>\n\n` +
-        `🏪 Tên Shop: <b>${channel.label}</b>\n` +
+        `🏪 Tên Shop: <b>${channelResult.label}</b>\n` +
         `🔑 Chat ID: <code>${chatId}</code>\n` +
         `📌 Trạng thái: <i>Chờ liên kết tài khoản TikTok Shop</i>\n\n` +
         `👉 <b>Bước tiếp theo:</b> Hãy chọn một trong hai cách bên dưới để liên kết tài khoản TikTok đăng video:`,
         {
           parse_mode: 'HTML',
-          reply_markup: inlineKeyboard
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📸 Quét mã QR liên kết TikTok', callback_data: `qr_login:${chatId}` }],
+              [{ text: '📋 Chọn Shop đã có sẵn', callback_data: `select_shop:${chatId}` }]
+            ]
+          }
         }
       );
       return;

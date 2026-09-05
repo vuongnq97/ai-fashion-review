@@ -102,6 +102,19 @@ function getChannelForChat(baseDir, chatId) {
 }
 
 /**
+ * Lookup raw channel config for a given chatId without default fallback.
+ * @param {string} baseDir
+ * @param {string|number} chatId
+ * @returns {object|null}
+ */
+function getRawChannelForChat(baseDir = path.resolve(__dirname, '..'), chatId) {
+  const config = getConfig(baseDir);
+  const channels = config.channels || {};
+  const key = String(chatId || '').trim();
+  return channels[key] || null;
+}
+
+/**
  * Register or update a channel label for a given chatId.
  * @param {string} baseDir
  * @param {string|number} chatId
@@ -120,18 +133,24 @@ function registerChannelForChat(baseDir = path.resolve(__dirname, '..'), chatId,
 
   if (!config.channels) config.channels = {};
   const key = String(chatId || '').trim();
-  const existing = config.channels[key] || {};
+  const existing = config.channels[key];
+  const isAlreadyRegistered = Boolean(existing);
+  const hadCredential = Boolean(existing && existing.tiktokCredentialId);
 
   config.channels[key] = {
-    ...existing,
-    label: (label && String(label).trim()) || existing.label || 'Shop Mới',
-    status: existing.tiktokCredentialId ? 'active' : 'pending_link',
+    ...(existing || {}),
+    label: (label && String(label).trim()) || existing?.label || 'Shop Mới',
+    status: existing?.tiktokCredentialId ? 'active' : 'pending_link',
     updatedAt: new Date().toISOString()
   };
 
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-  console.log(`[ConfigManager] ✅ Registered channel for chat ${key}: "${config.channels[key].label}"`);
-  return config.channels[key];
+  console.log(`[ConfigManager] ✅ Registered/updated channel for chat ${key}: "${config.channels[key].label}"`);
+  return {
+    ...config.channels[key],
+    isAlreadyRegistered,
+    hadCredential
+  };
 }
 
 /**
@@ -281,6 +300,7 @@ async function applyConfigToUI(frame, baseDir = path.resolve(__dirname, '..')) {
 module.exports = {
   getConfig,
   getChannelForChat,
+  getRawChannelForChat,
   registerChannelForChat,
   updateChannelCredential,
   applyConfigToUI

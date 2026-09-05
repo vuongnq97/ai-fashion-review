@@ -111,14 +111,25 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
   try {
     console.log(`[TikTokQR] Launching browser for chat ${key}...`);
-    const browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--disable-blink-features=AutomationControlled',
-        '--no-sandbox',
-        '--disable-setuid-sandbox'
-      ]
-    });
+    let browser;
+    const launchArgs = [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ];
+    try {
+      // Dùng real Google Chrome để tránh TikTok phát hiện HeadlessChrome (gây lỗi error_code: 7)
+      browser = await chromium.launch({
+        headless: false,
+        channel: 'chrome',
+        args: launchArgs
+      });
+    } catch (_) {
+      browser = await chromium.launch({
+        headless: false,
+        args: launchArgs
+      });
+    }
     sessionObj.browser = browser;
 
     if (sessionObj.isCancelled) {
@@ -151,41 +162,30 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
         try {
           const text = await res.text();
           const json = JSON.parse(text);
-          const status = json.data?.status;
-          if (status === 'scanned' && !hasNotifiedScanned) {
-            hasNotifiedScanned = true;
-            console.log(`[TikTokQR] 📱 Phone scanned QR code for chat ${key}! Waiting for confirmation button...`);
-            if (typeof callbacks.onScanned === 'function') {
-              callbacks.onScanned().catch(() => {});
+          if (json.message === 'success' && json.data) {
+            const status = json.data.status;
+            console.log(`[TikTokQR] 📡 check_qrconnect status: "${status}" for chat ${key}`);
+            if (status === 'scanned' && !hasNotifiedScanned) {
+              hasNotifiedScanned = true;
+              console.log(`[TikTokQR] 📱 Phone scanned QR code for chat ${key}! Waiting for confirmation button...`);
+              if (typeof callbacks.onScanned === 'function') {
+                callbacks.onScanned().catch(() => {});
+              }
+            } else if (status === 'confirmed') {
+              qrConfirmed = true;
+              console.log(`[TikTokQR] 🎉 Login confirmed on phone for chat ${key}! Extracting session...`);
+              if (json.data.redirect_url) {
+                console.log(`[TikTokQR] Navigating to redirect_url: ${json.data.redirect_url}`);
+                page.goto(json.data.redirect_url).catch(() => {});
+              }
             }
-          } else if (status === 'confirmed') {
-            qrConfirmed = true;
-            console.log(`[TikTokQR] 🎉 Login confirmed on phone for chat ${key}! Extracting session...`);
           }
         } catch (_) {}
       }
     });
 
-    console.log(`[TikTokQR] Navigating to https://www.tiktok.com/login for chat ${key}...`);
-    await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded', timeout: 35000 });
-    await page.waitForTimeout(2000);
-
-    if (sessionObj.isCancelled) {
-      await browser.close();
-      return;
-    }
-
-    // Bấm nút "Use QR code"
-    const qrBtn = page.getByText('Use QR code', { exact: true }).or(page.getByText('Sử dụng mã QR', { exact: true }));
-    if (await qrBtn.first().isVisible({ timeout: 5000 }).catch(() => false)) {
-      console.log(`[TikTokQR] Clicking "Use QR code" button for chat ${key}...`);
-      await qrBtn.first().click();
-    } else {
-      console.log(`[TikTokQR] Navigating directly to /login/qrcode for chat ${key}...`);
-      await page.goto('https://www.tiktok.com/login/qrcode', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    }
-
-    await page.waitForTimeout(2000);
+    console.log(`[TikTokQR] Navigating directly to https://www.tiktok.com/login/qrcode for chat ${key}...`);
+    await page.goto('https://www.tiktok.com/login/qrcode', { waitUntil: 'domcontentloaded', timeout: 35000 });
 
     if (sessionObj.isCancelled) {
       await browser.close();

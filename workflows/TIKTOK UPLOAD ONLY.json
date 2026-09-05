@@ -16,7 +16,8 @@
         0
       ],
       "id": "node-webhook-trigger",
-      "name": "Webhook — Telegram Event"
+      "name": "Webhook — Telegram Event",
+      "webhookId": "69495aa4-a56d-4d5d-a672-e4dbf7151bb2"
     },
     {
       "parameters": {
@@ -186,7 +187,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const job = $('Validate Job Found').item.json;\n\nfunction getProductsFromNode(nodeName) {\n  try {\n    const data = $(nodeName).first()?.json;\n    if (!data) return [];\n    return Array.isArray(data.products) ? data.products : (Array.isArray(data) ? data : []);\n  } catch (e) {\n    return [];\n  }\n}\n\n// Lấy sản phẩm từ input hiện tại (Page 2 của shop đang chạy)\nconst currentData = $input.item.json;\nconst currentProducts = Array.isArray(currentData.products) ? currentData.products : (Array.isArray(currentData) ? currentData : []);\n\n// Thu thập từ cả Page 1 và Page 2 của tất cả các node affiliate\nconst allProducts = [\n  ...currentProducts,\n  ...getProductsFromNode('Get Link Affiliate'),\n  ...getProductsFromNode('Get Link Affiliate (P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady - P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi - P2)')\n];\n\n// Deduplicate theo product_id\nconst uniqueProducts = [];\nconst seenIds = new Set();\nfor (const p of allProducts) {\n  if (p && p.product_id && !seenIds.has(String(p.product_id))) {\n    seenIds.add(String(p.product_id));\n    uniqueProducts.push(p);\n  }\n}\n\nconst matched = uniqueProducts.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst defaultTags = ['#review', '#sanphamchinhhang', '#tiktokshop', '#xuhuong', '#trending'];\nconst hashtags = (Array.isArray(job.hashtags) && job.hashtags.length > 0)\n  ? job.hashtags\n  : (Array.isArray(job.analysis?.hashtags) && job.analysis.hashtags.length > 0 ? job.analysis.hashtags : defaultTags);\n\n// Ưu tiên tên sản phẩm từ bước phân tích sản phẩm (AI analysis)\nconst analyzedTitle = job.analysis?.productName || job.analysis?.product_name || job.product?.productName || job.product?.title;\nconst pTitle = (analyzedTitle || (matched ? matched.title : '') || 'Sản phẩm TikTok Shop').trim();\n\nlet finalCaption = (job.caption || '').trim();\nif (!finalCaption || !finalCaption.includes('#')) {\n  finalCaption = `${pTitle}\\n\\n${hashtags.join(' ')}`;\n}\n\n// Sinh CTA text trên giỏ hàng (anchor displayName) theo phân tích sản phẩm\nfunction generateCartCTA(j) {\n  function clean(str) {\n    if (!str || typeof str !== 'string') return '';\n    return str.replace(/[\\u{1F600}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}\\u{1F300}-\\u{1F5FF}\\u{1F900}-\\u{1F9FF}\\u{1F1E0}-\\u{1F1FF}\\u{2190}-\\u{21FF}]/gu, '').replace(/\\s+/g, ' ').slice(0, 30).trim();\n  }\n  const analyzedCTA = j.cartAnchorText || j.analysis?.cartAnchorText || j.analysis?.analysis?.cartAnchorText || j.analysis?.cartCTA;\n  if (analyzedCTA && typeof analyzedCTA === 'string' && analyzedCTA.trim()) {\n    const c = clean(analyzedCTA);\n    if (c) return c;\n  }\n  const category = (j.analysis?.category || j.category || '').toLowerCase();\n  const textToScan = [\n    pTitle,\n    j.product?.title || '',\n    category\n  ].join(' ').toLowerCase();\n\n  const generalPool = [\n    'Mua ở đây nè', 'Đang khuyến mãi ở đây', 'Deal hot ở đây nè',\n    'Săn deal tại đây', 'Xem giá ưu đãi ở đây', 'Mua ngay tại đây nè',\n    'Bấm giỏ hàng ở đây nha', 'Chính hãng mua ở đây', 'Giá sốc hôm nay ở đây',\n    'Ưu đãi độc quyền ở đây', 'Chốt deal tại đây nè', 'Săn mã giảm giá ở đây',\n    'Giỏ hàng có sẵn ở đây', 'Hàng chuẩn mua ở đây', 'Săn sale sốc ở đây nè',\n    'Đang giảm giá ở đây', 'Mua chính hãng tại đây', 'Xem khuyến mãi ở đây'\n  ];\n\n  let specificPool = [];\n  const fashionKw = ['áo', 'quần', 'váy', 'đầm', 'giày', 'dép', 'guốc', 'túi', 'ví', 'balo', 'kính', 'thời trang', 'fashion', 'shoes', 'boots', 'sneaker', 'sandal'];\n  const beautyKw = ['kem', 'son', 'serum', 'toner', 'da', 'mặt', 'dưỡng', 'chống nắng', 'nước hoa', 'mỹ phẩm', 'cosmetics', 'beauty', 'skincare', 'makeup'];\n  const techKw = ['sạc', 'tai nghe', 'pin', 'đèn', 'điện thoại', 'máy tính', 'cáp', 'loa', 'gadget', 'tech', 'smart', 'thông minh', 'bluetooth', 'usb'];\n  const homeKw = ['nồi', 'chảo', 'bình', 'ly', 'cốc', 'ga', 'gối', 'nệm', 'đèn ngủ', 'kệ', 'máy hút', 'gia dụng', 'nhà bếp', 'kitchen', 'home', 'appliances'];\n\n  if (category.includes('beauty') || beautyKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng 100% ở đây', 'Da căng bóng mua ở đây', 'Dưỡng ẩm sâu ở đây nè',\n      'Săn combo giá hời ở đây', 'Bí quyết da đẹp ở đây', 'Hàng chuẩn auth ở đây',\n      'Trắng sáng da ở đây nè', 'Mùi thơm lâu mua ở đây', 'Chăm da đẹp ở đây nha'\n    ];\n  } else if (category.includes('fashion') || category.includes('shoe') || fashionKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Mẫu hot mua ở đây', 'Xem bảng size ở đây', 'Săn mẫu xinh ở đây nè',\n      'Mang siêu êm mua ở đây', 'Form chuẩn mua ở đây', 'Mặc tôn dáng ở đây nè',\n      'Mẫu mới về ở đây nha', 'Hàng đẹp mua ở đây', 'Phối đồ xinh ở đây nè'\n    ];\n  } else if (category.includes('tech') || category.includes('gadget') || techKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng bảo hành ở đây', 'Đồ tiện ích mua ở đây', 'Công nghệ mới ở đây nè',\n      'Dùng cực thích ở đây', 'Bền bỉ tiện lợi ở đây', 'Sạc siêu nhanh ở đây', 'Đổi trả 7 ngày ở đây'\n    ];\n  } else if (category.includes('home') || homeKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Gia dụng thông minh ở đây', 'Tiện ích mỗi ngày ở đây', 'Nâng tầm không gian ở đây',\n      'Bền đẹp tiện lợi ở đây', 'Nhà cửa gọn gàng ở đây', 'Chính hãng mua ở đây', 'Đồ bếp tiện ích ở đây'\n    ];\n  }\n\n  const pool = specificPool.length > 0 ? [...specificPool, ...specificPool, ...generalPool] : generalPool;\n  const picked = pool[Math.floor(Math.random() * pool.length)] || 'Mua ở đây nè';\n  return clean(picked);\n}\n\nconst ctaText = generateCartCTA(job);\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: pTitle,\n    cartAnchorText: ctaText,\n    caption: finalCaption,\n    hashtags: hashtags,\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    totalProductsFound: uniqueProducts.length,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};"
+        "jsCode": "const job = $('Validate Job Found').item.json;\n\nfunction getProductsFromNode(nodeName) {\n  try {\n    const data = $(nodeName).first()?.json;\n    if (!data) return [];\n    return Array.isArray(data.products) ? data.products : (Array.isArray(data) ? data : []);\n  } catch (e) {\n    return [];\n  }\n}\n\n// Lấy sản phẩm từ input hiện tại (Page 2 của shop đang chạy)\nconst currentData = $input.item.json;\nconst currentProducts = Array.isArray(currentData.products) ? currentData.products : (Array.isArray(currentData) ? currentData : []);\n\n// Thu thập từ cả Page 1 và Page 2 của tất cả các node affiliate\nconst allProducts = [\n  ...currentProducts,\n  ...getProductsFromNode('Get Link Affiliate (Test Shop Verify)'),\n  ...getProductsFromNode('Get Link Affiliate (Test Shop Verify - P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Qv)'),\n  ...getProductsFromNode('Get Link Affiliate (Qv - P2)'),\n  ...getProductsFromNode('Get Link Affiliate'),\n  ...getProductsFromNode('Get Link Affiliate (P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady)'),\n  ...getProductsFromNode('Get Link Affiliate (Lady - P2)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi)'),\n  ...getProductsFromNode('Get Link Affiliate (Nhi - P2)')\n];\n\n// Deduplicate theo product_id\nconst uniqueProducts = [];\nconst seenIds = new Set();\nfor (const p of allProducts) {\n  if (p && p.product_id && !seenIds.has(String(p.product_id))) {\n    seenIds.add(String(p.product_id));\n    uniqueProducts.push(p);\n  }\n}\n\nconst matched = uniqueProducts.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst defaultTags = ['#review', '#sanphamchinhhang', '#tiktokshop', '#xuhuong', '#trending'];\nconst hashtags = (Array.isArray(job.hashtags) && job.hashtags.length > 0)\n  ? job.hashtags\n  : (Array.isArray(job.analysis?.hashtags) && job.analysis.hashtags.length > 0 ? job.analysis.hashtags : defaultTags);\n\n// Ưu tiên tên sản phẩm từ bước phân tích sản phẩm (AI analysis)\nconst analyzedTitle = job.analysis?.productName || job.analysis?.product_name || job.product?.productName || job.product?.title;\nconst pTitle = (analyzedTitle || (matched ? matched.title : '') || 'Sản phẩm TikTok Shop').trim();\n\nlet finalCaption = (job.caption || '').trim();\nif (!finalCaption || !finalCaption.includes('#')) {\n  finalCaption = `${pTitle}\\n\\n${hashtags.join(' ')}`;\n}\n\n// Sinh CTA text trên giỏ hàng (anchor displayName) theo phân tích sản phẩm\nfunction generateCartCTA(j) {\n  function clean(str) {\n    if (!str || typeof str !== 'string') return '';\n    return str.replace(/[\\u{1F600}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}\\u{1F300}-\\u{1F5FF}\\u{1F900}-\\u{1F9FF}\\u{1F1E0}-\\u{1F1FF}\\u{2190}-\\u{21FF}]/gu, '').replace(/\\s+/g, ' ').slice(0, 30).trim();\n  }\n  const analyzedCTA = j.cartAnchorText || j.analysis?.cartAnchorText || j.analysis?.analysis?.cartAnchorText || j.analysis?.cartCTA;\n  if (analyzedCTA && typeof analyzedCTA === 'string' && analyzedCTA.trim()) {\n    const c = clean(analyzedCTA);\n    if (c) return c;\n  }\n  const category = (j.analysis?.category || j.category || '').toLowerCase();\n  const textToScan = [\n    pTitle,\n    j.product?.title || '',\n    category\n  ].join(' ').toLowerCase();\n\n  const generalPool = [\n    'Mua ở đây nè', 'Đang khuyến mãi ở đây', 'Deal hot ở đây nè',\n    'Săn deal tại đây', 'Xem giá ưu đãi ở đây', 'Mua ngay tại đây nè',\n    'Bấm giỏ hàng ở đây nha', 'Chính hãng mua ở đây', 'Giá sốc hôm nay ở đây',\n    'Ưu đãi độc quyền ở đây', 'Chốt deal tại đây nè', 'Săn mã giảm giá ở đây',\n    'Giỏ hàng có sẵn ở đây', 'Hàng chuẩn mua ở đây', 'Săn sale sốc ở đây nè',\n    'Đang giảm giá ở đây', 'Mua chính hãng tại đây', 'Xem khuyến mãi ở đây'\n  ];\n\n  let specificPool = [];\n  const fashionKw = ['áo', 'quần', 'váy', 'đầm', 'giày', 'dép', 'guốc', 'túi', 'ví', 'balo', 'kính', 'thời trang', 'fashion', 'shoes', 'boots', 'sneaker', 'sandal'];\n  const beautyKw = ['kem', 'son', 'serum', 'toner', 'da', 'mặt', 'dưỡng', 'chống nắng', 'nước hoa', 'mỹ phẩm', 'cosmetics', 'beauty', 'skincare', 'makeup'];\n  const techKw = ['sạc', 'tai nghe', 'pin', 'đèn', 'điện thoại', 'máy tính', 'cáp', 'loa', 'gadget', 'tech', 'smart', 'thông minh', 'bluetooth', 'usb'];\n  const homeKw = ['nồi', 'chảo', 'bình', 'ly', 'cốc', 'ga', 'gối', 'nệm', 'đèn ngủ', 'kệ', 'máy hút', 'gia dụng', 'nhà bếp', 'kitchen', 'home', 'appliances'];\n\n  if (category.includes('beauty') || beautyKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng 100% ở đây', 'Da căng bóng mua ở đây', 'Dưỡng ẩm sâu ở đây nè',\n      'Săn combo giá hời ở đây', 'Bí quyết da đẹp ở đây', 'Hàng chuẩn auth ở đây',\n      'Trắng sáng da ở đây nè', 'Mùi thơm lâu mua ở đây', 'Chăm da đẹp ở đây nha'\n    ];\n  } else if (category.includes('fashion') || category.includes('shoe') || fashionKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Mẫu hot mua ở đây', 'Xem bảng size ở đây', 'Săn mẫu xinh ở đây nè',\n      'Mang siêu êm mua ở đây', 'Form chuẩn mua ở đây', 'Mặc tôn dáng ở đây nè',\n      'Mẫu mới về ở đây nha', 'Hàng đẹp mua ở đây', 'Phối đồ xinh ở đây nè'\n    ];\n  } else if (category.includes('tech') || category.includes('gadget') || techKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng bảo hành ở đây', 'Đồ tiện ích mua ở đây', 'Công nghệ mới ở đây nè',\n      'Dùng cực thích ở đây', 'Bền bỉ tiện lợi ở đây', 'Sạc siêu nhanh ở đây', 'Đổi trả 7 ngày ở đây'\n    ];\n  } else if (category.includes('home') || homeKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Gia dụng thông minh ở đây', 'Tiện ích mỗi ngày ở đây', 'Nâng tầm không gian ở đây',\n      'Bền đẹp tiện lợi ở đây', 'Nhà cửa gọn gàng ở đây', 'Chính hãng mua ở đây', 'Đồ bếp tiện ích ở đây'\n    ];\n  }\n\n  const pool = specificPool.length > 0 ? [...specificPool, ...specificPool, ...generalPool] : generalPool;\n  const picked = pool[Math.floor(Math.random() * pool.length)] || 'Mua ở đây nè';\n  return clean(picked);\n}\n\nconst ctaText = generateCartCTA(job);\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: pTitle,\n    cartAnchorText: ctaText,\n    caption: finalCaption,\n    hashtags: hashtags,\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    totalProductsFound: uniqueProducts.length,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -508,6 +509,27 @@
                 "combinator": "and"
               },
               "outputKey": "nhi"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "af54938e56c52021",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -571,6 +593,27 @@
                 "combinator": "and"
               },
               "outputKey": "nhi"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
+                    "rightValue": "af54938e56c52021",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -647,6 +690,81 @@
         "tiktokApi": {
           "id": "Q9JStYDsDEzn5Tg3",
           "name": "Nhi SHop"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 100,
+        "offset": 0
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        1450
+      ],
+      "id": "node-aff-hzulqy6r",
+      "name": "Get Link Affiliate (Qv)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "af54938e56c52021",
+          "name": "Qv"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "count": 100,
+        "offset": 100
+      },
+      "type": "n8n-nodes-social-tiktok.tiktokAll",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        1450
+      ],
+      "id": "node-aff2-ryv340eh",
+      "name": "Get Link Affiliate (Qv - P2)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "af54938e56c52021",
+          "name": "Qv"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "postSettings": {
+          "text": "={{ $('Find Product By product_id').item.json.caption }}",
+          "visibilityType": 0,
+          "allowComment": 1,
+          "scheduleTime": "=0",
+          "anchors": {
+            "anchor": [
+              {
+                "type": "product",
+                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
+                "displayName": "={{ $('Find Product By product_id').item.json.cartAnchorText || $('Find Product By product_id').item.json.productTitle }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-social-tiktok.tikTokUpload",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        1400
+      ],
+      "id": "node-up-ztdpkwg2",
+      "name": "TikTok Upload (Qv)",
+      "credentials": {
+        "tiktokApi": {
+          "id": "af54938e56c52021",
+          "name": "Qv"
         }
       }
     }
@@ -815,6 +933,13 @@
         ],
         [
           {
+            "node": "Get Link Affiliate (Qv)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Get Link Affiliate",
             "type": "main",
             "index": 0
@@ -884,6 +1009,13 @@
         ],
         [
           {
+            "node": "TikTok Upload (Qv)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "TikTok Upload With Product",
             "type": "main",
             "index": 0
@@ -929,6 +1061,39 @@
         [
           {
             "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Qv)": {
+      "main": [
+        [
+          {
+            "node": "Get Link Affiliate (Qv - P2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Link Affiliate (Qv - P2)": {
+      "main": [
+        [
+          {
+            "node": "Find Product By product_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TikTok Upload (Qv)": {
+      "main": [
+        [
+          {
+            "node": "Save Publish Result",
             "type": "main",
             "index": 0
           }

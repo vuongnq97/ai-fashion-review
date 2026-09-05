@@ -718,10 +718,6 @@ async function handleCallbackQuery(botToken, callbackQuery) {
           chatId,
           `🎉 <b>LIÊN KẾT TIKTOK SHOP THÀNH CÔNG!</b>\n\n` +
           `👤 Kênh TikTok: <b>@${info.username}</b> (${info.screenName})\n` +
-          `🏪 Gán cho Shop: <b>${info.label}</b>\n` +
-          `🔑 Mã Credential: <code>${info.credentialId}</code>\n` +
-          `${n8nStatus}\n\n` +
-          `✅ <i>Từ bây giờ, tất cả video tạo trong group này sẽ tự động được gán và upload lên kênh @${info.username} (có gắn giỏ hàng vàng sản phẩm)!</i>\n\n` +
           `👉 Bạn có thể gửi link sản phẩm TikTok Shop hoặc gõ <b>/start</b> để bắt đầu!`,
           { parse_mode: 'HTML' }
         );

@@ -18,6 +18,7 @@ const https = require('https');
 const crypto = require('crypto');
 const { saveAccount } = require('./tiktok-web-upload');
 const { updateChannelCredential, getChannelForChat } = require('../utils/config-manager');
+const { syncShopToN8n } = require('./n8n-workflow-sync');
 
 // Lưu trữ các phiên quét QR đang hoạt động: chatId -> session info
 const activeQrSessions = new Map();
@@ -233,12 +234,24 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
         // Cập nhật mapping trong config.json
         updateChannelCredential(baseDir, key, credentialId, accountLabel);
 
+        // ── Đồng bộ tự động vào n8n (Solution 2: Credential + Workflow Nodes) ──
+        let n8nSyncResult = null;
+        try {
+          console.log(`[TikTokQR] 🔄 Syncing account to n8n workflow for "${channelLabel}"...`);
+          n8nSyncResult = await syncShopToN8n(credentialId, cookieMap, channelLabel);
+          console.log(`[TikTokQR] ✅ n8n sync result:`, n8nSyncResult);
+        } catch (n8nErr) {
+          console.error(`[TikTokQR] ⚠️ Failed to sync to n8n:`, n8nErr.message);
+          n8nSyncResult = { success: false, error: n8nErr.message };
+        }
+
         loginSuccess = true;
         savedAccountInfo = {
           username,
           screenName,
           credentialId,
-          label: channelLabel
+          label: channelLabel,
+          n8nSync: n8nSyncResult
         };
 
         break;

@@ -626,7 +626,13 @@ async function handleUploadDirectCommand(botToken, chatId, targetJobId, uploadMs
     const { prepareUploadJob } = require('./generation-job');
     await prepareUploadJob(job.jobId);
     if (job.uploadMessageId) {
-      await editTelegramMessage(chatId, job.uploadMessageId, '✅ Upload thành công lên TikTok!');
+      await editTelegramMessage(
+        chatId,
+        job.uploadMessageId,
+        '⚠️ <b>CHƯA THỂ ĐĂNG LÊN TIKTOK:</b>\n\n' +
+        'Video 9:16 đã được ghép và gửi preview ở trên, nhưng hệ thống n8n đang không phản hồi.\n' +
+        '👉 Hãy đảm bảo container n8n đang chạy (lệnh: <code>docker start n8n</code>) rồi gõ lại <code>/upload</code> để tự động đăng video kèm giỏ hàng vàng!'
+      );
     }
   } catch (err) {
     console.error('[Telegram Bot] Direct upload error:', err.message);
@@ -678,14 +684,24 @@ async function handleCallbackQuery(botToken, callbackQuery) {
         );
       },
       onSuccess: async (info) => {
+        let n8nStatus = '⚡ <b>n8n Automation:</b> Đã tạo Credential & tự động inject 3 nodes vào n8n!';
+        if (info.n8nSync) {
+          if (info.n8nSync.success) {
+            n8nStatus = `⚡ <b>n8n Workflow:</b> Đã kết nối Credential & ${info.n8nSync.addedNodes ? 'thêm 3 nodes tự động' : 'cập nhật cấu hình'} vào n8n!`;
+          } else {
+            n8nStatus = `⚠️ <b>n8n Workflow:</b> ${info.n8nSync.error || 'Chưa thể đồng bộ n8n. Hãy kiểm tra docker n8n.'}`;
+          }
+        }
+
         await sendTelegramMessage(
           botToken,
           chatId,
           `🎉 <b>LIÊN KẾT TIKTOK SHOP THÀNH CÔNG!</b>\n\n` +
           `👤 Kênh TikTok: <b>@${info.username}</b> (${info.screenName})\n` +
           `🏪 Gán cho Shop: <b>${info.label}</b>\n` +
-          `🔑 Mã Credential: <code>${info.credentialId}</code>\n\n` +
-          `✅ <i>Từ bây giờ, tất cả video tạo trong group này sẽ tự động được gán và upload lên kênh @${info.username}!</i>\n\n` +
+          `🔑 Mã Credential: <code>${info.credentialId}</code>\n` +
+          `${n8nStatus}\n\n` +
+          `✅ <i>Từ bây giờ, tất cả video tạo trong group này sẽ tự động được gán và upload lên kênh @${info.username} (có gắn giỏ hàng vàng sản phẩm)!</i>\n\n` +
           `👉 Bạn có thể gửi link sản phẩm TikTok Shop hoặc gõ <b>/start</b> để bắt đầu!`,
           { parse_mode: 'HTML' }
         );
@@ -904,7 +920,7 @@ async function handleUpdate(botToken, update) {
               `🔑 Chat ID: <code>${chatId}</code>\n` +
               `👤 Tài khoản TikTok: <b>${existingChannel.tiktokCredentialName || existingChannel.tiktokCredentialId}</b>\n` +
               `📌 Trạng thái: 🟢 <b>Đang hoạt động</b>\n\n` +
-              `✅ <i>Nhóm này đã được đăng ký và liên kết tài khoản TikTok hoàn tất! Bạn có thể gửi link sản phẩm để tạo video ngay.</i>\n\n` +
+              `✅ <i>Shop này đã được đăng ký và liên kết tài khoản TikTok hoàn tất! Bạn có thể gửi link sản phẩm để tạo video ngay.</i>\n\n` +
               `⚙️ <b>TÙY CHỌN THAY ĐỔI:</b>\n` +
               `• Để đổi tên shop: Gõ <code>/register [Tên Shop Mới]</code>\n` +
               `• Để đổi tài khoản TikTok: Bấm nút bên dưới để quét QR mới:`,
@@ -922,7 +938,7 @@ async function handleUpdate(botToken, update) {
             await sendTelegramMessage(
               botToken,
               chatId,
-              `⚠️ <b>NHÓM ĐÃ ĐĂNG KÝ (CHƯA LIÊN KẾT TIKTOK):</b>\n\n` +
+              `⚠️ <b>SHOP ĐÃ ĐĂNG KÝ (CHƯA LIÊN KẾT TIKTOK):</b>\n\n` +
               `🏪 Tên Shop: <b>${existingChannel.label}</b>\n` +
               `🔑 Chat ID: <code>${chatId}</code>\n` +
               `📌 Trạng thái: 🟡 <b>Chờ liên kết tài khoản TikTok Shop</b>\n\n` +
@@ -944,7 +960,7 @@ async function handleUpdate(botToken, update) {
         await sendTelegramMessage(
           botToken,
           chatId,
-          '👉 <b>HƯỚNG DẪN ĐĂNG KÝ GROUP:</b>\n\n' +
+          '👉 <b>HƯỚNG DẪN ĐĂNG KÝ SHOP:</b>\n\n' +
           'Vui lòng nhập kèm tên shop theo cú pháp:\n' +
           '<code>/register [Tên Shop của bạn]</code>\n\n' +
           '<i>Ví dụ:</i> <code>/register Shop Giày GenZ</code>\n' +
@@ -962,7 +978,7 @@ async function handleUpdate(botToken, update) {
         await sendTelegramMessage(
           botToken,
           chatId,
-          `ℹ️ <b>NHÓM NÀY ĐÃ ĐƯỢC ĐĂNG KÝ TỪ TRƯỚC!</b>\n\n` +
+          `ℹ️ <b>SHOP NÀY ĐÃ ĐƯỢC ĐĂNG KÝ TỪ TRƯỚC!</b>\n\n` +
           `✏️ <b>Đã cập nhật tên shop thành:</b> <b>${channelResult.label}</b>\n` +
           `👤 <b>Tài khoản TikTok đang gán:</b> <b>${channelResult.tiktokCredentialName}</b> <i>(vẫn được giữ nguyên)</i>\n` +
           `🔑 Chat ID: <code>${chatId}</code>\n` +
@@ -1006,7 +1022,7 @@ async function handleUpdate(botToken, update) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `✅ <b>ĐÃ ĐĂNG KÝ GROUP THÀNH CÔNG!</b>\n\n` +
+        `✅ <b>ĐÃ ĐĂNG KÝ THÀNH CÔNG!</b>\n\n` +
         `🏪 Tên Shop: <b>${channelResult.label}</b>\n` +
         `🔑 Chat ID: <code>${chatId}</code>\n` +
         `📌 Trạng thái: <i>Chờ liên kết tài khoản TikTok Shop</i>\n\n` +

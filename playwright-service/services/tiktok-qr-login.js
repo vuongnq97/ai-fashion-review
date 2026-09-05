@@ -157,6 +157,8 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
     let hasNotifiedScanned = false;
     let qrConfirmed = false;
     let isWaitingForOtp = false;
+    let isSelectingMethod = false;
+    let lastExtractedHint = '';
 
     // Hàm nhận và điền mã OTP 6 số do người dùng gửi từ Telegram
     sessionObj.submitOtp = async (code) => {
@@ -291,20 +293,54 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
       await page.waitForTimeout(POLL_INTERVAL_MS);
 
+      // 0. Kiểm tra màn hình chọn phương thức xác minh ("Xác minh đó là bạn" / "Verify it's you")
+      if (!isSelectingMethod && !isWaitingForOtp) {
+        const verifyMethodModal = page.locator('text=/Xác minh đó là bạn|Verify it\'s you|phương pháp sau đây|Select a method/i').first();
+        if (await verifyMethodModal.isVisible().catch(() => false)) {
+          isSelectingMethod = true;
+          console.log(`[TikTokQR] 📋 Found "Xác minh đó là bạn" screen for chat ${key}. Auto-selecting verification method...`);
+
+          // Trích xuất email/SĐT hiển thị trên card để thông báo cho người dùng
+          try {
+            const bodyText = await page.locator('body').innerText().catch(() => '');
+            const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            const phoneMatch = bodyText.match(/\+?\d[\d\s*-]{7,}\d/);
+            if (emailMatch || phoneMatch) {
+              lastExtractedHint = emailMatch ? emailMatch[0] : phoneMatch[0];
+            }
+          } catch (_) { }
+
+          // Tự động bấm vào phương thức Email hoặc SĐT đầu tiên
+          const methodCard = page.locator('div:has-text("Email"), div:has-text("Số điện thoại")').filter({ hasText: /@|\d|Email/i }).last();
+          const fallbackCard = page.locator('text=/Email|Số điện thoại|Phone/i').first();
+
+          if (await methodCard.isVisible().catch(() => false)) {
+            await methodCard.click().catch(() => { });
+            console.log(`[TikTokQR] 👉 Auto-clicked verification method card (${lastExtractedHint || 'Email'}). Waiting for 6-digit input...`);
+          } else if (await fallbackCard.isVisible().catch(() => false)) {
+            await fallbackCard.click().catch(() => { });
+            console.log(`[TikTokQR] 👉 Auto-clicked fallback card (${lastExtractedHint || 'Email'}). Waiting for 6-digit input...`);
+          }
+
+          await page.waitForTimeout(1200);
+        }
+      }
+
       // 1. Kiểm tra xem có popup 2FA "Xác minh danh tính" (mã 6 số) xuất hiện không
       if (!isWaitingForOtp) {
-        const otpInput = page.locator('input[placeholder*="6"], input[placeholder*="digit"], input[maxlength="6"]').first();
+        const otpInput = page.locator('input[placeholder*="6"], input[placeholder*="digit"], input[maxlength="6"], input[type="text"]').first();
         const isOtpVisible = await otpInput.isVisible().catch(() => false);
         if (isOtpVisible) {
           isWaitingForOtp = true;
           sessionObj.waitingForOtp = true;
 
-          let hint = '';
+          let hint = lastExtractedHint || '';
           try {
             const bodyText = await page.locator('body').innerText().catch(() => '');
             const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
             const phoneMatch = bodyText.match(/\+?\d[\d\s*-]{7,}\d/);
-            hint = emailMatch ? emailMatch[0] : (phoneMatch ? phoneMatch[0] : '');
+            if (emailMatch) hint = emailMatch[0];
+            else if (phoneMatch) hint = phoneMatch[0];
           } catch (_) { }
 
           console.log(`[TikTokQR] 🔐 2FA verification modal detected for chat ${key}! Hint: ${hint}`);

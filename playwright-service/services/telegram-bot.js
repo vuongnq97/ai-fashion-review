@@ -675,11 +675,20 @@ async function handleCallbackQuery(botToken, callbackQuery) {
           chatId,
           qrBuffer,
           '📱 <b>HƯỚNG DẪN QUÉT MÃ QR TIKTOK:</b>\n\n' +
-          '1️⃣ Mở app <b>TikTok</b> trên điện thoại của bạn.\n' +
+          '1️⃣ Mở app <b>TikTok</b> trên điện thoại.\n' +
           '2️⃣ Vào tab <b>Hồ sơ</b> (Profile) → bấm menu <b>☰</b> ở góc trên bên phải.\n' +
-          '3️⃣ Chọn <b>Mã QR của tôi</b> → bấm biểu tượng <b>Quét</b> ở góc trên bên phải.\n' +
-          '4️⃣ Hướng camera quét mã QR ở trên và bấm <b>"Xác nhận đăng nhập"</b>.\n\n' +
-          '⏳ <i>Mã có hiệu lực trong 90 giây. Server sẽ tự động lưu và liên kết ngay khi bạn xác nhận!</i>',
+          '3️⃣ Chọn <b>Mã QR của tôi</b> → bấm biểu tượng <b>Quét</b> ở góc trên.\n' +
+          '4️⃣ Quét mã QR ở trên và <b>BẮT BUỘC BẤM NÚT ĐỎ "XÁC NHẬN ĐĂNG NHẬP"</b> trên màn hình điện thoại!\n\n' +
+          '⏳ <i>Mã có hiệu lực trong 90 giây. Server sẽ tự động bắt phiên ngay khi bạn xác nhận!</i>',
+          { parse_mode: 'HTML' }
+        );
+      },
+      onScanned: async () => {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '📱 <b>ĐÃ NHẬN DIỆN QUÉT MÃ TRÊN ĐIỆN THOẠI!</b>\n\n' +
+          '👉 Vui lòng nhìn vào màn hình app TikTok và bấm nút màu đỏ <b>"Xác nhận đăng nhập"</b> (hoặc <i>Confirm</i>) để hoàn tất liên kết nhé!',
           { parse_mode: 'HTML' }
         );
       },

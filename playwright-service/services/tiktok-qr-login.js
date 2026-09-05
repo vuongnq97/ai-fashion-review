@@ -127,11 +127,44 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
     }
 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 800 }
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 800 },
+      locale: 'vi-VN',
+      timezoneId: 'Asia/Ho_Chi_Minh'
+    });
+
+    // Stealth: che giấu dấu vết automation để TikTok không giới hạn/block
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      window.chrome = { runtime: {} };
     });
 
     const page = await context.newPage();
+
+    let hasNotifiedScanned = false;
+    let qrConfirmed = false;
+
+    // Lắng nghe trực tiếp API kiểm tra trạng thái QR của TikTok
+    page.on('response', async res => {
+      const url = res.url();
+      if (url.includes('check_qrconnect')) {
+        try {
+          const text = await res.text();
+          const json = JSON.parse(text);
+          const status = json.data?.status;
+          if (status === 'scanned' && !hasNotifiedScanned) {
+            hasNotifiedScanned = true;
+            console.log(`[TikTokQR] 📱 Phone scanned QR code for chat ${key}! Waiting for confirmation button...`);
+            if (typeof callbacks.onScanned === 'function') {
+              callbacks.onScanned().catch(() => {});
+            }
+          } else if (status === 'confirmed') {
+            qrConfirmed = true;
+            console.log(`[TikTokQR] 🎉 Login confirmed on phone for chat ${key}! Extracting session...`);
+          }
+        } catch (_) {}
+      }
+    });
 
     console.log(`[TikTokQR] Navigating to https://www.tiktok.com/login for chat ${key}...`);
     await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded', timeout: 35000 });

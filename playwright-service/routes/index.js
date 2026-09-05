@@ -4,14 +4,14 @@ const path = require('path');
 const fs = require('fs');
 
 const state = require('../utils/state');
-const { markShortlinkUploaded } = require('../services/auto-scheduler');
+const { markShortlinkUploaded } = require('../services/auto-template-scheduler');
 const { getBrowserPage } = require('../services/browser');
 const { automateGeneration, prepareGeneration, executeGeneration } = require('../services/image');
 const { automateVideoGeneration, prepareVideoGeneration, executeVideoGeneration } = require('../services/video');
 const tiktok = require('../services/tiktok');
 const { getStoryboardProvider } = require('../services/storyboard-provider');
 const { runStoryboardFullFlow } = require('../services/storyboard-fullflow');
-const { sendVideoToTelegramDirect } = require('../services/telegram-send');
+const { sendVideoToTelegramDirect, editTelegramMessage, sendTelegramMessage } = require('../services/telegram-send');
 const { processVideoBase64 } = require('../services/video-resize');
 const {
   enqueueGenerationJob,
@@ -310,12 +310,23 @@ router.post('/jobs/:jobId/upload-state', (req, res) => {
 
   // Nếu upload TikTok thành công → đánh dấu shortlink đã dùng
   const uploadStatus = (req.body || {}).status || '';
-  const isSuccess = uploadStatus === 'success' || uploadStatus === 'completed' || uploadStatus === 'uploaded';
+  const isSuccess = uploadStatus === 'success' || uploadStatus === 'completed' || uploadStatus === 'uploaded' || uploadStatus === 'published';
   if (isSuccess && job.shortlink) {
     try {
       markShortlinkUploaded(job.shortlink);
     } catch (e) {
       console.warn('[Routes] markShortlinkUploaded error:', e.message);
+    }
+  }
+
+  // Edit tin nhắn "⏳ Đang upload..." thành "✅ Upload thành công lên TikTok!"
+  if (isSuccess && job.chatId) {
+    if (job.uploadMessageId) {
+      editTelegramMessage(job.chatId, job.uploadMessageId, '✅ Upload thành công lên TikTok!')
+        .catch(e => console.warn('[Routes] editTelegramMessage error:', e.message));
+    } else {
+      sendTelegramMessage(job.chatId, '✅ Upload thành công lên TikTok!')
+        .catch(e => console.warn('[Routes] sendTelegramMessage error:', e.message));
     }
   }
 

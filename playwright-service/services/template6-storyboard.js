@@ -29,6 +29,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
 const { GeminiApiClient } = require('./gemini-client/gemini-api');
+const { buildCartCtaPromptGuide, getCartAnchorText } = require('./cart-cta');
 
 /**
  * Tách chính xác 2 panel 9:16 từ Master Storyboard (nửa trái = Panel 1, nửa phải = Panel 2)
@@ -210,11 +211,13 @@ CRITICAL OCR & HASHTAG EXTRACTION INSTRUCTIONS:
 2. Extract exact full Vietnamese product name and brand name.
 3. Extract any explicit hashtags (e.g. #TopGia, #NuocRuaBat) or product keywords visible in the images.
 4. Extract or generate EXACTLY 5 high-converting, trending Vietnamese hashtags starting with "#" (e.g. brand, product category, supermarket keywords, TikTok trending tags).
+5. ${buildCartCtaPromptGuide()}
 
 Return ONLY valid JSON with this schema:
 {
   "productName": "Tên sản phẩm tiếng Việt đầy đủ và chính xác kèm thương hiệu (ví dụ: Nước Rửa Chén Top Gia Hương Bưởi Hồng)",
   "brand": "Tên thương hiệu chính xác (ví dụ: TOP GIA, Sunlight, Lix, Mỹ Hảo)",
+  "cartAnchorText": "Câu CTA giỏ hàng ngắn gọn dưới 30 ký tự KHÔNG chứa emoji (ví dụ: Hàng chuẩn siêu thị ở đây, Tiện ích mỗi ngày ở đây, Mua ngay tại đây nè...)",
   "exactLabelText": {
     "productTitle": "Dòng tiêu đề loại sản phẩm in trên nhãn (ví dụ: NƯỚC RỬA CHÉN)",
     "brandName": "Tên thương hiệu trên nhãn (ví dụ: TOP GIA)",
@@ -478,8 +481,13 @@ async function analyzeProductTemplate6(geminiClient, filePayloads, elements) {
     if (parsed) {
       const pName = parsed.productName || 'Sản Phẩm Siêu Thị';
       const cat = parsed.category || 'general';
+      const rawCTA = (parsed.cartAnchorText || parsed.analysis?.cartAnchorText || '').trim();
+      const cartAnchorText = rawCTA
+        ? rawCTA.slice(0, 30)
+        : getCartAnchorText({ title: pName }, { category: cat, productName: pName });
       const hashtags = normalizeTemplate6Hashtags(parsed, elements);
       console.log(`[Template 6] ✅ Product analyzed: "${pName}" (${cat})`);
+      console.log(`[Template 6] CTA giỏ hàng: "${cartAnchorText}"`);
       console.log(`[Template 6] Hashtags: ${hashtags.join(' ')}`);
 
       return {
@@ -488,6 +496,7 @@ async function analyzeProductTemplate6(geminiClient, filePayloads, elements) {
           brand: parsed.brand || '',
           exactLabelText: parsed.exactLabelText || null,
           category: cat,
+          cartAnchorText,
           packagingType: parsed.packagingType || 'chai/hộp',
           hashtags,
           keyVisualDetails: parsed.keyVisualDetails || 'Bao bì chuẩn',
@@ -502,11 +511,13 @@ async function analyzeProductTemplate6(geminiClient, filePayloads, elements) {
   }
 
   const fallbackHashtags = normalizeTemplate6Hashtags({}, elements);
+  const fallbackCTA = getCartAnchorText({ title: 'Sản phẩm siêu thị' }, { category: 'general' });
   return {
     analysis: {
       productName: 'Sản phẩm siêu thị',
       brand: '',
       category: 'general',
+      cartAnchorText: fallbackCTA,
       packagingType: 'chai/hộp chuẩn',
       hashtags: fallbackHashtags,
       supermarketAisleDescription: 'kệ hàng siêu thị hiện đại ngăn nắp',
@@ -554,6 +565,14 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     console.log('[Template 6] 🔍 Step 1: Analyzing product image for supermarket merchandising...');
     const { analysis: analyzedData, uploadedFiles } = await analyzeProductTemplate6(geminiClient, filePayloads, elements);
     analysis = analyzedData;
+
+    if (options.stepTracker) {
+      if (analysis?.productName) {
+        await options.stepTracker.setTitle(analysis.productName);
+      }
+      await options.stepTracker.setStep(2, 'completed');
+      await options.stepTracker.setStep(3, 'running');
+    }
 
     // ── Bước 2: Tạo Master Storyboard 2 Panel ─────────────────────────────────
     console.log(`[Template 6] 🎨 Step 2: Generating Master Storyboard (2 Panels, Store: ${elements.store}) via Gemini API...`);
@@ -634,6 +653,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     });
 
     console.log('[Template 6] ✅ 2 Panels sliced with 100% pixel-perfect consistency from Master Storyboard!');
+
+    if (options.stepTracker) {
+      await options.stepTracker.setStep(3, 'completed');
+      await options.stepTracker.setStep(4, 'running');
+    }
   } finally {
     try { await geminiClient.close(); } catch (_) {}
   }
@@ -663,6 +687,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     });
 
     console.log(`[Template 6] 🏁 Video generation completed: ${videos.filter(v => !v.error).length}/${videos.length} videos`);
+
+    if (options.stepTracker) {
+      await options.stepTracker.setStep(4, 'completed');
+      await options.stepTracker.setStep(5, 'running');
+    }
 
     if (archive && archive.root) {
       const videosDir = path.join(archive.root, 'videos');

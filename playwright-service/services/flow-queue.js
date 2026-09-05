@@ -95,10 +95,6 @@ class FlowQueue {
       const waitMsg = waitedSec > 2 ? ` (chờ ${waitedSec}s)` : '';
 
       console.log(`[FlowQueue] ▶️  Starting ${job.runId} — ${job.label}${waitMsg}`);
-      sendTelegramMessage(
-        job.chatId,
-        `▶️ Bắt đầu xử lý ${job.label}${waitMsg}...`
-      ).catch(() => {});
 
       // Run the job
       job.execute(job.runId)

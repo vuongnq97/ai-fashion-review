@@ -13,7 +13,7 @@
   "systemSettings": {
     "storyboardProvider": "gemini-webapi",
     "aiStudioUrl": "https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true",
-    "flowProjectUrl": "https://labs.google/fx/vi/tools/flow/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
+    "flowProjectUrl": "https://flow.google.com/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
     "flowProjectId": "8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
     "recaptchaSiteKey": "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
     "chromeExtensionId": "jmobnhoghinjlmjogafjadohcmdebbej"
@@ -24,9 +24,11 @@
     "nhiReferencePath": "assets/nhi"
   },
   "autoT3Settings": {
+    "hashtags": [],
     "enabled": true,
     "chatId": "-5593429194",
     "timezone": "Asia/Ho_Chi_Minh",
+    "template": "template3",
     "times": [
       "06:00",
       "08:00",
@@ -92,6 +94,7 @@
     ]
   },
   "autoT4Settings": {
+    "hashtags": [],
     "enabled": true,
     "chatId": "-5593403910",
     "timezone": "Asia/Ho_Chi_Minh",
@@ -146,7 +149,8 @@
     ]
   },
   "autoT5Settings": {
-    "enabled": false,
+    "hashtags": [],
+    "enabled": true,
     "chatId": "-5348767040",
     "timezone": "Asia/Ho_Chi_Minh",
     "template": "template5_2",

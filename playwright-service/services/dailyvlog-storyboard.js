@@ -20,6 +20,7 @@ const path = require('path');
 const { GeminiApiClient } = require('./gemini-client/gemini-api');
 const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
 const { getConfig } = require('../utils/config-manager');
+const { buildCartCtaPromptGuide, getCartAnchorText } = require('./cart-cta');
 
 const DEFAULT_PANEL_COUNT = 5;
 
@@ -118,11 +119,13 @@ Requirements:
 * Return ONLY valid JSON. No markdown, no commentary.
 * If you are unable to inspect the images, still return the JSON schema with best-effort assumptions.
 * This step is only for text analysis and prompt writing. The actual image generation will happen in a later separate request.
+* ${buildCartCtaPromptGuide()}
 
 JSON schema:
 {
   "analysis": {
     "productName": "Vietnamese product name inferred from the images",
+    "cartAnchorText": "Câu CTA giỏ hàng ngắn gọn dưới 30 ký tự khớp chính xác sản phẩm (ví dụ: Đồ tiện ích mua ở đây, Món đồ xinh ở đây nè...)",
     "category": "",
     "productType": "",
     "productRoleInLife": "emotional role of the product in Nhi's life",

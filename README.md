@@ -1,410 +1,311 @@
-# AI Fashion Review
+# AI Fashion Review & Automation System
 
-Hệ thống tự động nhận ảnh sản phẩm thời trang từ Telegram, tạo storyboard bằng Google AI Studio, tạo video bằng Veo 3 (Google Flow) qua **direct API** (không thao tác DOM), resize video 9:16, rồi gửi video hoàn chỉnh lại Telegram — tất cả chạy trong một server Node.js duy nhất.
-
-## Kiến Trúc
-
-```text
-Telegram user gửi ảnh
-  → Telegram Bot (long-polling, tích hợp trong server)
-  → Google AI Studio tạo storyboard + panel images + prompts
-  → Pre-launch Google Flow tab → lấy Bearer + reCAPTCHA token
-  → Direct API upload ảnh lên Flow (/v1/flow/uploadImage)
-  → Direct API tạo video Veo 3 (batchAsyncGenerateVideoStartImage)
-  → FFmpeg resize/crop video 9:16
-  → Telegram bot gửi video đã resize về cho user
-```
-
-**Không phụ thuộc n8n** cho luồng chính. Server tự xử lý toàn bộ pipeline.
-
-## Yêu Cầu
-
-- macOS hoặc Linux (cần Chrome/Chromium chạy được UI)
-- Node.js 20+
-- npm
-- FFmpeg (cần cho resize/crop video)
-- Tài khoản Google đã vào được Google AI Studio và Google Flow
-- Telegram bot token từ BotFather
-
-## Cấu Trúc Dự Án
-
-```text
-playwright-service/
-  server.js                         Express + Telegram bot entry point, port 3000
-  routes/index.js                   REST API endpoints
-  login.js                          Đăng nhập Google lần đầu
-  config.json                       Cấu hình (storyboard provider, panel count...)
-
-  services/
-    telegram-bot.js                 Telegram long-polling listener
-    telegram-send.js                Gửi tin nhắn/video về Telegram
-    storyboard-fullflow.js          Orchestrator luồng review sản phẩm
-    storyboard-provider.js          Chọn provider: aistudio-playwright | gemini-webapi
-    aistudio.js                     Giao tiếp với Google AI Studio (storyboard)
-    gemini-webapi-storyboard.js     Storyboard qua Gemini WebAPI (Node.js/Python bridge)
-    dailyvlog-flow.js               State machine + flow controller cho Daily Vlog
-    dailyvlog-storyboard.js         Pipeline + prompts cho Daily Vlog
-    browser.js                      Quản lý browser context, Bearer + reCAPTCHA token
-    image.js                        Upload ảnh qua direct API (uploadImageDirect)
-    video.js                        Tạo video Veo 3 qua direct API
-    video-resize.js                 Resize/crop video bằng FFmpeg
-    drive-folder.js                 Load ảnh từ Google Drive/local folder
-    tiktok.js                       TikTok OAuth + upload (tùy chọn)
-
-  services/gemini-client/
-    gemini-api.js                   Gemini Web API client (Playwright-based)
-    gemini-storyboard.js            Node.js storyboard generation (thay Python bridge)
-
-  utils/
-    config-manager.js               Đọc/ghi config.json
-    flow-asset-watchdog.js          Theo dõi asset upload status
-    flow-submit-watchdog.js         Theo dõi video generation status
-
-  assets/nhi/                       Ảnh tham chiếu nhân vật Nhi (cho Daily Vlog)
-  uploads/                          File tạm (panel images, video downloads)
-  chrome-data/                      Chrome profile/session đăng nhập Google
-```
-
-## Cài Đặt Cho Máy Mới (1-Click Setup)
-
-### Cách 1: Chạy file Setup tự động (Khuyên dùng)
-
-Sau khi clone repo về máy:
-
-- **Trên macOS & Linux**:
-  ```bash
-  git clone https://github.com/vuongnq97/ai-fashion-review.git
-  cd ai-fashion-review
-  ./setup.sh
-  ```
-- **Trên Windows**:
-  - Clone repo hoặc tải ZIP giải nén.
-  - **Click đúp (Double-click) vào file `setup.bat`** (hoặc mở Command Prompt gõ `setup.bat`).
-
-*(Script sẽ tự động kiểm tra Node.js — nếu máy chưa có sẽ tự tải & cài Node.js v20 LTS, chạy `npm install`, tải Playwright Chromium, tạo các thư mục dữ liệu, tạo file `.env` và mở trình duyệt để bạn đăng nhập Google lần đầu).*
+Hệ thống tự động hóa toàn diện từ link sản phẩm TikTok Shop / ảnh sản phẩm đến video review hoàn chỉnh:
+- **Telegram Bot**: Nhận link TikTok Shop (`https://vt.tiktok.com/...`) hoặc album ảnh sản phẩm.
+- **Gemini Web API**: Phân tích sản phẩm, viết kịch bản review tiếng Việt và sinh Master Storyboard + panel images.
+- **Google Flow (Veo 3)**: Tạo video trực tiếp qua Direct API (không thao tác DOM, tốc độ cao, hỗ trợ sinh đồng thời).
+- **FFmpeg Engine**: Xử lý crop/resize 9:16 chuẩn TikTok, watermark removal, lồng tiếng Voice-over AI.
+- **TikTok Web Upload**: Tự động đăng video lên TikTok Shop theo đúng kênh được gán hoặc theo lịch auto-scheduler.
 
 ---
 
-### Khởi động Server sau khi Setup:
-- **macOS & Linux**: `./start.sh` (hoặc `cd playwright-service && node server.js`)
-- **Windows**: Click đúp vào file `start.bat` (hoặc `cd playwright-service && node server.js`)
+## 🚀 Cài Đặt Cho Máy Mới (Setup Local)
+
+### Yêu Cầu Hệ Thống
+* **Hệ điều hành**: Windows 10/11, macOS hoặc Linux.
+* **Node.js**: Phiên bản **v20 LTS** (hoặc tối thiểu v18+). Tải tại: [nodejs.org](https://nodejs.org/)
+* **Tài khoản Google**: Đã truy cập được [Google Labs Flow](https://labs.google/fx/tools/flow) & [Google Gemini](https://gemini.google.com).
+* **Telegram Bot Token**: Tạo bot qua [@BotFather](https://t.me/botfather) để lấy token riêng cho máy.
 
 ---
 
-### Cách 2: Cài Đặt Thủ Công
+### Cách 1: Setup Tự Động 1-Click (Khuyên dùng)
 
-#### 1. Cài Dependencies & Playwright Browser:
+#### 👉 Trên Windows:
+1. Clone repo về máy hoặc tải file ZIP rồi giải nén.
+2. **Double-click (click đúp) vào file `setup.bat`** ở thư mục gốc của dự án.
+3. Script sẽ tự động:
+   * Kiểm tra Node.js (hướng dẫn tải nếu máy chưa có).
+   * Khởi tạo các thư mục dữ liệu (`chrome-data`, `gemini-cookies`, `uploads`, `storyboard-review-runs`).
+   * Cài đặt toàn bộ dependencies thư viện qua `yarn` / `npm`.
+   * Cài đặt trình duyệt Playwright Chromium.
+   * Tạo file `.env` và nhắc bạn nhập `TELEGRAM_BOT_TOKEN`.
+   * Mở trình duyệt Chrome để bạn đăng nhập Google Flow & Gemini lần đầu (tự động xuất và lưu cookies session).
+
+#### 👉 Trên macOS / Linux:
+1. Mở Terminal tại thư mục dự án và chạy:
+   ```bash
+   chmod +x setup.sh start.sh
+   ./setup.sh
+   ```
+
+---
+
+### Cách 2: Setup Thủ Công Qua Terminal
+
+Nếu bạn muốn tự chạy từng bước qua dòng lệnh:
+
 ```bash
+# 1. Di chuyển vào thư mục service
 cd playwright-service
-npm install
-npx playwright install chromium
-```
 
-#### 2. Cấu Hình Environment:
-```bash
+# 2. Cài đặt thư viện dependencies
+npm install
+
+# 3. Cài đặt trình duyệt Chromium cho Playwright
+npx playwright install chromium
+
+# 4. Tạo file cấu hình môi trường .env
 cp .env.example .env
 ```
-Mở `playwright-service/.env` và điền:
-- `TELEGRAM_BOT_TOKEN=...` (Token riêng lấy từ `@BotFather` cho máy này).
-- `PORT=3000`
 
-#### 3. Đăng Nhập Google Lần Đầu:
+Mở file `playwright-service/.env` và cập nhật tối thiểu:
+```env
+PORT=3000
+TELEGRAM_BOT_TOKEN=dien_token_bot_telegram_cua_ban_o_day
+```
+
+Tiếp theo, đăng nhập Google lần đầu để lưu cookie & session:
+```bash
+node login.js
+```
+*Trình duyệt sẽ tự mở Google Flow và Gemini. Hãy đăng nhập tài khoản Google của bạn, sau đó quay lại Terminal nhấn phím **ENTER** để hoàn tất.*
+
+---
+
+## ▶️ Khởi Động Server
+
+Sau khi đã setup xong, bạn có thể khởi động server bất cứ lúc nào:
+
+* **Trên Windows**: **Double-click vào file `start.bat`** ở thư mục gốc (tương đương chạy `node server.js`).
+* **Trên macOS / Linux**: Chạy `./start.sh` hoặc:
+  ```bash
+  cd playwright-service
+  node server.js
+  ```
+
+Khi server khởi động thành công, bạn sẽ thấy log:
+```text
+🚀 Playwright Automation Server listening on port 3000
+[Telegram Bot] Telegram polling active. Listening for TikTok links & /upload...
+[Telegram Bot] ✅ Đã đăng ký 24 commands vào menu bot.
+```
+
+---
+
+## 🎬 Danh Sách Lệnh Template Telegram (`/t...`)
+
+Bot hỗ trợ đầy đủ các lệnh ngắn gọn tiền tố `/t` (vẫn hỗ trợ gõ dạng dài `/template...`):
+
+| Lệnh Ngắn | Lệnh Đầy Đủ | Mô Tả & Đặc Điểm | Phù Hợp Cho |
+|---|---|---|---|
+| `/t3` | `/template3` | **Review shop 3 cảnh** (Top-down 8s + Góc hông 4s + Thử giày 8s, không voice) | Giày nam / sneakers (Men Shop) |
+| `/t4` | `/template4` | **Review giày/dép pastel 4 cảnh** (Cận cảnh 8s + POV váy 6s + Nệm 4s + Đứng thử 8s, không voice) | Giày nữ / pastel (Lady Shop) |
+| `/t5` | `/template5` | **Review đa ngành 2 video 8s (Có chữ)**: Phân tích Gemini, gắn title/subtitle tiếng Việt theo mốc thời gian | Đa ngành, lifestyle |
+| `/t5_1` | `/template5_1` (hoặc `/t51`) | **Review đa ngành 2 video 8s (Sạch chữ 100%)**: Không text, góc quay chân thực | Đa ngành, tiện ích |
+| `/t5_2` | `/template5_2` (hoặc `/t52`) | **Review đa ngành 2 video 8s (Sạch chữ + Voice AI)**: Có giọng đọc review tiếng Việt chuẩn nam/nữ | Gia dụng, đời sống (Nhi Shop) |
+| `/t5_3` | `/template5_3` (hoặc `/t53`) | **Spam video đa ngành 4 video 4s (Sạch chữ + Voice AI)**: Dùng model Veo 4s siêu nhanh, kịch bản 4 cảnh ngắn gọn | Spam video affiliate, gia dụng |
+| `/t6` | `/template6` | **Review siêu thị POV 2 cảnh 8s**: Cảnh 1 cầm xem đồ ngang ngực + Cảnh 2 đặt vào giỏ hàng WinMart/Bách Hóa Xanh | Đồ FMCG, thực phẩm, tạp hóa |
+| `/t1` | `/template1` | **Review faceless 2 cảnh** (không voice-over) | Thời trang, đồ cơ bản |
+| `/t2` | `/template2` | **Review 8 cảnh x 4s** (không voice-over) | Chi tiết sản phẩm nhiều góc |
+
+---
+
+## ⚡ Các Lệnh Điều Khiển & Tiện Ích Khác
+
+| Lệnh | Chức Năng |
+|---|---|
+| `/upload` | Ghép các cảnh video thành video dọc 9:16 và đăng lên kênh TikTok liên kết của chat |
+| `/remake <cảnh> [prompt]` | Tạo lại cảnh video chưa ưng ý (VD: `/remake 1` hoặc `/remake 4 quay góc cận hơn`) |
+| `/status` | Xem trạng thái hàng đợi đang xử lý video |
+| `/chatid` | Xem Chat ID Telegram và tài khoản TikTok Shop đang gán cho nhóm này |
+| `/start` hoặc `/help` | Mở lại danh sách toàn bộ lệnh và hướng dẫn |
+
+---
+
+## 🤖 Lệnh Tự Động Chạy Theo Lịch (Auto Scheduler)
+
+Hệ thống tích hợp sẵn scheduler tự động cào link sản phẩm trong kho và đăng video theo các khung giờ cài sẵn trong `config.json`:
+
+* **Shop Giày Nam (Template 3)**:
+  * `/auto_t3` — Bật chế độ tự động chạy theo lịch
+  * `/auto_t3_run` — Chạy thử ngay lập tức 1 video
+  * `/auto_t3_off` — Tắt tự động chạy
+* **Shop Giày Nữ (Template 4)**:
+  * `/auto_t4` — Bật tự động
+  * `/auto_t4_run` — Chạy thử ngay 1 video
+  * `/auto_t4_off` — Tắt tự động
+* **Shop Gia Dụng (Template 5)**:
+  * `/auto_t5` — Bật tự động
+  * `/auto_t5_run` — Chạy thử ngay 1 video
+  * `/auto_t5_off` — Tắt tự động
+
+---
+
+## 🏪 Cấu Hình Shop & Kênh TikTok
+
+Cấu hình liên kết giữa nhóm Telegram và tài khoản TikTok nằm tại `playwright-service/config.json`:
+
+```json
+{
+  "channels": {
+    "-5593429194": {
+      "label": "Shop Giày Nam",
+      "tiktokCredentialId": "cJDNuW2i1tFFXivi",
+      "tiktokCredentialName": "Men Shop"
+    },
+    "-5593403910": {
+      "label": "Shop Giày Nữ",
+      "tiktokCredentialId": "WIFMkBwL39jBHjxo",
+      "tiktokCredentialName": "Lady Shop"
+    },
+    "-5348767040": {
+      "label": "Gia dụng",
+      "tiktokCredentialId": "Q9JStYDsDEzn5Tg3",
+      "tiktokCredentialName": "Nhi Shop"
+    }
+  }
+}
+```
+
+* **Thông tin đăng nhập TikTok**: Lưu tại `playwright-service/tiktok-accounts.json` (chứa session cookies để đăng video mà không cần đăng nhập lại mỗi lần).
+
+---
+
+## 🔄 Tích Hợp n8n Orchestration (Tự Động Upload & Gắn Giỏ Hàng TikTok Shop)
+
+Hệ thống hỗ trợ kết hợp với **n8n** để tự động hoá việc lấy link Affiliate, gắn link giỏ hàng vàng (Product Anchor) và đăng video lên TikTok Shop.
+
+### 1. Kiến Trúc Phối Hợp Giữa Node.js Server & n8n:
+* **Node.js Playwright Service (Cổng 3000)**:
+  * Tiếp nhận link/ảnh từ Telegram qua bot.
+  * Điều phối Gemini Web API viết kịch bản & storyboard.
+  * Gọi Direct API Google Flow (Veo 3) tạo video và dùng FFmpeg merge video hoàn chỉnh.
+  * Gửi video preview về nhóm Telegram.
+  * Cung cấp REST API nội bộ (`/api/jobs/...`) để n8n truy xuất dữ liệu video và trạng thái.
+* **n8n Engine (Cổng 5678)**:
+  * Khi có lệnh `/upload` (hoặc sau khi tạo xong video), server tự động bắn webhook sang n8n qua URL: `http://localhost:5678/webhook/tiktok-task`.
+  * n8n nhận task, tự động lấy link affiliate sản phẩm từ Showcase của shop tương ứng (`Get Link Affiliate`).
+  * n8n tải file video hoàn chỉnh từ `http://host.docker.internal:3000/api/jobs/:jobId/final-video`.
+  * Upload video lên TikTok Shop kèm giỏ hàng sản phẩm và gửi thông báo kết quả về Telegram.
+
+---
+
+### 2. Cài Đặt & Khởi Động n8n Bằng Docker:
+
+Chạy container n8n bằng lệnh Docker sau (lưu ý cờ `--add-host=host.docker.internal:host-gateway` để n8n có thể gọi ngược lại server Node.js chạy trên máy host):
+
+```bash
+docker run -d \
+  --name n8n \
+  -p 5678:5678 \
+  -v n8n_data:/home/node/.n8n \
+  --add-host=host.docker.internal:host-gateway \
+  n8nio/n8n:latest
+```
+
+---
+
+### 3. Import Workflow Vào n8n:
+
+1. Mở trình duyệt truy cập n8n UI: **`http://localhost:5678`**
+2. Tạo tài khoản owner nếu là lần đầu khởi chạy.
+3. Vào menu **Workflows** → Chọn **Import from File...**
+4. Chọn file workflow trong thư mục dự án:
+   * **`workflows/TIKTOK UPLOAD ONLY.json`** (Khuyên dùng): Workflow upload chuyên biệt và tinh gọn (23 nodes), nhận webhook từ bot để gắn giỏ hàng affiliate và đăng TikTok.
+   * **`workflows/TELEGRAM GEN VIDEO + AUTO UPLOAD TIKTOK.json`**: Workflow toàn trình (dành cho chế độ n8n trigger trực tiếp).
+5. Nhấn **Save** và gạt công tắc **Active** (bật workflow) để webhook URL `/webhook/tiktok-task` bắt đầu lắng nghe.
+
+---
+
+### 4. Đồng Bộ Tài Khoản TikTok Từ n8n Sang Server (`sync-tiktok-accounts.js`):
+
+Nếu bạn đã đăng nhập hoặc cấu hình credential tài khoản TikTok bên trong n8n, bạn có thể đồng bộ nhanh chóng sang server bằng 1 lệnh duy nhất:
+
+```bash
+cd playwright-service
+node sync-tiktok-accounts.js
+```
+*Script sẽ tự động kết nối vào Docker container n8n, giải mã token từ `database.sqlite` của n8n và cập nhật trực tiếp vào file `tiktok-accounts.json` của server.*
+
+---
+
+### 5. Cấu Hình File `.env` Cho n8n:
+
+Trong file `playwright-service/.env`:
+```env
+# Địa chỉ n8n webhook
+N8N_WEBHOOK_BASE_URL=http://localhost:5678
+
+# Chế độ điều phối
+# false: Server Node.js làm bot Telegram chính, tự forward sang n8n khi upload (Mặc định khuyên dùng)
+# true: Chỉ bật khi muốn n8n trực tiếp làm Telegram Trigger
+N8N_ORCHESTRATION=false
+```
+
+---
+
+### 6. Cơ Chế Fallback (Không bắt buộc phải có n8n):
+Nếu bạn **không bật n8n**, hệ thống vẫn hoạt động bình thường! Khi người dùng gõ `/upload`, server sẽ tự động fallback sang module tích hợp sẵn `services/tiktok-web-upload.js` để đăng video trực tiếp lên TikTok bằng cookies trong `tiktok-accounts.json`.
+
+---
+
+## 📁 Cấu Trúc Dự Án
+
+```text
+ai-fashion-review/
+├── setup.bat                     # File cài đặt tự động 1-click cho Windows
+├── start.bat                     # File khởi động server 1-click cho Windows (node server.js)
+├── setup.sh                      # Script cài đặt tự động cho macOS/Linux
+├── start.sh                      # Script khởi động server cho macOS/Linux
+├── README.md                     # Tài liệu hướng dẫn sử dụng
+│
+└── playwright-service/
+    ├── server.js                 # Điểm khởi chạy Express Server & Telegram Bot Polling
+    ├── config.json               # Cấu hình kênh, lịch auto scheduler, settings
+    ├── tiktok-accounts.json      # Cookie và tài khoản TikTok Shop
+    ├── login.js                  # Tool đăng nhập Google Labs & Gemini để lấy session
+    ├── setup.js                  # Engine cài đặt môi trường cho setup.bat/setup.sh
+    │
+    ├── services/
+    │   ├── telegram-bot.js       # Xử lý lệnh Telegram và hàng đợi bot
+    │   ├── video.js              # Gọi Direct API sinh video Google Flow (Veo 3)
+    │   ├── video-resize.js       # FFmpeg crop, resize 9:16 và lồng tiếng
+    │   ├── template-options.js   # Phân loại và chuẩn hóa options cho template /t...
+    │   ├── auto-template-scheduler.js # Bộ lập lịch tự động đăng video theo giờ
+    │   ├── tiktok-web-upload.js  # Upload video lên TikTok Shop tự động
+    │   └── gemini-client/        # Client giao tiếp với Google Gemini Web API
+    │
+    ├── chrome-data/              # Profile trình duyệt Chromium lưu session Google
+    ├── gemini-cookies/           # Cookie trích xuất tự động cho Gemini
+    ├── storyboard-review-runs/   # Thư mục chứa video và storyboard của các job
+    └── uploads/                  # File tạm xử lý video
+```
+
+---
+
+## ❓ Xử Lý Sự Cố Thường Gặp (Troubleshooting)
+
+### 1. Google báo hết hạn session hoặc lỗi 401 Unauthorized:
+Chạy lại lệnh đăng nhập Google để cập nhật cookie mới nhất:
 ```bash
 cd playwright-service
 node login.js
 ```
-- Trình duyệt sẽ mở ra trang Google Labs / Flow.
-- Đăng nhập tài khoản Google của bạn rồi đóng trình duyệt để lưu session vào `chrome-data/`.
-
-#### 4. Khởi Động Server:
-```bash
-cd playwright-service
-node server.js
-```
-
----
-
-## Các Template Hỗ Trợ Trên Telegram Bot
-
-| Lệnh Telegram | Chức Năng & Đặc Điểm |
-|---|---|
-| `/template6` | **Review Siêu Thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart, Không Chữ, Không Tiếng)** — Tự động xếp gian hàng siêu thị ngẫu nhiên, đổi outfit người review, Cảnh 1 cầm xem ngang ngực, Cảnh 2 đặt vào giỏ hàng dưới sàn. |
-| `/template5` | **Review Đa Ngành Hàng 4 cảnh 6s** (Thời trang, Mỹ phẩm, Gia dụng... tự động phân tích qua Gemini API, có thẻ chữ tiếng Việt nhỏ gọn trong safe-zone, không tiếng review). |
-| `/template5_1` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ / No Text $100\%$)** — Storyboard, 4 Panel và 4 Video đều sạch hoàn toàn không chữ, tập trung góc quay thực tế. |
-| `/template5_2` | **Review Đa Ngành Hàng 4 cảnh 6s (KHÔNG CHỮ + GIỌNG NÓI VOICE-OVER)** — Storyboard & Panel sạch không chữ, video có giọng đọc review tiếng Việt chuẩn nam/nữ theo sản phẩm, faceless $100\%$. |
-| `/template1` | Review giày dép/thời trang faceless 2 cảnh (không voice-over). |
-| `/template2` | Review giày dép 8 cảnh x 4s (không voice-over). |
-| `/template3` | Review shop giày dép 4 cảnh (Top-down 8s, POV 6s, góc hông 4s, đứng thử 8s). |
-| `/template4` | Review giày/dép nữ shop pastel 4 cảnh (Cận cảnh 8s, POV váy 6s, góc nệm 4s, đứng dáng 8s). |
-| `/remake <cảnh> [yêu cầu]` | **Tạo lại video cảnh chưa ưng ý** (VD: `/remake 2` hoặc `/remake 2 xoay nhẹ góc 45 độ` để ưu tiên custom prompt). |
-| `/dailyvlog` | Tạo vlog lifestyle cho nhân vật Nhi. |
-| `/status` | Xem trạng thái hàng đợi xử lý video. |
-
----
-
-## Sử Dụng
-
-### Luồng Chính: Review Sản Phẩm (Telegram → Video)
-
-1. Mở Telegram, chat với bot của bạn.
-2. Gõ lệnh chọn template mong muốn (ví dụ: `/template5`, `/template5_1` hoặc `/template5_2`).
-3. Gửi album ảnh sản phẩm (từ 1 đến 11+ ảnh).
-4. Bot tự động gom ảnh, tạo Master Storyboard qua Gemini API, tách 4 Panel 9:16, sinh 4 Video 6s trên Veo 3 và gửi video về Telegram.
-5. Nếu cần làm lại cảnh nào, gõ `/remake <số_cảnh> [yêu cầu]`.
-
-### Luồng Daily Vlog: Lifestyle cho Nhi (Telegram → Video)
-
-1. Gửi `/dailyvlog` vào Telegram bot.
-2. Gửi ảnh sản phẩm (1 hoặc nhiều ảnh).
-3. Pipeline 4 bước tự động:
-   - **Step 1**: Phân tích sản phẩm theo lifestyle (text-only JSON)
-   - **Step 2**: Tạo storyboard N panel cho Nhi (image generation)
-   - **Step 3**: Vẽ từng panel riêng (image generation)
-   - **Step 4**: Tạo N video Veo 3 (tái sử dụng video pipeline)
-4. Gửi video về Telegram kèm gợi ý caption và hashtags.
-
-Cấu hình Daily Vlog riêng trong `config.json`:
-
-```json
-{
-  "dailyVlogSettings": {
-    "panelCount": 5,
-    "sceneRatio": "9:16",
-    "nhiReferencePath": "assets/nhi"
-  }
-}
-```
-
-Đặt ảnh tham chiếu nhân vật Nhi vào `playwright-service/assets/nhi/` để kết quả nhân vật nhất quán hơn.
-
-### REST API Endpoints
-
-| Method | Endpoint                       | Mô tả                                      |
-|--------|--------------------------------|---------------------------------------------|
-| POST   | `/api/generate`                | Tạo image bằng Google Flow API              |
-| POST   | `/api/generate-video`          | Tạo video bằng Google Flow API              |
-| POST   | `/api/generate-storyboard`     | Tạo storyboard + video qua AI Studio       |
-| POST   | `/api/automate-storyboard`     | Trigger automation pipeline (fire & forget) |
-| POST   | `/api/resize-video`            | Crop/resize video base64                    |
-| GET    | `/api/export-cookies`          | Export cookies của browser context hiện tại |
-| GET    | `/api/tiktok/auth`             | TikTok OAuth URL                            |
-| POST   | `/api/tiktok/callback`         | Exchange TikTok auth code                   |
-| POST   | `/api/tiktok/upload`           | Upload video lên TikTok                     |
-
-## Cách Hoạt Động Của Direct API
-
-Thay vì thao tác DOM (click file input, chọn file, đợi UI update), server sử dụng:
-
-1. **Token capture**: Mở Google Flow page trong Playwright, intercept network requests để lấy `Bearer` token và enterprise reCAPTCHA token.
-2. **Direct upload**: `POST` file ảnh trực tiếp đến `/v1/flow/uploadImage` với Bearer auth.
-3. **Direct video generation**: Gọi `batchAsyncGenerateVideoStartImage` API với uploaded asset UUID, prompt, và video model config.
-4. **Polling**: Theo dõi operation status cho đến khi video sẵn sàng, sau đó tải về base64.
-
-Flow tab chỉ cần mở để **refresh token**, không cần tương tác UI.
-
-## Debug & Test
-
-### Test Direct API (không cần Telegram)
-
-```bash
-node playwright-service/debug-flow-direct-video-api.js
-```
-
-### Test Chrome Extension + Flow UI
-
-```bash
-node playwright-service/debug-flow-extension.js --keep-open
-```
-
-### Test Resize Video
-
-```bash
-node playwright-service/test-video-crop.js --input playwright-service/test.mp4 --percent 0.04 --aspect 9:16
-```
-
-### Debug AI Studio
-
-```bash
-node playwright-service/debug-aistudio.js
-```
-
-### Gemini WebAPI Storyboard Provider
-
-`playwright-service/config.json` can switch storyboard generation away from AI Studio UI automation:
-
-```json
-{
-  "systemSettings": {
-    "storyboardProvider": "gemini-webapi"
-  }
-}
-```
-
-Install the Python bridge dependency:
-
-```bash
-python -m pip install -r playwright-service/gemini-webapi-bridge/requirements.txt
-```
-
-Set these values in `playwright-service/.env`:
-
-```env
-GEMINI_SECURE_1PSID=your___Secure-1PSID_cookie
-GEMINI_SECURE_1PSIDTS=your___Secure-1PSIDTS_cookie
-GEMINI_COOKIE_PATH=./gemini-cookies
-GEMINI_WEBAPI_PYTHON=C:/Users/LAPTOP_036/AppData/Local/Programs/Python/Python312/python.exe
-GEMINI_WEBAPI_PANEL_CONCURRENCY=3
-```
-
-With this provider, `/api/generate-storyboard`, `/api/automate-storyboard`, and the Telegram bot full flow use `gemini_webapi` for analysis, storyboard prompts, and panel images. The existing Flow/Veo direct API step is still used for video generation.
-
-To export Gemini cookies from the same Playwright profile used by the service, run:
-
-```bash
-cd playwright-service
-node export-gemini-cookies.js
-```
-
-Use this script instead of opening system Chrome manually. It launches the persistent `chrome-data` profile directly.
-
-## Expose Server Qua Internet (Ngrok)
-
-Để Telegram webhook hoặc external clients gọi được server:
-
-```bash
-ngrok http 3000
-```
-
-## Các Thiết Lập Đang Hardcode
-
-| File                          | Nội dung hardcode                              |
-|-------------------------------|------------------------------------------------|
-| `services/aistudio.js`       | AI Studio app URL                              |
-| `services/browser.js`        | Google Flow project URL/ID                     |
-| `utils/extension-loader.js`  | Chrome extension path                          |
-
-Nếu đổi Google project hoặc AI Studio app thì cần sửa các file trên.
-
-## Dữ Liệu Tạm Và Bảo Mật
-
-**Không commit** các file/thư mục này (đã có trong `.gitignore`):
-
-```text
-playwright-service/.env
-playwright-service/chrome-data/
-playwright-service/uploads/
-playwright-service/labs.google.cookies.json
-playwright-service/tokens.json
-gemini-cookies/
-```
-
-Các file này chứa session Google, Telegram token, dữ liệu video tạm hoặc cookie nhạy cảm.
-
-## Lỗi Thường Gặp
-
-### Port 3000 bị chiếm
-
-```bash
-lsof -ti :3000 | xargs kill -9
-```
-
-### Google yêu cầu đăng nhập lại
-
-```bash
-cd playwright-service && node login.js
-```
-
-Đăng nhập Google xong rồi restart server.
-
-### Bearer token hết hạn
-
-Server tự động refresh token khi mở Flow tab. Nếu vẫn lỗi 401, thử:
-1. Restart server.
-2. Nếu vẫn không được, chạy lại `node login.js` để refresh session.
-
-### Telegram bot không nhận ảnh
-
-- Kiểm tra `TELEGRAM_BOT_TOKEN` trong `.env`.
-- Đảm bảo không có instance khác đang poll cùng bot token.
-- Xem log server để kiểm tra lỗi cụ thể.
-
-### Video quá lớn cho Telegram
-
-Telegram giới hạn file 50MB. Nếu video vượt quá, thử giảm chất lượng resize hoặc crop nhiều hơn.
-
-## Lệnh Hay Dùng
-
-```bash
-# Chạy server (bao gồm Telegram bot)
-cd playwright-service && node server.js
-
-# Đăng nhập Google lại
-cd playwright-service && node login.js
-
-# Export Gemini cookies
-cd playwright-service && node export-gemini-cookies.js
-
-# Kill service port 3000 nếu bị kẹt
-lsof -ti :3000 | xargs kill -9
-
-# Expose qua ngrok
-ngrok http 3000
-
-# Test direct API
-node playwright-service/debug-flow-direct-video-api.js
-```
-
-## n8n Orchestration (Telegram → Gen Video → TikTok Affiliate)
-
-Hệ thống hỗ trợ chế độ điều phối qua n8n workflow:
-- File workflow mới: `workflows/TELEGRAM GEN VIDEO + AUTO UPLOAD TIKTOK.json`
-- File workflow tham chiếu cũ: `workflows/AUTO UPLOAD VIDEO +AFFILITATE LIINK TIKTOK.json`
-
-### 1. Cấu hình Server cho n8n Mode:
-
-Trong `playwright-service/.env`:
-```env
-N8N_ORCHESTRATION=true
-DEFAULT_STORYBOARD_TEMPLATE=template5_1
-PRODUCT_IMAGE_LIMIT=8
-PRODUCT_IMAGE_MIN=1
-PRODUCT_IMAGE_DOWNLOAD_TIMEOUT_MS=15000
-# Đặt false nếu môi trường gặp lỗi SELF_SIGNED_CERT_IN_CHAIN khi tải ảnh TikTok
-PRODUCT_IMAGE_TLS_REJECT_UNAUTHORIZED=true
-```
-
-Khi `N8N_ORCHESTRATION=true`, server tắt long-polling Telegram bot nội bộ để n8n độc quyền xử lý Telegram Trigger.
-
-### 2. Luồng hoạt động:
-
-1. **Telegram Trigger**: Người dùng gửi shortlink TikTok Shop (vd: `https://vt.tiktok.com/...` hoặc kèm `/template5_1`).
-2. **Asset Extraction**: n8n phân giải shortlink, tải HTML PDP và gọi `/api/product-assets/extract` để trích xuất `product_id`, tiêu đề, mô tả và tối đa 8 ảnh.
-3. **Enqueue Job**: n8n gọi `POST /api/jobs/enqueue` để đưa job vào hàng đợi generation.
-4. **Checkpoints (01 → 07)**: n8n theo dõi tiến độ từng step theo thời gian thực:
-   - `01 — Product Assets Extracted`
-   - `02 — Product Analyzed`
-   - `03 — Storyboard Generated`
-   - `04 — Panels Generated`
-   - `05 — Videos Generated`
-   - `06 — Final Video Merged`
-   - `07 — Generation Completed`
-5. **Video Preview**: Server tự động merge các panel video và gửi video hoàn chỉnh về Telegram kèm caption và hướng dẫn `/upload`.
-6. **Upload Command (`/upload`)**:
-   - Khi người dùng gửi `/upload` (hoặc `/upload <jobId>`), n8n kiểm tra tính duy nhất (idempotency).
-   - Gọi `Get Link Affiliate` để xác minh sản phẩm nằm trong danh sách showcase/affiliate của tài khoản TikTok.
-   - Tải final video từ `/api/jobs/:jobId/final-video` và upload lên TikTok với product anchor tương ứng.
-   - Ghi nhận trạng thái publish và dọn dẹp job tạm.
-
-### 3. Job REST API Endpoints
-
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| POST | `/api/product-assets/extract` | Trích xuất `productId`, title, mô tả, ảnh từ PDP HTML |
-| POST | `/api/jobs/enqueue` | Đưa generation job vào hàng đợi |
-| GET | `/api/jobs/:jobId` | Đọc trạng thái và checkpoint hiện tại của job |
-| GET | `/api/jobs/latest?chatId=...` | Lấy job hoàn tất gần nhất của một chat |
-| GET | `/api/jobs/:jobId/result` | Lấy kết quả phân tích, caption, hashtag và thông tin video |
-| GET | `/api/jobs/:jobId/final-video` | Tải file binary MP4 video hoàn chỉnh đã merge |
-| POST | `/api/jobs/:jobId/upload-state` | Cập nhật trạng thái upload (`published`, `failed`) |
-| DELETE | `/api/jobs/:jobId` | Dọn dẹp thư mục tạm và xóa job khỏi bộ nhớ |
-
+*(Đăng nhập xong quay lại Terminal nhấn Enter, sau đó khởi động lại server).*
+
+### 2. Cổng 3000 bị chiếm (Port 3000 in use):
+* **Trên macOS / Linux**:
+  ```bash
+  lsof -ti :3000 | xargs kill -9
+  ```
+* **Trên Windows**:
+  ```cmd
+  netstat -ano | findstr :3000
+  taskkill /PID <PID_tim_duoc> /F
+  ```
+
+### 3. Telegram Bot không phản hồi:
+* Kiểm tra `TELEGRAM_BOT_TOKEN` trong file `playwright-service/.env`.
+* Đảm bảo không có tiến trình server nào khác đang chạy song song cùng 1 bot token (gây xung đột Polling Conflict 409).
+* Kiểm tra log trên cửa sổ console server để xem chi tiết thông báo lỗi.

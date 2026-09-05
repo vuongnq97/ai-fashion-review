@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeTempFiles } = require('../utils/helpers');
-const { getContext, ensureBearerToken, getRecaptchaToken, PROJECT_ID, PROJECT_URL } = require('./browser');
+const { getContext, ensureBearerToken, invalidateBearerToken, getRecaptchaToken, PROJECT_ID, PROJECT_URL } = require('./browser');
 
 // ═══════════════════════════════════════════════════════════════
 // Aspect ratio mapping: user-friendly → API enum
@@ -107,6 +107,10 @@ async function uploadImageDirect(context, bearerToken, buffer) {
   const status = response.status();
   const bodyText = await response.text();
   if (status !== 200) {
+    if (status === 401) {
+      console.warn('[UploadDirect] ⚠️ 401 Unauthorized detected — invalidating cached Bearer token.');
+      invalidateBearerToken();
+    }
     throw new Error(`[UploadDirect] API returned HTTP ${status}: ${bodyText.substring(0, 500)}`);
   }
 

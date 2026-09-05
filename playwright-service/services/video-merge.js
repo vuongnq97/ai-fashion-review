@@ -32,6 +32,16 @@ function getVideoDuration(filePath) {
   return 0;
 }
 
+function hasAudioStream(filePath) {
+  try {
+    const out = execFileSync(ffmpegPath, ['-i', filePath], { stdio: 'pipe' }).toString();
+    return /Audio:\s*aac|Audio:\s*mp3|Audio:\s*pcm/i.test(out);
+  } catch (err) {
+    const out = ((err.stderr ? err.stderr.toString() : '') + (err.stdout ? err.stdout.toString() : ''));
+    return /Audio:\s*aac|Audio:\s*mp3|Audio:\s*pcm/i.test(out);
+  }
+}
+
 /**
  * Merges multiple vertical video panels into a final 1080x1920 9:16 video.
  * Supports muting original audio and overlaying trending background music.
@@ -76,11 +86,11 @@ function mergeVideos(videoPaths, outputPath, options = {}) {
     filterParts.push(`[${idx}:v]scale=1080:1920:force_original_aspect_ratio=disable,setsar=1[v${idx}]`);
     vOutputs.push(`[v${idx}]`);
   });
-  filterParts.push(`${vOutputs.join('')}concat=n=${inputs.length}:v=1:a=0[vout]`);
 
   let args = ['-y', ...inputArgs];
 
   if (hasMusic) {
+    filterParts.push(`${vOutputs.join('')}concat=n=${inputs.length}:v=1:a=0[vout]`);
     const musicIdx = inputs.length;
     args.push('-i', path.resolve(options.musicPath));
     const fadeOutStart = Math.max(0, totalVideoDuration - 1.0);
@@ -106,12 +116,12 @@ function mergeVideos(videoPaths, outputPath, options = {}) {
       '-c:a', 'aac',
       '-b:a', '128k',
       '-pix_fmt', 'yuv420p',
-      // Bỏ -shortest: đã dùng aloop + atrim + -t để control duration chính xác
       '-movflags', '+faststart',
       outputPath
     );
 
   } else if (options.muteAudio) {
+    filterParts.push(`${vOutputs.join('')}concat=n=${inputs.length}:v=1:a=0[vout]`);
     args.push(
       '-filter_complex', filterParts.join(';'),
       '-map', '[vout]',
@@ -130,24 +140,61 @@ function mergeVideos(videoPaths, outputPath, options = {}) {
       outputPath
     );
   } else {
-    args.push(
-      '-filter_complex', filterParts.join(';'),
-      '-map', '[vout]',
-      '-aspect', '9:16'
-    );
-    if (totalVideoDuration > 0) {
-      args.push('-t', totalVideoDuration.toFixed(2));
+    // Preserve original voice-over / panel audio
+    const anyHasAudio = inputs.some(p => hasAudioStream(p));
+    if (anyHasAudio) {
+      console.log(`[VideoMerge] 🎙️ Preserving original panel audio (voice-over) across ${inputs.length} panels`);
+      const concatInputs = [];
+      inputs.forEach((p, idx) => {
+        if (hasAudioStream(p)) {
+          filterParts.push(`[${idx}:a]aformat=sample_rates=48000:channel_layouts=stereo[a${idx}]`);
+        } else {
+          const d = getVideoDuration(p) || 8.0;
+          filterParts.push(`anullsrc=r=48000:cl=stereo,atrim=0:${d.toFixed(2)}[a${idx}]`);
+        }
+        concatInputs.push(`[v${idx}][a${idx}]`);
+      });
+      filterParts.push(`${concatInputs.join('')}concat=n=${inputs.length}:v=1:a=1[vout][aout]`);
+
+      args.push(
+        '-filter_complex', filterParts.join(';'),
+        '-map', '[vout]',
+        '-map', '[aout]',
+        '-aspect', '9:16'
+      );
+      if (totalVideoDuration > 0) {
+        args.push('-t', totalVideoDuration.toFixed(2));
+      }
+      args.push(
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-crf', '22',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+        outputPath
+      );
+    } else {
+      filterParts.push(`${vOutputs.join('')}concat=n=${inputs.length}:v=1:a=0[vout]`);
+      args.push(
+        '-filter_complex', filterParts.join(';'),
+        '-map', '[vout]',
+        '-aspect', '9:16'
+      );
+      if (totalVideoDuration > 0) {
+        args.push('-t', totalVideoDuration.toFixed(2));
+      }
+      args.push(
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-crf', '22',
+        '-an',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+        outputPath
+      );
     }
-    args.push(
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '22',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-pix_fmt', 'yuv420p',
-      '-movflags', '+faststart',
-      outputPath
-    );
   }
 
   return new Promise((resolve, reject) => {

@@ -1,32 +1,32 @@
 /**
  * gemini-cookie-refresher.js
- * Shared singleton: export Gemini cookies tối đa 1 lần mỗi 45 phút.
- * Được gọi trước khi scheduler chạy để đảm bảo cookies còn hạn.
+ * Shared singleton: export Gemini cookies 1 lần mỗi khung giờ (hour).
+ * Scheduler đầu tiên mỗi round (VD: :00) sẽ export, các shop chạy sau (:10, :20) skip.
  */
 
 const path = require('path');
-const { spawn } = require('child_process');
-
-// Thời gian tối thiểu giữa 2 lần export (ms)
-const MIN_REFRESH_INTERVAL_MS = 45 * 60 * 1000; // 45 phút
+const { autoExportCookies } = require('./auto-cookie-exporter');
 
 // Timestamp lần export cuối (dùng chung cho tất cả schedulers)
 let lastExportedAt = 0;
 let isExporting = false;
 
 /**
- * Export Gemini cookies nếu đã quá MIN_REFRESH_INTERVAL_MS từ lần cuối.
- * Nếu đang export thì đợi cho đến khi xong.
+ * Export Gemini cookies nếu chưa export trong giờ hiện tại.
+ * Ví dụ: export lúc 06:00 → skip 06:10, 06:20 → export lại 08:00
  * @param {string} [baseDir] - thư mục gốc của playwright-service
  * @returns {Promise<boolean>} true nếu đã export, false nếu bỏ qua
  */
 async function maybeRefreshCookies(baseDir = path.resolve(__dirname, '..')) {
   const now = Date.now();
+  const currentHour = new Date().getHours();
+  const lastExportHour = lastExportedAt > 0 ? new Date(lastExportedAt).getHours() : -1;
   const elapsed = now - lastExportedAt;
 
-  if (elapsed < MIN_REFRESH_INTERVAL_MS) {
+  // Skip nếu đã export trong cùng giờ này (và cách đây < 2 tiếng để tránh edge case qua ngày)
+  if (lastExportHour === currentHour && elapsed < 2 * 60 * 60 * 1000) {
     const minutesAgo = Math.round(elapsed / 60000);
-    console.log(`[CookieRefresher] Bỏ qua export — lần cuối ${minutesAgo} phút trước (< 45 phút).`);
+    console.log(`[CookieRefresher] Bỏ qua export — đã export ${minutesAgo} phút trước (cùng giờ ${currentHour}h).`);
     return false;
   }
 
@@ -45,52 +45,28 @@ async function maybeRefreshCookies(baseDir = path.resolve(__dirname, '..')) {
 }
 
 /**
- * Chạy export-gemini-cookies.js, timeout 30s.
+ * Chạy autoExportCookies tự động từ chrome-data (headless, 3-5s).
  */
 async function runExport(baseDir) {
   isExporting = true;
-  const exportScript = path.join(baseDir, 'export-gemini-cookies.js');
-  console.log('[CookieRefresher] 🍪 Đang export Gemini cookies (timeout 30s)...');
+  console.log('[CookieRefresher] 🍪 Đang export Gemini cookies tự động từ chrome-data...');
 
-  return new Promise((resolve) => {
-    const proc = spawn(process.execPath, [exportScript], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: baseDir,
-      env: { ...process.env },
-    });
-
-    let output = '';
-    proc.stdout?.on('data', d => { output += d; });
-    proc.stderr?.on('data', d => { output += d; });
-
-    const timeout = setTimeout(() => {
-      console.log('[CookieRefresher] ⏱️ Timeout 30s — tiếp tục mà không kill.');
-      proc.kill('SIGTERM');
-      lastExportedAt = Date.now();
-      isExporting = false;
-      resolve(true);
-    }, 30000);
-
-    proc.on('close', (code) => {
-      clearTimeout(timeout);
-      lastExportedAt = Date.now();
-      isExporting = false;
-      if (code === 0) {
-        console.log('[CookieRefresher] ✅ Export Gemini cookies thành công.');
-      } else {
-        console.warn(`[CookieRefresher] ⚠️ Export thoát với code ${code}.`);
-        if (output.trim()) console.warn('[CookieRefresher] Output:', output.slice(-300));
-      }
-      resolve(code === 0);
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timeout);
-      isExporting = false;
-      console.warn('[CookieRefresher] ❌ Lỗi chạy export:', err.message);
-      resolve(false);
-    });
-  });
+  try {
+    const ok = await autoExportCookies(baseDir);
+    lastExportedAt = Date.now();
+    isExporting = false;
+    if (ok) {
+      console.log('[CookieRefresher] ✅ Export Gemini cookies tự động thành công.');
+    } else {
+      console.warn('[CookieRefresher] ⚠️ Auto-cookie export không tìm thấy cookie mới (dùng cookie hiện tại).');
+    }
+    return ok;
+  } catch (err) {
+    lastExportedAt = Date.now();
+    isExporting = false;
+    console.warn('[CookieRefresher] ❌ Lỗi export cookie:', err.message);
+    return false;
+  }
 }
 
 /**

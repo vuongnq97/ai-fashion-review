@@ -1,0 +1,941 @@
+{
+  "lastRunSlots": {
+    "2026-09-03 11:58": {
+      "jobId": "tg_-5348767040_1731321596366523164_1788411515420",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyx3QpCP8-4IqD2",
+      "ranAt": "2026-09-03T04:58:36.256Z",
+      "forced": true
+    },
+    "2026-09-03 12:20": {
+      "jobId": "tg_-5348767040_1732155215124530815_1788412807031",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyXhGQqo1-0JnBi",
+      "ranAt": "2026-09-03T05:20:07.474Z",
+      "forced": false
+    },
+    "2026-09-03 15:20": {
+      "jobId": "tg_-5348767040_1732155215124530815_1788423606783",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyqAupyJB-tbGWV",
+      "ranAt": "2026-09-03T08:20:07.268Z",
+      "forced": false
+    },
+    "2026-09-03 21:39": {
+      "jobId": "tg_-5348767040_1729737320163346851_1788446374719",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyqmocTRr-e0ONJ",
+      "ranAt": "2026-09-03T14:39:35.144Z",
+      "forced": true
+    },
+    "2026-09-03 21:50": {
+      "jobId": "tg_-5348767040_1730345678585170273_1788447025290",
+      "shortlink": "https://vt.tiktok.com/ZS9BWybEMT4Q3-bww7B",
+      "ranAt": "2026-09-03T14:50:27.168Z",
+      "forced": true
+    },
+    "2026-09-03 22:43": {
+      "jobId": "tg_-5348767040_1730623521634945232_1788450205019",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyptRjL2G-3IuMO",
+      "ranAt": "2026-09-03T15:43:25.460Z",
+      "forced": true
+    },
+    "2026-09-03 23:04": {
+      "jobId": "tg_-5348767040_1732279431269811232_1788451446276",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyGM6pSLw-QlKOR",
+      "ranAt": "2026-09-03T16:04:07.245Z",
+      "forced": true
+    },
+    "2026-09-04 06:20": {
+      "jobId": "tg_-5348767040_1732189819197033235_1788477608587",
+      "shortlink": "https://vt.tiktok.com/ZS9BWypSRLhW7-HpfaG",
+      "ranAt": "2026-09-03T23:20:09.006Z",
+      "forced": false
+    },
+    "2026-09-04 21:01": {
+      "jobId": "tg_-5593429194_1730512747346626592_1788530507204",
+      "shortlink": "https://vt.tiktok.com/ZS9BWytnfAFNR-2GaK8",
+      "ranAt": "2026-09-04T14:01:47.920Z",
+      "forced": true
+    },
+    "2026-09-04 21:12": {
+      "jobId": "tg_-5348767040_1729672293702601057_1788531149085",
+      "shortlink": "https://vt.tiktok.com/ZS9BWy3mpJqCw-y8MoQ",
+      "ranAt": "2026-09-04T14:12:29.520Z",
+      "forced": true
+    },
+    "2026-09-04 21:22": {
+      "jobId": "tg_-5348767040_1732057671482903426_1788531749118",
+      "shortlink": "https://vt.tiktok.com/ZS9BWy3WQuyA8-3P3gF",
+      "ranAt": "2026-09-04T14:22:29.543Z",
+      "forced": true
+    },
+    "2026-09-04 21:49": {
+      "jobId": "tg_-5348767040_1731730341203576591_1788533376950",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyTa4vC98-inmqy",
+      "ranAt": "2026-09-04T14:49:37.493Z",
+      "forced": true
+    },
+    "2026-09-04 22:21": {
+      "jobId": "tg_-5348767040_1732903693199443102_1788535264902",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyo6NMTc7-HwLJV",
+      "ranAt": "2026-09-04T15:21:05.332Z",
+      "forced": true
+    },
+    "2026-09-05 00:07": {
+      "jobId": "tg_-5348767040_1731621001016084360_1788541665184",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyKG5skEd-z7lh7",
+      "ranAt": "2026-09-04T17:07:45.191Z",
+      "forced": true
+    },
+    "2026-09-05 12:20": {
+      "jobId": "tg_-5348767040_1729450738139695141_1788585604153",
+      "shortlink": "https://vt.tiktok.com/ZS9BWyoQNGos1-saFG5",
+      "ranAt": "2026-09-05T05:20:04.158Z",
+      "forced": false
+    }
+  },
+  "nextLinkIndex": 19,
+  "usedLinks": {
+    "https://vt.tiktok.com/ZS9BWyKG5skEd-z7lh7": {
+      "uploadedAt": "2026-09-04T17:12:27.622Z"
+    }
+  },
+  "assetCache": {
+    "https://vt.tiktok.com/ZS9BWyx3QpCP8-4IqD2": {
+      "productId": "1731321596366523164",
+      "title": "Redchef Bộ dao kháng khuẩn gia đình nhà bếp kết hợp dao nhà bếp thép không gỉ bộ 6 món",
+      "productDescription": "💁‍♀️ CHĂM SÓC KHÁCH HÀNG & ĐẢM BẢO CHẤT LƯỢNG:\n- Bảo hành người bán 1 năm\n- Chính sách hoàn trả 15 ngày\n- Giao hàng 3 ngày\n📦GÓI\n- Bộ 6 chiếc：Dao cắt xương*1+Dao chặt xương*1+Dao cắt lát*1+Dao đầu bếp*1+Dao gọt hoa quả * 1+Kéo * 1\n-Bề mặt lưỡi dao phủ gốm màu đen:Lưỡi dao phủ lớp gốm đen cao cấp, chống dính thực phẩm, không bị ăn mòn axit thực phẩm, cắt rau thịt mượt mà dễ dàng, vệ sinh cực nhanh.\n🚚Giao hàng\nThứ Hai đến Thứ Sáu - Đơn đặt hàng trước 16:00 sẽ được gửi đi cùng ngày.\nThứ Bảy - Đơn đặt trước 14:00 sẽ được gửi đi cùng ngày.\nChủ nhật - Không giao hàng\n▶ Mong chờ phản hồi của bạn!\n🎈Nếu bạn có bất kỳ câu hỏi nào, xin vui lòng liên hệ với chúng tôi để giải quyết!\n🎈Xin vui lòng để lại cho chúng tôi một đánh giá 5 ⭐⭐⭐⭐ nếu bạn hài lòng với sản phẩm và dịch vụ của chúng tôi.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/02628524e5d045e2b09bc3d409264461~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e357fb898fb44539aa28535a7f60eb0a~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/2f21f9afb7164d92b0c5a8423f39d451~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a5d1d0d0fef14c85b9ca0009659760a5~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/4959156e48274c5da1d21788a62c7c7a~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/827fff32345b4118a955e90e3afb55fc~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/c27b1d49915c43418b80a80be5c784c0~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/45e03fccc1114f26a669d01f2bbae568~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731321596366523164?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948590098794247%22%2C%22sc%22%3A%22telegram%22%7D&checksum=5af5e9733f2e065cbe15e7a26cffcfafe0ee2f4f93a7df5129e65b628848b173&encode_params=MIIBUwQMAIcqdm6kjxD6rv86BIIBL8fTNUbi4VCb8m-xW-lv2sTkkt7O3Jvbj2qr5DE7bUs7KFmPUFZMwjw_N7mexPNl95O1uHFgGG3i2LPjb_PTnSBHz8LHLCPOW4hPRJrZLNgdgUZie5O9bj7-aZwd-zkFM5aKGvoW0ei_SVhJV1FMQpzzsGoRuS7WiMM6mJFFrpOZVMMTlZyZSSgcrO_ySnhjNt8sj4IBi94KvqnfenzK3xWiJCnIIgtKg2DSRjGudM6qE-KNQljYHngU_YymD8gwQafVbp1lHQwNWz7ZR8m4CboJ1dVBhTUkmCMPAWraBVo03Q4z-AyenBk9nd88h0all2UnASlgNLiO4vzDL2Xjdu6Bp9loVujFS9hUfBGCjQ-gS4TJGqZ_R6UanhD1Uid4_0zlme5XiX5cj3dirX9H3QQQ3YsdFFYIHz9f5fVY-dA-xA%3D%3D&og_info=%7B%22title%22%3A%22Redchef+B%E1%BB%99+dao+kh%C3%A1ng+khu%E1%BA%A9n+gia+%C4%91%C3%ACnh+nh%C3%A0+b%E1%BA%BFp+k%E1%BA%BFt+h%E1%BB%A3p+dao+nh%C3%A0+b%E1%BA%BFp+th%C3%A9p+kh%C3%B4ng+g%E1%BB%89+b%E1%BB%99+6+m%C3%B3n%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F5a5acf1830b54f408e9ff04b800211de~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=EE264382-5888-4F07-BDDF-FB7827F2B20E&share_region=VN&social_share_type=15&timestamp=1788360217&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T04:58:35.419Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyXhGQqo1-0JnBi": {
+      "productId": "1732155215124530815",
+      "title": "[LIVE] Giá Khay Kệ Đựng Tài Liệu Văn Phòng Deli - Pastel 4 Ngăn Kèm Khay Đựng Bút Đựng Sách Vở Để Bàn Decor Bàn Học",
+      "productDescription": "TÍNH NĂNG SẢN PHẨM\nTHÔNG TIN SẢN PHẨM:\n-------------------------------------------------------------------------------------------",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/d93cf6ad319c4f50b30ce4e70f21613b~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2803820e1ccb41348140e99c88461f63~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6d17f16a40fd4475a3b7887417bbb149~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/380e6f9a6d90471096d9692c642975cc~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6a9af95bb2744a75917888088160b0ac~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-crop-webp:1800:1800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1800,
+          "height": 1800
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-crop-webp:1800:1800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1800,
+          "height": 1800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/814ded6cdbc1468e8a267456848a0560~tplv-o3syd03w52-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732155215124530815?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948657889511176%22%2C%22sc%22%3A%22telegram%22%7D&checksum=f1ae6a6b2052eb270be922e046dec0f2564373b05564648ed2c9775191f60752&encode_params=MIIBUwQMS9CSD-U0OHwtTjmxBIIBL3q5zQC4JuGht7pl3kJC4mijLLmrtNmHd3wjRXqBI6nLQsnr3JJXzDXVKuYgStNcrspRB1_A2dUg54yoetlFaXsXC9b4os-Ec6Rh8VH1Rz6vGSql6tmV8q4Q5EQt8N54KO_kef87UJ4MeIuuIyuyRDt4hk6sF2WMFVIxmMT_ydJOVNnnZ0cj4gfzf8cJeCU4UonSjRbXCv3IRVHQKp8mlF0ZC4oxApoE8LnGVvu2qNAmSGzz3Q-wMFWJEGlUkyggYEOjzHkyh9XDEUce43_X0Ytmxfsg3y3ztfiNEgdkhfDgegTcA15SJiOZT_ZP9LjQWu9qpF4iK6JePkdm_DsFufYQyqb2vZg1f5rgB8qcSaVRA6WscXsoiLPpO88SPGevZOCMTb-tAxruO5dnRy-eqwQQRQII7kz5Lmd6HwlAm6b84Q%3D%3D&og_info=%7B%22title%22%3A%22%5BLIVE%5D+Gi%C3%A1+Khay+K%E1%BB%87+%C4%90%E1%BB%B1ng+T%C3%A0i+Li%E1%BB%87u+V%C4%83n+Ph%C3%B2ng+Deli+-+Pastel+4+Ng%C4%83n+K%C3%A8m+Khay+%C4%90%E1%BB%B1ng+B%C3%BAt+%C4%90%E1%BB%B1ng+S%C3%A1ch+V%E1%BB%9F+%C4%90%E1%BB%83+B%C3%A0n+Decor+B%C3%A0n+H%E1%BB%8Dc%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Faee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=2A485A1B-5E0B-4EC1-BD3B-C036CE914A0D&share_region=VN&social_share_type=15&timestamp=1788360225&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T05:20:07.029Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyqAupyJB-tbGWV": {
+      "productId": "1732155215124530815",
+      "title": "[LIVE] Giá Khay Kệ Đựng Tài Liệu Văn Phòng Deli - Pastel 4 Ngăn Kèm Khay Đựng Bút Đựng Sách Vở Để Bàn Decor Bàn Học",
+      "productDescription": "TÍNH NĂNG SẢN PHẨM\nTHÔNG TIN SẢN PHẨM:\n-------------------------------------------------------------------------------------------",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/d93cf6ad319c4f50b30ce4e70f21613b~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2803820e1ccb41348140e99c88461f63~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6d17f16a40fd4475a3b7887417bbb149~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/380e6f9a6d90471096d9692c642975cc~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 100,
+          "height": 100
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6a9af95bb2744a75917888088160b0ac~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-crop-webp:1800:1800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1800,
+          "height": 1800
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-crop-webp:1800:1800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1800,
+          "height": 1800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/814ded6cdbc1468e8a267456848a0560~tplv-o3syd03w52-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732155215124530815?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948657889511176%22%2C%22sc%22%3A%22telegram%22%7D&checksum=9bcf562f598e8ab04563092bd20e373e3741e65abf20e5e884d10222c40a793c&encode_params=MIIBUwQMIQ6cjOyIYG3ED6GkBIIBL7C8mIwfeJnegj1cUNKslFeNw5fIOcGxPlkMNJ23pgaPSHocyspqq3OxFEq2RfSxayKDcT2XC13hRH-BBaNNY5hjRF8DLIpN4kZQx5oSkNDObF2NVad8raJKAmvSA_aQnx_fo6SBxpxQs3pCj1LUtG0gOXczqEBh40iPxKQkHU10HdlrDiNvkYfy6TGZSjjZFIxiTKsvi058KyH_a3s2REMcswptJt5m5gV_KWPeyX5ZKmvy1UbwXS5ygKtGxU-NFNNwwNHTVOJ-AGZEgiRxCr-mjpNgoyB1IWHKcEkOrue7S30gvEccfgcSx_M3IUKF7YV8pv7luZPbvT63kUlEFnZgs8UwI-ksNDLw4v8_EPX7JxM1dFXwjWs4fWN5fxfJqCcRB0eTqXEQgo8RGJCz3gQQCcCefnPrCVURsEBu9te76w%3D%3D&og_info=%7B%22title%22%3A%22%5BLIVE%5D+Gi%C3%A1+Khay+K%E1%BB%87+%C4%90%E1%BB%B1ng+T%C3%A0i+Li%E1%BB%87u+V%C4%83n+Ph%C3%B2ng+Deli+-+Pastel+4+Ng%C4%83n+K%C3%A8m+Khay+%C4%90%E1%BB%B1ng+B%C3%BAt+%C4%90%E1%BB%B1ng+S%C3%A1ch+V%E1%BB%9F+%C4%90%E1%BB%83+B%C3%A0n+Decor+B%C3%A0n+H%E1%BB%8Dc%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Faee9851f60514ca29629ca4d319d104b~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=869344B5-88EA-487A-82BE-ADB525D7926D&share_region=VN&social_share_type=15&timestamp=1788360235&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T08:20:06.783Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyqmocTRr-e0ONJ": {
+      "productId": "1729737320163346851",
+      "title": "Giá úp bát đĩa có khay hứng nước nhựa abs tiện ích Nhà bếp Giá đựng đĩa Rổ Treo Tường khay up",
+      "productDescription": "Giá úp bát đĩa có khay hứng nước nhựa ABS là sản phẩm hoàn hảo để giữ bếp của bạn luôn gọn gàng và tiện lợi. Với khả năng chứa các loại đĩa và chén đũa, giá úp được thiết kế để tiết kiệm diện tích và dễ dàng sắp xếp các vật dụng trong nhà bếp của bạn.\nKích thước:\nChất liệu: nhựa nguyên sinh ABS\n\nĐược làm từ chất liệu nhựa ABS cao cấp, sản phẩm có độ bền cao, không thấm nước và không trơn trượt. Khay hứng nước tích hợi giúp cho việc rửa sạch các vật dụng sau khi ăn uống trở thành một công việc dễ dàng.\n\nVới thiết kế thông minh, giá út này còn được trang bị các rãnh thoát nước hiệu quả để ngăn ngừa hiện tượng ẩm mốc hay oxy hoá. Bên cạnh việc sắp xếp linh hoạt cho từng loại vật liệu trong nhà bế p củ a bạn , sản phẩm này còn mang lại cho bạn một không gian sạch sẽ và gọn gà ng mỗi khi dù bát đi a hay chi u ố p . \n\nVậy tại sao lại phải lười biến căn phòng của bạn thành điểm tập kết lưu niêu – linh kiện khi Giá út Bát Đĩ a Có Khay Hứ ng Nước NhựA Abs đã ra đời?",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/003ab68e71b441aba51b9eef91a475f3~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 768,
+          "height": 768
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/14c036688f154623bfc199123d22088d~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/14c036688f154623bfc199123d22088d~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/59b8d3397fe44c05aafedefd21310ca1~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/59b8d3397fe44c05aafedefd21310ca1~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4da3dcc780074dd7b849521c112b90a3~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4da3dcc780074dd7b849521c112b90a3~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/61fcb9d1230d4c06a08e4804cea348df~tplv-o3syd03w52-crop-webp:600:600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 600,
+          "height": 600
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729737320163346851?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948744397178632%22%2C%22sc%22%3A%22telegram%22%7D&checksum=cc7b531351dcc1511dd8a4fe0414addc16b4df4737ea2fd539921e3e30e18411&encode_params=MIIBUwQMADGuTe1ZuDmpl3AXBIIBL0ni3KTMwzK6t18UtWI_JcDlduhxKUU458n8lC3dN7fMlAOE9lVWFzj1cESlgrswzcO0hOiYacHzvns11SWSA7rmu8o6cPdtT3ZE1uint-2momln4uGO327eQBrKc4m_oMNDClTkzitifzjc-ohPaTWTOByO-xI-zdttV9Lx3Hq35GZjWfiTPY9AyVGvY3p2CE90pJe6vru8iPpEMEDIpeY-SR5wO5FijgY69fjB9_TM0CwRixAyTSTJVr710tPFxCz0kybzvUwjw3mUGazWL_Pknr9qneT0apt9ouUPGEOvfq5mg0OEqgKnTV0pmj4A8w1Ym8CPaeA-6Rdbo-yjY9jAcgXCd1Gq2VhSocfw84uH3_YHmefO-njXmDmuDSZ8M95DtG4Q3V0cBV_jw_MOngQQuBdQnWdbemQreVhdlDQxyw%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A1+%C3%BAp+b%C3%A1t+%C4%91%C4%A9a+c%C3%B3+khay+h%E1%BB%A9ng+n%C6%B0%E1%BB%9Bc+nh%E1%BB%B1a+abs+ti%E1%BB%87n+%C3%ADch+Nh%C3%A0+b%E1%BA%BFp+Gi%C3%A1+%C4%91%E1%BB%B1ng+%C4%91%C4%A9a+R%E1%BB%95+Treo+T%C6%B0%E1%BB%9Dng+khay+up%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F14c036688f154623bfc199123d22088d~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=31A68ADF-5197-4E19-A873-68DBD8BCEEC9&share_region=VN&social_share_type=15&timestamp=1788360246&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T14:39:34.717Z"
+    },
+    "https://vt.tiktok.com/ZS9BWybEMT4Q3-bww7B": {
+      "productId": "1730345678585170273",
+      "title": "Giỏ dựng quần áo nhà tắm treo tường Living C, có thể gấp gọn, giỏ nhựa dựng dồ dơ tiện dụng, da năng rổ",
+      "productDescription": "LƯU Ý : COMBO 2 GIỎ SẼ LÀ 1 GIỎ NHỎ + 1 GIỎ LỚN\n\n MÔ TẢ\nGiỏ dựng quần áo nhà tắm treo tường Living C, có thể gấp gọn, giỏ nhựa dựng dồ dơ tiện dụng, da năng rổ\nTHÔNG TIN SẢN PHẨM:\n- Chất liệu: NHỰA PP+ Sillicon cao cấp\n- Số lượng mỗi gói : 1 giỏ + 2 miếng dán tường\n- Kích Thước : có 2 size\n+ Size lớn : 49,5cm x 37cm x 24cm\n+ Size nhỏ : 38cm x 29cm x 16cm\n🍇🍇 TÍNH NĂNG 🍇🍇\n- Giỏ dễ dàng lắp đặt với một miếng dán, không gây tổn hại cho tường và vững chắc hơn\n- Giỏ nhựa đựng đồ đa năng dùng đựng đồ chơi, quần áo, móc áo,….vv\n- Mạnh mẽ chịu lực khoảng 10kg, không dễ dàng rơi trong môi trường ẩm ướt\n- Dán tường hoặc để mặt đất đều được, giỏ nhựa đựng quần áo treo tường có thể đặt ở nhiều vị trí khác nhau như: Cạnh máy giặt. bếp, tủ lạnh, phòng tắm,…\n- Gập mở tùy ý - tiết kiệm không gian.\n- Màu sắc tinh tế đem tới cho bạn cảm nhận dễ chịu,tràn đầy sức sống.\n👉👉 HƯỚNG DẪN SỬ DỤNG:\n- Miếng dán chỉ dính chặt trên bề mặt láng phẳng: gạch men, kính, bề mặt tủ lạnh, mặt đá...\n- Lau tường nơi cần dán thật sạch, khô.\n- Đo vị trí và đánh dấu vị trí dán. Dán miếng dán vào nơi cần dán, lấy tay miết mạnh để miếng dán dính chặt vào tường sau đó treo giỏ lên.\n- Để 10- 12 tiếng sau đó mới bỏ đồ lên.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/84f3e78efd14465dba9b8775e56c6ab6~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/f217d39d27e84e728578792c78d6c070~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/9b65bab52c0f48c4ac7a2ecca2b2cc96~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/072f020621cd4e638f8c6e5dc58e94a7~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/bb83c41362364451a33722b190436e27~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/cdd6323dc9344dd2b953c07c109209d3~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b1eefe210bce47118b8dfc4512c2dd6b~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b1eefe210bce47118b8dfc4512c2dd6b~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1730345678585170273?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948800349374226%22%2C%22sc%22%3A%22telegram%22%7D&checksum=05677943077530477df545377def2a4e4b3004082aef46f307cbf5841d48de9d&encode_params=MIIBUwQMc3RzeaxmyITlXmyFBIIBLxtfNCXS_916wy9uW3OgKnkhkexxJGhGV2MPMiX_PbQT66u45cKQ1Q4QpTv8nG8v7VYbLj1ccYS_2jawWKWaBMqGR6oFTboCdyHYRRGx0SOgSzAB5qbKsuHcnG5OCxrwOfeaHqsG1K27RK1MQkjeYGd452NXzkH82otX8Kw3Lei4YT3ChFpdLI9YUoo7fcJ_1Ug5vsnxzN_RBs7IJU6XQhlnJQO0kwrrFi6byH51qOSG0i9hXnnEume8MC45yyyV96vHBTVgXi7Ps8ZUMpzcIoLK2rm6XEhCd5AqXr8ovP2gdLSbY5LI4AuPH18snuMW74zsXr42B2hvY5LfiGp1rJDJfX_EbIBa4fHvZm-1MnG9BhuD-HBfPYR-ukPWJW7IKufNoqGafY1cXeSiQjTRXgQQpxKhYle8xfqch1VsrtKSTg%3D%3D&og_info=%7B%22title%22%3A%22Gi%E1%BB%8F+d%E1%BB%B1ng+qu%E1%BA%A7n+%C3%A1o+nh%C3%A0+t%E1%BA%AFm+treo+t%C6%B0%E1%BB%9Dng+Living+C%2C+c%C3%B3+th%E1%BB%83+g%E1%BA%A5p+g%E1%BB%8Dn%2C+gi%E1%BB%8F+nh%E1%BB%B1a+d%E1%BB%B1ng+d%E1%BB%93+d%C6%A1+ti%E1%BB%87n+d%E1%BB%A5ng%2C+da+n%C4%83ng+r%E1%BB%95%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fb1eefe210bce47118b8dfc4512c2dd6b~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=612C679E-C843-426E-B2B1-22E0AFC65994&share_region=VN&social_share_type=15&timestamp=1788360257&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T14:50:25.287Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyptRjL2G-3IuMO": {
+      "productId": "1730623521634945232",
+      "title": "Kệ đựng đồ rửa chén bát giá để giẻ rửa chén có khay hứng nước nghiêng Tiện Lợi cho Bếp",
+      "productDescription": "Mô tả sản phẩm:\nKệ đựng đồ rửa chén bát, giá để giẻ rửa chén trên bồn có khay hứng nước nghiêng tiện lợi là sản phẩm hữu ích cho các gia đình. Với thiết kế thông minh, kệ có khay hứng nước giúp bạn dễ dàng thoát nước mà không lo ngập ngụa. Vị trí treo giẻ được thiết kế ở phía trên tiện lợi cho việc treo và để vừa lòng trong quá trình sử dụng.\nVới Kệ đựng đồ rửa chén bát này sẽ khiến công việc của bạn trở nên de dàngr mà khoát thánh và tiẹ́t kiếm thoigian hon. Hãy mang vè và su duimg.“",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/e563256427ff4f8685fdc84a3f88753c~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/e563256427ff4f8685fdc84a3f88753c~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3130cc1ac492404987e4d97c6aabd178~tplv-aphluv4xwc-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3130cc1ac492404987e4d97c6aabd178~tplv-aphluv4xwc-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/626687d29b3c43a0a92d38a2d059d349~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/626687d29b3c43a0a92d38a2d059d349~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2628a03c096e4e338ff9cf3e666b80b6~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2628a03c096e4e338ff9cf3e666b80b6~tplv-o3syd03w52-crop-webp:1600:1600.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1600,
+          "height": 1600
+        }
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1730623521634945232?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948825529730834%22%2C%22sc%22%3A%22telegram%22%7D&checksum=603c9316c7af56c8976e75f15073c99785c36fd177d9e7e23ae52ad31976771f&encode_params=MIIBUwQMTtREnRhmrZf9G8r9BIIBL4KfWJ1e8gkfdlV9jgnOHluUdyH65h4YTpaQnk9-tYDRm8Gp0vxrsAMsTCZc-QXFRDnOLGagD7QvZp5jOul-sjW_VDOQLv6awSw4SIT4jAyx1JMVU3uvywbm4FhHW-HvWr4a0zXzw9jzyxI-yUa9WPrLBae5MDleMMiv3g5P72IsukJK3u5r70VOuqLLBrOTN-qWi4bR-_nzqUlWiCDnAaIV6AIwGEnXUfSLQm7AoWI5n-jPp-DNeyz3Pk6H45pZV3vFQ-9ZgCaSFrnziV3rJTR8WKBA6SqnM5hNM4kmBMXKczphyQAaucJrFHUrHp6Tu_cNIzczyY59-UsVGe0UK2iMiHUBPV901LfULffTUsK0Ne2MErjx94e7mhCxKHNO3lx4wkKPJFc1y7_FfFB-kQQQEHJifpmZlNMtmf_zf5VnGA%3D%3D&og_info=%7B%22title%22%3A%22K%E1%BB%87+%C4%91%E1%BB%B1ng+%C4%91%E1%BB%93+r%E1%BB%ADa+ch%C3%A9n+b%C3%A1t+gi%C3%A1+%C4%91%E1%BB%83+gi%E1%BA%BB+r%E1%BB%ADa+ch%C3%A9n+c%C3%B3+khay+h%E1%BB%A9ng+n%C6%B0%E1%BB%9Bc+nghi%C3%AAng+Ti%E1%BB%87n+L%E1%BB%A3i+cho+B%E1%BA%BFp%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fe563256427ff4f8685fdc84a3f88753c~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=384361F2-C77D-4CD4-A905-1827961B8306&share_region=VN&social_share_type=15&timestamp=1788360268&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T15:43:25.018Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyGM6pSLw-QlKOR": {
+      "productId": "1732279431269811232",
+      "title": "Bình Đựng Nước Living Ovoje Water Jug 2,5L 3L 5,5L",
+      "productDescription": "Bình đựng nước tiện dụng và thời trang, được thiết kế để giúp bạn dễ dàng bổ sung nước tại nhà, nơi làm việc hoặc khi tham gia các hoạt động ngoài trời.\nDung tích đa dạng:\n2.5L\nChiều cao: 20 cm | Đường kính: 16 cm\nKích thước gọn nhẹ, phù hợp cho sử dụng cá nhân, văn phòng hoặc các buổi gặp gỡ nhỏ.\n5.5L\nChiều cao: 28 cm | Đường kính: 20 cm\nDung tích lớn, thích hợp cho gia đình, dã ngoại, hoạt động thể thao và du lịch.\nMàu sắc: Đỏ Beige, Kaki Beige, Mint Beige\n• Do có sự chênh lệch nhiệt độ giữa bên trong bình và bên ngoài bình nên trong quá trình sử dụng sẽ có ngưng tụ một ít nước bên ngoài\n• Thiết kế hiện đại, thanh lịch phù hợp cho nhà ở, văn phòng hoặc sử dụng ngoài trời\n• Tay cầm tiện lợi giúp dễ dàng mang theo\n• Được làm từ nhựa chất lượng cao, bền bỉ cho việc sử dụng hằng ngày\n• Cấu trúc hai lớp giúp hỗ trợ giữ độ tươi mát của đồ uống\n• Phù hợp để đựng nước, đá, nước ngọt hoặc trà\n• Nắp đậy chắc chắn giúp hạn chế tràn và rót nước dễ dàng\n• Nhiều lựa chọn dung tích đáp ứng các nhu cầu sử dụng khác nhau\nPhù hợp với mọi độ tuổi và nhu cầu lưu trữ.\nCHÍNH SÁCH CỦA LIVINGOVOJE\nTrường hợp được chấp nhận đổi/trả\nSản phẩm bị lỗi hoặc hư hỏng do vận chuyển.\nSản phẩm giao sai (màu, kích thước, mẫu mã).\nSản phẩm thiếu phụ kiện hoặc bộ phận như mô tả.\nTrường hợp KHÔNG chấp nhận đổi/trả\nSản phẩm bị hư hỏng do khách hàng sử dụng hoặc bảo quản sai cách.\nSản phẩm không còn đầy đủ bao bì, tem, mác, phụ kiện.\nSản phẩm đã qua sử dụng hoặc đã giặt/rửa.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/218a6e5f0bbb403b8acf376b064c9e4a~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/6b3d97d2af6148778b4e9a2327b0fcf4~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/67f5a8ac3deb4bf6a76cfe1f6903c098~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/757b6aed85124b2aa61911dd5888791b~tplv-aphluv4xwc-crop-webp:1000:1000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/757b6aed85124b2aa61911dd5888791b~tplv-aphluv4xwc-crop-webp:1000:1000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/88051c1276934efc8862232889932165~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/88051c1276934efc8862232889932165~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f857cb70bfb7439e826cdb1cd54d74eb~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        }
+      ],
+      "hashtags": [
+        "#review",
+        "#sanphamchinhhang",
+        "#lifestyle",
+        "#trending",
+        "#xuhuong",
+        "#tiktokshop"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732279431269811232?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948868249552647%22%2C%22sc%22%3A%22telegram%22%7D&checksum=f9560b1bbdb53f44c855deb255956de4b18944400c0697f52e50904232e03395&encode_params=MIIBUwQM_c5uOMdiHFOtdE1LBIIBL5Yjm194temGJ3ynnQCQRWYKiDaUvqogMyKT379eCzvD4ih7Iy3Fh7Ojw0nSMs6M0rgXxcCqJ6WFC0zaqrN717zqs9KxFCjzaBeSTdvv02Xjtbi6L7OwqC4G-UOQOAE0G3XpoKXA2kb1c_HFCL2Hk01gssswXoggcVoHyGzeZK1PwVKoYSQ30JiM47MB9s9BdmkVwj_OAr7pgzPB1Z9ftMlh-bdHr4NNfnmfMbK4D4ehhQ0DuIRyIKz-xSFV0E9A0ssATglot3hLaJJB9XxJPWzKJvxHvrdCQpj3nUfKxTCKzmsjhVvL_bfuk0Ci9BJM64htHSpM7Ay7g_ZU-bLpTYT1h1qa1Y64oZRiOvOJv7fPttYxKY8X8cN59FQlezUprkstdyAoGLv0TEqXeGdqAgQQOb_nQgNhr0YlDsIK5kZVig%3D%3D&og_info=%7B%22title%22%3A%22B%C3%ACnh+%C4%90%E1%BB%B1ng+N%C6%B0%E1%BB%9Bc+Living+Ovoje+Water+Jug+2%2C5L+3L+5%2C5L%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F757b6aed85124b2aa61911dd5888791b~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=838CEEE9-BD78-4F3F-AB82-F9E5FAF51199&share_region=VN&social_share_type=15&timestamp=1788360277&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T16:04:06.274Z"
+    },
+    "https://vt.tiktok.com/ZS9BWypSRLhW7-HpfaG": {
+      "productId": "1732189819197033235",
+      "title": "Hũ Đựng Mỡ Gốm Sứ Cao Cấp Có Khay Lọc Thìa Tiện Dụng",
+      "productDescription": "HŨ ĐỰNG MỠ BẰNG GỐM SỨ CÓ KHAY LỌC CHO GIAN BẾP HIỆN ĐẠI!\nBạn có biết? 90% chất béo từ dầu mỡ chiên rán có thể tái sử dụng một cách an toàn nếu được bảo quản đúng cách! Đó là lý do vì sao Hũ đựng mỡ bằng gốm sứ có khay lọc trở thành trợ thủ đắc lực giúp bạn tiết kiệm dầu ăn mà vẫn đảm bảo sức khỏe cho cả gia đình.\n🔥 Vì sao nên sở hữu ngay?\n✅ Dung tích lớn 1400ml – Lưu trữ thoải mái lượng dầu mỡ sau mỗi lần nấu ăn.\n✅ Khay lọc thông minh – Loại bỏ cặn bẩn, giúp dầu trong và sạch hơn khi tái sử dụng.\n✅ Chất liệu gốm sứ cao cấp – Bền đẹp, không bám mùi, chịu nhiệt tốt.\n✅ Nắp đậy kín – Ngăn ngừa bụi bẩn, bảo vệ dầu mỡ khỏi vi khuẩn và côn trùng.\n✅ Thiết kế sang trọng, tinh tế – Phù hợp với mọi không gian bếp hiện đại.\n✨ TIẾT KIỆM – AN TOÀN – TIỆN LỢI ✨\n👉 Đừng lãng phí dầu ăn, hãy tái sử dụng thông minh với hũ đựng mỡ có khay lọc ngay hôm nay!\n📦 Số lượng có hạn – Đặt hàng ngay để nhận ưu đãi hấp dẫn!\n📢 #HũLọcMỡ #GốmSứCaoCấp #DụngCụBếp #TiếtKiệmDầu #LọcDầuThôngMinh #NấuĂnSạch #BảoVệSứcKhỏe #BếpHiệnĐại #HũĐựngMỡ #DụngCụNhàBếp #HũĐựngDầu #AnToànThựcPhẩm #GiữGìnSứcKhỏe #BếpSạchĐẹp #DụngCụTiệnLợi",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4af52f701b8343ea9a5d5218b1637b9a~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4af52f701b8343ea9a5d5218b1637b9a~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/101e573642524642a5146bb35e5e0ae4~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/101e573642524642a5146bb35e5e0ae4~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/f3d386dc85cf45b2a6f3b7c985ace7a1~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/f3d386dc85cf45b2a6f3b7c985ace7a1~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/300de4979a9a4b7a851007a0d9f39786~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/300de4979a9a4b7a851007a0d9f39786~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        }
+      ],
+      "hashtags": [
+        "#HũLọcMỡ",
+        "#GốmSứCaoCấp",
+        "#DụngCụBếp",
+        "#TiếtKiệmDầu",
+        "#LọcDầuThôngMinh",
+        "#NấuĂnSạch",
+        "#BảoVệSứcKhỏe",
+        "#BếpHiệnĐại",
+        "#HũĐựngMỡ",
+        "#DụngCụNhàBếp",
+        "#HũĐựngDầu",
+        "#AnToànThựcPhẩm",
+        "#GiữGìnSứcKhỏe",
+        "#BếpSạchĐẹp",
+        "#DụngCụTiệnLợi"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732189819197033235?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948894319789842%22%2C%22sc%22%3A%22telegram%22%7D&checksum=9644aec3c8bc74a2500825ce385e6e3de50a45c4d664a2153b9192ff7eb5fd33&encode_params=MIIBUwQMKTIXYx7JlO9SH4vWBIIBL-eDjpW0-CtnmtWdNiQ4kM4xS-FD0TqDYu3UEkwLlfnYInJGWRXYsxbzWRk3Yi_-aHdOQSme_Fs6jxiX3Gy0lbF1-512yWuNZRZQCbM_PU5euFGF6mne1S1klz5ydn_nWma7HF1OORgOsqMEsG4xmSH6C62VtjXf_bIgRunr0xmXynVJ0qiy5d_AR9uKfG6xqweTpwmSQkHzjIa7jDm_BE8gU9Djz-snSiwbqejexzH3aIdSyM48n8TMj_cUk9QDc9jldsd6zWRBCho0FLtxLZeNzU4DNrpSJge5FeYEGvqZZgm6Akmq6mGFFOYYGImMqsV-OBwOlBkesxaMzLzaDRrDAipm3MQnaS0x0F902rNyxTkKq_4baesM3m5uZWovmdkCxdaEA9nlGN_7it64WgQQhoVQQFy-1bHIqhSVJAfkGQ%3D%3D&og_info=%7B%22title%22%3A%22H%C5%A9+%C4%90%E1%BB%B1ng+M%E1%BB%A1+G%E1%BB%91m+S%E1%BB%A9+Cao+C%E1%BA%A5p+C%C3%B3+Khay+L%E1%BB%8Dc+Th%C3%ACa+Ti%E1%BB%87n+D%E1%BB%A5ng%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F4af52f701b8343ea9a5d5218b1637b9a~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=0B3C5551-15A5-47C4-AD19-CF27F17AA99C&share_region=VN&social_share_type=15&timestamp=1788360286&trackParams=%7B%22enable_shop_tab_popup%22%3A1%2C%22device_id%22%3A%227341695451814774274%22%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22source_page_type%22%3A%22product_share%22%2C%22traffic_source_list%22%3A%5B3%5D%2C%22traffic_source%22%3A3%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-03T23:20:08.585Z"
+    },
+    "https://vt.tiktok.com/ZS9BWytnfAFNR-2GaK8": {
+      "productId": "1730512747346626592",
+      "title": "Thùng đá dã ngoại Living Ovoje 6L & 11L & 25L, thùng đá giữ nhiệt nhựa PP an toàn, thiết kế hiện đại",
+      "productDescription": "LIVINGON - Thùng đá giữ nhiệt 6L/11L/25L Giữ nhiệt nóng, lạnh tối đa 6 - 16 giờ dễ dàng mang đi cắm trại, dã ngoại\nTHÔNG TIN SẢN PHẨM\nTHÙNG ĐÁ 6L\n1. Kích thước: 300 x 200 x 190 mm\n2. Khối lượng: 0.7kg\n3. Màu sắc: Khaki Beige / Đỏ Beige\nTHÙNG ĐÁ 11L\n1. Kích thước\n- Bên ngoài thùng: 240 x 390 x 248 mm\n- Bên trong thùng: 186 x 347 x 200 mm\n2. Khối lượng: 1.3kg\n3. Màu sắc: Khaki / Khaki-Beige / Xanh-Mint / Xám-Grey / Green\nTHÙNG ĐÁ 25L\n1. Kích thước\n- Bên ngoài thùng: 253 x 446 x 270 mm\n- Bên trong thùng: 335 x 500 x 314 mm\n2. Khối lượng: 2.54kg\n3. Màu sắc: Khaki / Khaki-Beige / Xanh-Mint / Xám-Grey / Xanh lá - Green / Hồng-Pink\nCHẤT LIỆU:\n- Được sản xuất bằng nhựa PP tổng hợp, giúp tăng độ bền và sự chắc chắn\nĐẶC ĐIỂM NỔI BẬT CỦA SẢN PHẨM\nTHIẾT KẾ:\n- Thùng giữ nhiệt được thiết kế bởi công ty Nicola Zentti - Công ty thiết kế toàn cầu của Ý\n- Phong cách thiết kế Hàn Quốc, hiện đại, trẻ trung\n- Dễ dàng di chuyển, tay cầm nhẹ và tiện lợi, có thể cầm nắm chỉ với 1 tay, tay cầm chắc chắn, có thể xoay 180 độ\n- Khóa mỏ neo chắc chắn giúp nắp kín và giữ nhiệt tốt hơn.\n- Bề mặt phẳng của thùng vừa tiện lợi để đặt đồ ăn, thức uống như một chiếc bàn nhỏ, vừa dễ lau chùi nhờ thiết kế ít góc cạnh, hạn chế bám bẩn.\n️ KHẢ NĂNG GIỮ NHIỆT\n– Thùng 6L&11l&25l : giữ lạnh lến đến 8 tiếng\n️ Hiệu quả giữ nhiệt phụ thuộc vào lượng đá và cách sắp xếp bên trong\n- Để vừa trong cốp xe của bạn. Giữ nhiệt ngay cả khi để trong cốp xe\n- Mẹo giúp giữ không khí lạnh lâu hơn: Đặt túi nước đá lên phần trên thực phẩm trong thùng đá, không khí lạnh sẽ tràn từ trên xuống dưới.\nLƯU Ý:\n- Thời gian giữ nhiệt tùy thuộc vào lượng đồ ăn hoặc lượng đá bạn cho vào thùng nhiều hay ít.\n- Hiệu quả làm mát tuyệt vời khi lượng đồ ăn lưu trữ chiếm 60% và đá là 40%\n- Cẩn thận không để gần lửa.\n- Kích thước và màu sắc có thể có một chút khác biệt so với hình chụp (do góc độ chụp)\n- Màu sắc có thể khác đôi chút giữa sản phẩm thực tế và sản phẩm trên màn hình (do độ phân giải màn hình)\n- Sản phẩm không bao gồm túi nước đá. Sử dụng một túi nước đá hoặc nước lạnh đóng chai để tăng độ giữ nhiệt.\n- Khi sử dụng ngoài trời, tránh ánh nắng trực tiếp. Giữ sản phẩm trong bóng râm để có hiệu quả giữ lạnh tốt hơn\n- Vệ sinh bằng vật liệu mềm - tránh gây trầy xước\n#livingon #livingovoje #thungda #thunggiunhiet #thungdadangoai #thungdacamtrai #nhacuadoisong #homeliving #kitchenware",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/98f80a2eac1943a3a810891f507525cd~tplv-aphluv4xwc-crop-webp:1000:1000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/98f80a2eac1943a3a810891f507525cd~tplv-aphluv4xwc-crop-webp:1000:1000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/5065d3349ccd495f8da8f654975a4021~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/5065d3349ccd495f8da8f654975a4021~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/ea7a9faa194f4767a9d78411c492cbb9~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/ea7a9faa194f4767a9d78411c492cbb9~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/04e64b6e676c48a6a2fdfae61fc112c6~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/04e64b6e676c48a6a2fdfae61fc112c6~tplv-aphluv4xwc-crop-webp:900:900.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 900,
+          "height": 900
+        }
+      ],
+      "hashtags": [
+        "#livingon",
+        "#livingovoje",
+        "#thungda",
+        "#thunggiunhiet",
+        "#thungdadangoai",
+        "#thungdacamtrai",
+        "#nhacuadoisong",
+        "#homeliving",
+        "#kitchenware"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1730512747346626592?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680948953978816264%22%2C%22sc%22%3A%22telegram%22%7D&checksum=b11f650d5a2aeaf93f8eaeed2143225d95116a4f4e93fce083fb345a2c943029&encode_params=MIIBUwQMzRoVL91V4Sf2kruSBIIBL-2spGVyuI__yHuBn2kyiZf7rC65-12e2xLgkMCFXwAi73ydUNGysKLwylDZ8fTVMrBqJB-ES4VYRgDCEfB3GHN9v6JFxDMMLuowtulQB3ndnFWGUzbKuPtn6BivLl-IDutg-yicpPQXKhEZLA_1cWfosRQEv0cjja-nO_QGIRBwosEABnaVi1Y5Ge1DUGC-lv2o98yX9EQDMRWWOPt9j6_Bpi88jdHjB0UYfUqkM-NMREaG-PotvIMiRUCegSTdwxS4RCsDBNqkTIrJPtfSPcTimcDFOsJYXWI0zhCUc-4b7YMh4wN0vPAJZZBJSD3RJx4Jy2983OtaAvgo5rEmwYIKlsUP-iYq6YJ_wZBn38yAxRbz7AFn1SSbR2Kbi0w07zVwl148DCMN8wzWNfWqAgQQh8Gpa2x6pS9Nc07mIog2FA%3D%3D&og_info=%7B%22title%22%3A%22Th%C3%B9ng+%C4%91%C3%A1+d%C3%A3+ngo%E1%BA%A1i+Living+Ovoje+6L+%26+11L+%26+25L%2C+th%C3%B9ng+%C4%91%C3%A1+gi%E1%BB%AF+nhi%E1%BB%87t+nh%E1%BB%B1a+PP+an+to%C3%A0n%2C+thi%E1%BA%BFt+k%E1%BA%BF+hi%E1%BB%87n+%C4%91%E1%BA%A1i%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F98f80a2eac1943a3a810891f507525cd~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=D71DD5F1-70A4-488C-918D-D9F0D4440D86&share_region=VN&social_share_type=15&timestamp=1788360297&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T14:01:47.203Z"
+    },
+    "https://vt.tiktok.com/ZS9BWy3mpJqCw-y8MoQ": {
+      "productId": "1729672293702601057",
+      "title": "Kệ góc nhà tắm dán tường Living C, các loại kệ chịu lực tốt, chất liệu nhựa cao cấp kitchen Nhà Bếp",
+      "productDescription": "Kệ góc nhà tắm dán tường Living C, các loại kệ chịu lực tốt, chất liệu nhựa cao cấp kitchen Nhà Bếp\nTHÔNG TIN CHI TIẾT\n\n- Số lượng mỗi gói : 1 kệ + miếng keo dán ( tùy vào phân loại bạn chọn )\n\n- Chất liệu : nhựa HI nguyên sinh\n\n- Màu sắc : trắng\n\n- Kích thước : \n\n+ Kệ góc : 25cm x 25cm x 4cm\n\n+ Kệ chữ nhật : 35cm x 12cm x 4cm\n\n+ Kệ bàn chải 1 ngăn : 12cm x 9cm x 11cm\n\n+ Kệ bàn chải 2 ngăn : 18cm x 9cm x 11cm\n\n+ Kệ bàn chải 3 ngăn : 24cm x 11cm x 9cm\n\n+ Kệ treo dép : 27cm x 5cm x 4cm\n\n+ Kệ xà phòng : 12cm x 8cm x 5cm\n---------------------------------------------- \n\n  TIỆN ÍCH CÔNG NĂNG\n\n+ Kệ có thể đựng gia vị, mỹ phẩm, kem bàn chải đánh răng, đồ dùng nhà tắm, dầu gội,... \n\n+ Chất liệu nhựa HI cao cấp, thiết kế sang trọng \n\n+ Sử dụng miếng dán chịu lực, không cần khoan, đục tường \n\n+ Sản phẩm bằng nhựa HI cao cấp, sử dụng miếng dán chịu lực acrylic chịu nước \n\n+ Kệ cứng cáp, rất tiện, phù hợp mọi không gian: bàn làm việc, bàn trang điểm, nhà bếp, phòng tắm,...\nHƯỚNG DẪN LẮP ĐẶT: \n\n- Miếng dán dính chặt trên các bề mặt láng & phẳng như: gạch men, kính, mặt tủ lạnh, mặt đá, gỗ láng... (HƯỚNG DẪN SỬ DỤNG: \n\n- Miếng dán chỉ dính chặt trên bề mặt láng phẳng: gạch men, kính, bề mặt tủ lạnh, mặt đá... KHÔNG DÁN TƯỜNG SƠN, XI MĂNG ( không lắp giữa 2 khe hở của gạch ốp,\n- Lau tường nơi cần dán thật sạch, khô. \n\n- Đo vị trí và đánh dấu vị trí dán. Dán miếng dán vào nơi cần dán, lấy tay miết mạnh để miếng dán dính chặt vào tường. \n\n- Để 10- 12 tiếng sau đó mới treo đồ lên.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/780fb10114a548b3a4a4765a4eef72ba~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2500,
+          "height": 2500
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/bef92ea61b034edca564f31cd7fe8a8c~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1024,
+          "height": 1300
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/ff434b4a186a4061915eec0871d3c27c~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a8c4bbe189dd4cca95068bb6f1ebaf38~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/4f776a4c6b67444ebc3c9643489aa367~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/16730e322c324b6890bf8b524d8a53b7~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/5c862ed4dc804d92baa24457f013b1f1~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/5c862ed4dc804d92baa24457f013b1f1~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "hashtags": [
+        "#review",
+        "#sanphamchinhhang",
+        "#lifestyle",
+        "#trending",
+        "#xuhuong",
+        "#tiktokshop"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729672293702601057?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949017078810375%22%2C%22sc%22%3A%22telegram%22%7D&checksum=5fcc98f4212bd6f8b614b0340fb12bf916db603645860298d63098d0bbc7d5fe&encode_params=MIIBUwQMvNLt57Dxs-PEknrOBIIBL-BYTBPfDjXUJioNeQVY81AZ6VGbWWQSKX9qMImvvsNHwu-9EWTCfwwzlTMV6Z6W2XXULEB4wki3lKmKfU7StzyU1f4uqtuKI5WEjDuYtHJKenln7ikVPuMdIkhS_BD4wmvBTpv9yiTqS3HTl8KjJV2PgKoJGdwN7Gg2X0zxze_AVFw7Cb6yJMG_-akRYK2nZCRfGlJhcFk9mb5Hyz5xRY0Yp7T4WIPCOynasoNA03k-DZW3OjKfly-Md5CBjEHKHHvuBrY4y_rDrjTbPRs2hMb7MFAa6X96YH2Umny3tHPisvsgdUKlQuqcXALshYsjm1MLsIcq8Al00dNurrfCTu2r3owDbAO1BuDyjVTYyvKQXiaD5POavKbdpeeGuSR6Kv7NpFd3-qZlVPvEVdNuxQQQuzJd08UQA-LOFoUka2zdBQ%3D%3D&og_info=%7B%22title%22%3A%22K%E1%BB%87+g%C3%B3c+nh%C3%A0+t%E1%BA%AFm+d%C3%A1n+t%C6%B0%E1%BB%9Dng+Living+C%2C+c%C3%A1c+lo%E1%BA%A1i+k%E1%BB%87+ch%E1%BB%8Bu+l%E1%BB%B1c+t%E1%BB%91t%2C+ch%E1%BA%A5t+li%E1%BB%87u+nh%E1%BB%B1a+cao+c%E1%BA%A5p+kitchen+Nh%C3%A0+B%E1%BA%BFp%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F5c862ed4dc804d92baa24457f013b1f1~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=2098D8CA-320D-4E40-A59F-1631BF71673D&share_region=VN&social_share_type=15&timestamp=1788360309&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T14:12:29.084Z"
+    },
+    "https://vt.tiktok.com/ZS9BWy3WQuyA8-3P3gF": {
+      "productId": "1732057671482903426",
+      "title": "Chai đựng dầu ăn thủy tinh LUCK nắp mở tự động, Bình xịt dầu ăn thông minh 2 trong 1 dung tích 470ml",
+      "productDescription": "CHAI ĐỰNG DẦU ĂN 470ML THIẾT KẾ HIỆN ĐẠI\nTHÔNG TIN SẢN PHẨM\nSản phẩm đã được chứng nhận QCVN9 của Việt Nam\n- Tên sản phẩm: Chai Đựng Dầu Ăn\n- Chất liệu: thủy tinh, nhựa silicon và thép không gỉ\n- Dung tích: 470ml\n- Cách sử dụng tiện lợi: đổ trực tiếp và sử dụng vòi phun sương\nĐẶC ĐIỂM SẢN PHẨM\n- Chai đựng dầu ăn có chức năng lưu trữ dầu ăn, tăng thẩm mĩ cho căn bếp của bạn, ngoài ra còn có thể lưu trữ dầu ăn thừa sau khi nấu qua lần 1.\n- Chai đựng dầu ăn sử dụng chất liệu cao cấp cấp, an toàn cho sức khỏe nhưng cũng cứng cáp và bền bỉ.\n- Thiết kế chai đựng dầu ăn có dung tích và khối lượng vừa phải, không quá nhỏ bất tiện, cũng không quá to dẫn đến nặng\n- Chai đựng dầu ăn hai chức năng còn có thể sử dụng với các gia vị dạng lỏng khác như giấm, nước mắm, dầu oliu,… giúp phân tán đều dầu khi nấu nướng\n- Thiết kế phần chai đựng dầu và đầu xịt phun sương rất khớp, đảm bảo không rò rỉ dầu ăn dù có lật ngược bình lại.\n- Đáy bình được thiết kế chống trượt có thể để được ở các mặt phẳng trơn, an toàn.\nCHÍNH SÁCH CHĂM SÓC KHÁCH HÀNG:\n- Hỗ trợ đổi trả trong vòng 07 ngày nếu sản phẩm gặp các vấn đề lỗi từ phía nhà sản xuất, trong quá trình vận chuyển hay nhận được không giống với hình ảnh.\n- Nếu có bất kì khiếu nại cần shop hỗ trợ về sản phẩm, LƯU Ý Quý khách quay lại video quá trình mở hàng để được đảm bảo 100% vấn đề sẽ được giải quyết.\n- Hỗ trợ đổi trả theo của TIKTOK, trường hợp được chấp nhận:\n+ Hàng không đúng mẫu, kiểu dáng như quý khách đặt hàng\n+ Không đủ số lượng như trong đơn hàng\nDo màn hình và điều kiện ánh sáng khác nhau, màu sắc thực tế của sản phẩm có thể chênh lệch khoảng 3-5%",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/bc90b40296d54f7ab003bc66982d0753~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/d02920e36d644d50a420b52a55afb74f~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/98b2ee89a47347cf977de62de6386f5b~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/323108a95bb7405a9370244ca20a6e49~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/75ce8098d17343b3ab35653caef12b33~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/7d4bacf997004f8f982ca9cb5dc78859~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/fc589a23d5cb4b5b9dfc55caf7ca4160~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a9728ec47b17461c9291033614a00abd~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 1000
+        }
+      ],
+      "hashtags": [
+        "#review",
+        "#sanphamchinhhang",
+        "#lifestyle",
+        "#trending",
+        "#xuhuong",
+        "#tiktokshop"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732057671482903426?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949033661974279%22%2C%22sc%22%3A%22telegram%22%7D&checksum=cf8e8e90b47e02dea3c967a24cca2276aac4e384eee9bfcd97ea45d425d02d27&encode_params=MIIBUwQMu_RHMOjcty5_3dnKBIIBL0f7V5us0JwuYHgUcsi4R1r5gmlyMbzB5mlP1xhSaUtkTfSb-nTFPzPclRhjtFrKiNPP4YdnzeB_-VBu1p_ax_b1c9A54nyPQu0-WTmQz6-oAJooAy2EWqk1GziqUv6O-6DrPI1erAeMV1XJuqomqX8hhWfwksvPzz_3DLgLpil_dqAOlcG8gtVjXLCzYu3gv-bWmA6Rx_suNNqCiewOnNgwnylQ6gMAdqupQS_zwbxyOAi83yqXK21qUhSAmfaIjpmk1ARxNRuQhxNH8ekc4QTGG9ZAsJZqmqtb0Nc2JYRRqJyTGa01RpdMZIHBYt7eLhqWL1Qzicyd4xF7jSEwsdv5xuqYiAwSoaVgUU5HTVg0HiaaW_xpmpNVM5-dkKbDz8fk_h-lLOvs5zWaJZ2hPwQQ9Rh9x5N-fyW0ZqsOYCsOiw%3D%3D&og_info=%7B%22title%22%3A%22Chai+%C4%91%E1%BB%B1ng+d%E1%BA%A7u+%C4%83n+th%E1%BB%A7y+tinh+LUCK+n%E1%BA%AFp+m%E1%BB%9F+t%E1%BB%B1+%C4%91%E1%BB%99ng%2C+B%C3%ACnh+x%E1%BB%8Bt+d%E1%BA%A7u+%C4%83n+th%C3%B4ng+minh+2+trong+1+dung+t%C3%ADch+470ml%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F008b3d54f8fa473da05542c3279e3af2~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=55168215-A194-4A47-8B92-E0933769F1FA&share_region=VN&social_share_type=15&timestamp=1788360319&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T14:22:29.116Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyTa4vC98-inmqy": {
+      "productId": "1731730341203576591",
+      "title": "Khay úp cốc bàn uống nước, kệ đựng cốc nhựa Việt Nhật gọn gàng tiện lợi DN442",
+      "productDescription": "Khay úp cốc bàn uống nước, kệ đựng cốc nhựa Việt Nhật gọn gàng tiện lợi DN442\nThông tin sản phẩm\n+ Kích thước: 26 x 23 x 3 cm\n+ Chất liệu: Nhựa PP cao cấp, an toàn cho sức khỏe\n+ Màu sắc: Xanh dương, trắng kem, hồng pastel\n+ Thương hiệu: Việt Nhật\n+ Xuất xứ: Việt Nam\nĐặc điểm và công dụng\n+ Thiết kế hiện đại với các lỗ thoát nước thông minh giúp cốc nhanh khô, chống ẩm mốc.\n+ Kích thước nhỏ gọn, tiết kiệm không gian, phù hợp sử dụng trong nhà bếp, văn phòng, hoặc bàn ăn gia đình.\n+ Nhựa dày dặn, bền đẹp, chịu lực tốt, không dễ nứt vỡ trong quá trình sử dụng.\n+ Đa năng: có thể dùng để úp cốc, chén, ly, hoặc để các vật dụng nhỏ khác như chai lọ mini, đồ gia dụng.\n+ Màu sắc pastel trang nhã, phù hợp mọi không gian nội thất.\nHướng dẫn sử dụng\n+ Rửa sạch khay trước khi sử dụng lần đầu.\n+ Đặt khay trên mặt phẳng khô ráo.\n+ Úp cốc hoặc chén úp lên khay theo các khe thoát nước.\n+ Sau khi dùng, có thể rửa khay bằng nước rửa chén thông thường và để khô tự nhiên.\nCam kết của shop\n+ Cam kết 100% hàng mới, đúng mô tả, đúng mẫu mã và màu sắc.\n+ Sản phẩm được đóng gói cẩn thận, vận chuyển nhanh chóng.\n+ Hoàn tiền/đổi trả nếu sản phẩm bị lỗi từ nhà sản xuất hoặc vận chuyển.\n+ Luôn sẵn sàng hỗ trợ khách hàng trước và sau khi mua hàng.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7058519c34ce4c6ebd9a415864300005~tplv-aphluv4xwc-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7058519c34ce4c6ebd9a415864300005~tplv-aphluv4xwc-crop-webp:1024:1024.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/53c8746c512d4246b1907eaf793499c6~tplv-aphluv4xwc-crop-webp:768:768.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 768,
+          "height": 768
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/53c8746c512d4246b1907eaf793499c6~tplv-aphluv4xwc-crop-webp:768:768.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 768,
+          "height": 768
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/bc112ede28124b6ab4a4b84404a0e2f3~tplv-aphluv4xwc-crop-webp:2564:2564.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2564,
+          "height": 2564
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/bc112ede28124b6ab4a4b84404a0e2f3~tplv-aphluv4xwc-crop-webp:2564:2564.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2564,
+          "height": 2564
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/202d76528782482e8c3dde7ac0eba32d~tplv-aphluv4xwc-crop-webp:792:791.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 792,
+          "height": 791
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/202d76528782482e8c3dde7ac0eba32d~tplv-aphluv4xwc-crop-webp:792:791.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 792,
+          "height": 791
+        }
+      ],
+      "hashtags": [
+        "#review",
+        "#sanphamchinhhang",
+        "#lifestyle",
+        "#trending",
+        "#xuhuong",
+        "#tiktokshop"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731730341203576591?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949088739264274%22%2C%22sc%22%3A%22telegram%22%7D&checksum=ab126505429c444eb18c98421bb68f0e02ac87e93b2be4d0e87729b04a07a212&encode_params=MIIBUwQMwULt7Wo0a5xTGYnKBIIBL7HDYG_LjJg0cPorV4_egx8Ty-_aznCLD_E0hn_6bVehfppqJNgviv1um7h4huY8og9FTvgTBONCqmgubeEivL-vFIkAJDCxhyBrgyCewOU6eY3FcgZXBoLItjfoGJP0lWdWOphbdKyjL1DDjIcFJnUg8RKAdILVHxLaDUcdxMN948lvl_Ijp9xGKYI8Sr3743FxvbsDTTDJbi6i6KodXWErJ5ffMz1cYR6On7a1nftojjut74uFo0hg8hZSTd5mACoo_U0bRykUa6S-V3q9gaxRM0dN_Wza4PpBPvEPW4dlZrOP9I1u8gGv7IIV-jI45BtYipqu8Cn5YTB7c20c6SSkpmzZpz6y5wXGOViZYSSj5nGpD4eX6RRgHmUaL7_yQgKCt12dJDE56BBgITFUrAQQCygNjuzpcZv00uLCdjGpVg%3D%3D&og_info=%7B%22title%22%3A%22Khay+%C3%BAp+c%E1%BB%91c+b%C3%A0n+u%E1%BB%91ng+n%C6%B0%E1%BB%9Bc%2C+k%E1%BB%87+%C4%91%E1%BB%B1ng+c%E1%BB%91c+nh%E1%BB%B1a+Vi%E1%BB%87t+Nh%E1%BA%ADt+g%E1%BB%8Dn+g%C3%A0ng+ti%E1%BB%87n+l%E1%BB%A3i+DN442%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F7058519c34ce4c6ebd9a415864300005~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=B1A09765-5828-46A8-B22B-91DF84ADA112&share_region=VN&social_share_type=15&timestamp=1788360329&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T14:49:36.946Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyo6NMTc7-HwLJV": {
+      "productId": "1732903693199443102",
+      "title": "Đèn để bàn thông minh, đèn ngủ kết hợp ổ cắm USB, 3 chế độ sáng có sạc nhanh",
+      "productDescription": "Đèn bàn thông minh\nSản phẩm này có ba chế độ chiếu sáng, cho phép bạn điều chỉnh theo nhu cầu.\nĐiểm nổi bật\n3 chế độ chiếu sáng: Đèn bàn có ba chế độ chiếu sáng khác nhau, hoàn hảo cho nhiều tình huống khác nhau.\nTiện lợi\nCổng USB cho phép bạn dễ dàng sạc các thiết bị di động.\nĐối với những ai cần đèn ngủ và cổng USB, đèn bàn thông minh này là lựa chọn hoàn hảo. Với ba chế độ chiếu sáng và hai cổng USB, sản phẩm mang đến vô số tiện lợi.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/339157e799a74353856995459bd5ad74~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/339157e799a74353856995459bd5ad74~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a197599d5c3c4afca9ca8cceeb26d328~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a197599d5c3c4afca9ca8cceeb26d328~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3419e9ce659a4de4a630b13ee7ccab10~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3419e9ce659a4de4a630b13ee7ccab10~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/8f8d276421a54fe69f095120ad8c0fb4~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/8f8d276421a54fe69f095120ad8c0fb4~tplv-aphluv4xwc-crop-webp:3200:3200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 3200,
+          "height": 3200
+        }
+      ],
+      "hashtags": [
+        "#review",
+        "#sanphamchinhhang",
+        "#lifestyle",
+        "#trending",
+        "#xuhuong",
+        "#tiktokshop"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732903693199443102?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949095197345544%22%2C%22sc%22%3A%22telegram%22%7D&checksum=211610aed7275e0715e019696c02e211c661347a02729a8ca441f45ac4a79a7f&encode_params=MIIBUwQMmqaygDOBn_LJH1_QBIIBLy8LsQKmAdagxCGnRcY8m8kRX5Hl5tAx9w4kNZv78F5ZYMFrfcH5YFWsuJq6y3EjSiQoNMXt_0-ol1FtRslBR0uIkOSr76CRdImjOvEGicvnC8SWeKQTT9YUWEK1lV-t4dnk2ggLazM3lNU6O6w-rfr5fZcnS9YusdQURjpeY0oQ4Ojsd7CBtH4ZN5BI3TQ7S0pt0H9ZvipmU9O4lo_uv82rAlWClblmAUy1dZwgNRSDZvB8ha4jc9XQTlJd9rFvZ291WaliS4Iasuq6DWlsxCSNOU-UST11IJe7c6Ckh6NQf9Y5E7nGF-QcYNz8_YY9lSB2F6azBHc5lR4U-LXUoF3AEfHGVXA7Ojc3ifT_41pjSZNlMh3FatC0mT354KOIMYUe0MDcc01F76zd7wnriAQQt-gU-bfjyNuXxIUHUnedXw%3D%3D&og_info=%7B%22title%22%3A%22%C4%90%C3%A8n+%C4%91%E1%BB%83+b%C3%A0n+th%C3%B4ng+minh%2C+%C4%91%C3%A8n+ng%E1%BB%A7+k%E1%BA%BFt+h%E1%BB%A3p+%E1%BB%95+c%E1%BA%AFm+USB%2C+3+ch%E1%BA%BF+%C4%91%E1%BB%99+s%C3%A1ng+c%C3%B3+s%E1%BA%A1c+nhanh%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F339157e799a74353856995459bd5ad74~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=569226D8-F817-494E-868B-0BC6EB49703E&share_region=VN&social_share_type=15&timestamp=1788360342&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T15:21:04.901Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyKG5skEd-z7lh7": {
+      "productId": "1731621001016084360",
+      "title": "[Màu Ghi] Giá úp chén bát có khay hứng nước, rổ úp bát đĩa nhiều ngăn đa năng có khay để đũa muỗng thông minh - Khay úp chén dĩa bát có rãnh thoát nước 9058",
+      "productDescription": "Khay Kệ Úp Chén Bát, Rổ Úp Chén Đĩa Đũa Muỗng Có Khay Hứng Nước Tiện Lợi\n- Rổ úp chén bát có khay hứng nước bên dưới là thiết kế thông minh và sang trọng cho không gian bếp nhà bạn.\n- Kích thước không quá to vừa vặn với mọi không gian, nhưng bạn vẫn có thể đựng được rất nhiều bát đĩa.\n- Làm bằng nhựa cao cấp chất lượng cao bền bỉ không dễ vỡ gãy.\n- Thiết kế thông minh cao cấp có khay thoát nước thông minh, giữ gìn vệ sinh không gian bếp thật sạch sẽ.\n- Sử dụng: đựng bát đĩa thìa trong gia đình giúp bát khô thoáng nhanh hơn.\n- Có chia ngăn riêng để úp đĩa, chén, đũa vô cùng thuận tiện\n- Giúp cho không gian bếp gia đình gọn gàng, ngăn nắp hơn\n- Được làm từ nhựa chính phẩm nên vô cùng chắc chắn\n- Chất liệu nhựa PP\n- Kích thước :44x27.5x17cm\n- Màu sắc: Xanh,Ghi\n- Bộ sản phẩm gồm: khay đế, rỗ chén, ống đũa\n#GiáÚpChénĐĩa #kệúpchén #KhayNhựaÚpChénBát #giáđểbátđĩa\n#Rỗ #Rỗúpchén #rỗđểúpchén,dĩa #rỗúpchéncókhayhứngnước #rỗcókhayhứngnước #rỗúpchéndĩa\n#giadechenbat #giadechenbatbangnhua #giadechenbatnhogontienloi #giadechenbat",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/1ed40ab840ea4f0c92db1503623fa165~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/45ca916e1b8f4283b2755cbef10ac94e~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/035302574b8f4d20b48b035d90c419b2~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/121fe1e43cc747038d3018a56feb4908~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/4eec1489ec00430dad5eae3b4db02194~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f5281b6b10434594a0e3875c8f083fbe~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7645cbb783c54a3088ff4fb0c1207034~tplv-aphluv4xwc-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7645cbb783c54a3088ff4fb0c1207034~tplv-aphluv4xwc-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "hashtags": [
+        "#GiáÚpChénĐĩa",
+        "#ke",
+        "#KhayNhựaÚpChénBát",
+        "#giáđe",
+        "#Rỗ",
+        "#Rỗúpchén",
+        "#rỗđểúpchén",
+        "#rỗúpchéncókhayhứngnước",
+        "#rỗcókhayhứngnước",
+        "#rỗúpchéndĩa",
+        "#giadechenbat",
+        "#giadechenbatbangnhua",
+        "#giadechenbatnhogontienloi"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731621001016084360?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949180891170567%22%2C%22sc%22%3A%22telegram%22%7D&checksum=5debd833f849bbe93d0e394d3aacc3497849be1e6d9103ab198850e1b09ad55e&encode_params=MIIBUwQMHC_xs7_-cjRXnbFVBIIBL8WhJl_E73nhs2l2CeNOUyVo1g5rodS7UhERLtGkMU_RW0MaF-aQzj0eQOGqDOTCd1SgHAXpBpJZ7q-QlXwlDcH5_v1-3k-09GB-MT2RSefQdkKIa7fImN9OWYbr2alltQ5e_fSAIPWgVJDp6dABIeXxmLn5sXKhZzX1JuNIbUpjFXHZnmzpe5gOau1HJe3R4uGdOLbRU59s1tKijd7XRv_G32q4xIcuthms1gwIlAwvdTV7nWEMa0CH7Tqs4UtGRHxDlhmMlPyAIi5t9BWybMks6gsOKd547wumSLpJcr63RcWWYTghNzn1pXUjfYAgWno5AsNWcOf-7Lf1GuYkZ060BKkqXGPJ_SIZADM7pAMxlefVVDfe6jSodGLnaS4bprbXN6gmGophqJ9KjghnIwQQBCTpFTiOIbwdNbfbRACb9Q%3D%3D&og_info=%7B%22title%22%3A%22%5BMa%CC%80u+Ghi%5D+Gi%C3%A1+%C3%BAp+ch%C3%A9n+b%C3%A1t+c%C3%B3+khay+h%E1%BB%A9ng+n%C6%B0%E1%BB%9Bc%2C+r%E1%BB%95+%C3%BAp+b%C3%A1t+%C4%91%C4%A9a+nhi%E1%BB%81u+ng%C4%83n+%C4%91a+n%C4%83ng+c%C3%B3+khay+%C4%91%E1%BB%83+%C4%91%C5%A9a+mu%E1%BB%97ng+th%C3%B4ng+minh+-+Khay+%C3%BAp+ch%C3%A9n+d%C4%A9a+b%C3%A1t+c%C3%B3+r%C3%A3nh+tho%C3%A1t+n%C6%B0%E1%BB%9Bc+9058%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F7645cbb783c54a3088ff4fb0c1207034~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=FAF2F672-BCCF-411A-82F1-57764CA782CF&share_region=VN&social_share_type=15&timestamp=1788360352&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-04T17:07:44.751Z"
+    },
+    "https://vt.tiktok.com/ZS9BWyoQNGos1-saFG5": {
+      "productId": "1729450738139695141",
+      "title": "Hộp Đựng Quần Áo, Chăn Màn - Túi Đựng Quần Áo Khung Thép Chịu Lực Homebox Store Có khóa kéo Bảo quản quần áo Thùng Đựng Đồ",
+      "productDescription": "Túi đựng quần áo, hộp đựng quần áo khung thép là sản phẩm giúp bạn luôn gọn gàng cho không gian phòng của mình mà còn giúp cho bạn cảm thấy thoải mái hơn và dễ dàng tìm thấy những vật dụng, quần áo khi cần.\nVới sản phẩm này, bạn có thể để được nhiều đồ như: chăn, màn, quần áo, đồ chơi của trẻ, sách bá hoặc dùng làm túi du lịch mang đồ đi picnic, cắm trại.\nĐIỂM NỔI BẬT SẢN PHẨM\n+ Thiết kế ngăn đựng rộng với khóa kéo kín đáo, giúp bạn bảo quản các vật dụng tối ưu khỏi bụi bẩn và ẩm mốc.\n+ Chất liệu vải Oxford có độ bền cao, mặt phẳng mịn và đẹp, dễ giặt, thân thiện với môi trường. Khung thép chắc chắn.\n+ Quai cầm phía bên hông tủ vải giúp tiện lợi trong việc cầm, xách, di chuyển, tháo lắp dễ dàng, tiết kiệm không gian.\n+ Tủ vải có nhiều màu sắc tươi sáng, hoa văn đẹp còn giúp bạn tô điểm không gian sống.\nTHÔNG TIN SẢN PHẨM\n- Kích thước: dài x rộng x cao 50 x 40 x 33cm.\n- Hộp khung thép 66Lit : 3 khung thép chống dựng, chứa được khoảng 40 bộ quần áo hoặc 1 cái chăn và 1 gối\n- Chất liệu: Vải Oxford, khung thép chịu lực chống gỉ sét\nQUAN TRỌNG : Khá nhiều quý anh chị có thắc mắc về vấn đề mùi nhựa sản phẩm, tuy nhiên quý khách hàng lưu tâm 1 chút ạ: Vì sản phẩm là hàng mới tinh, chuyển hàng trực tiếp từ xưởng sản xuất nguyên tem, nguyên kiện và gửi luôn cho khách, nên không tránh khỏi 1 chút mùi nguyên vật liệu, mùi Tuy nhiên, quý anh chị hoàn toàn yên tâm vì mùi này không ảnh hưởng gì tới sức khỏe người tiêu dùng; và an toàn cho trẻ nhỏ.\nTìm kiếm sản phẩm theo từ khóa\n#tuidungdobangvai #tuidungdodanang #sotdungdobangvai #tuidungchanmancolon #hopdungquanao #gio #sot #tuidung #quanao #giodungdo #giodungquanao #tuidungchanman #tuidungquanao #sotdungquanao #giovaidungdodanang #hopdungquanao #tuidungquanao #tuidungchanman #hopdungquanaochanman #tuidungquanaokhungthep #hopdungquanaokhungthep #thungvaidungquanao\n+ túi đựng quần áo, túi vải đựng quần áo, túi khung thép",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/c47f96d80fcc4e24b5e580d9e4f7fedd~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/7782d78722f54135ac52cbdc48b27c29~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/e74d7e497ac04e36a02e6ba1e38db4e9~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 770
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b5479390c66a4bf0b4bff24889015865~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b5479390c66a4bf0b4bff24889015865~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/9b54ced6675d430c848dd1f99abe28d5~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/9b54ced6675d430c848dd1f99abe28d5~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/62d9dac05017435ea99c1da29c68f2a3~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        }
+      ],
+      "hashtags": [
+        "#tuidungdobangvai",
+        "#tuidungdodanang",
+        "#sotdungdobangvai",
+        "#tuidungchanmancolon",
+        "#hopdungquanao",
+        "#gio",
+        "#sot",
+        "#tuidung",
+        "#quanao",
+        "#giodungdo",
+        "#giodungquanao",
+        "#tuidungchanman",
+        "#tuidungquanao",
+        "#sotdungquanao",
+        "#giovaidungdodanang",
+        "#hopdungquanaochanman",
+        "#tuidungquanaokhungthep",
+        "#hopdungquanaokhungthep",
+        "#thungvaidungquanao"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729450738139695141?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680949205469775634%22%2C%22sc%22%3A%22telegram%22%7D&checksum=3053b3db1d5646d07fdbebd74e76b200e8aef474e8b5213fd9fe9bbdf71d0d12&encode_params=MIIBUwQM7xJu75VuhpwJz-ydBIIBLxKR7TgeMbtDmjSSL_BNBlAGzbm7zo269y6D_QSe8nRN5NvGMEaX_w77lN2wY5mFJsko26jVih-AJSUpJ2EiwLW8ZKFkY41hAgxna57C451qt4I9skwfoXo0IIG9k10JFlRVW5F-vUMuyg-axHkYdfLMX1e6IrRcY9kVcLLf11uAuLbwxCLdNXbiejASiTdp1SbnwtduoIumaf4QoP98owDbDeTCq5KciMx6ujVmaogB759HvjF_F8CYUt_pDl83XtjdBwmcorWbYvDEONUuQOsNTMpo-5H3bHAMOYOYj52wkfd1nbIdpj9Zv6vZxFElFidWk2R5VcJQV64IzCsysnqLZ9EJATZiszMOH8-CgzYOVfKb10UhtMEuIHpZX3FmuoNCQYdURF0995nGWM8AUgQQeFB9uJ4TBcEanYj-xm8qAw%3D%3D&og_info=%7B%22title%22%3A%22H%E1%BB%99p+%C4%90%E1%BB%B1ng+Qu%E1%BA%A7n+%C3%81o%2C+Ch%C4%83n+M%C3%A0n+-+T%C3%BAi+%C4%90%E1%BB%B1ng+Qu%E1%BA%A7n+%C3%81o+Khung+Th%C3%A9p+Ch%E1%BB%8Bu+L%E1%BB%B1c+Homebox+Store+C%C3%B3+kh%C3%B3a+k%C3%A9o+B%E1%BA%A3o+qu%E1%BA%A3n+qu%E1%BA%A7n+%C3%A1o+Th%C3%B9ng+%C4%90%E1%BB%B1ng+%C4%90%E1%BB%93%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fb5479390c66a4bf0b4bff24889015865~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAAXs32JEi9qHug7RNmx9IBQj6CUsSFKn2nnK485Fb6MNXmFhGop3QAtKpxoGgmqudz&share_app_id=1180&share_enter_from=&share_link_id=1BE7898E-B507-4209-A661-9DD4705291EB&share_region=VN&social_share_type=15&timestamp=1788360361&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=F378D21%3AKE82H6&ug_btm=b1285%2Cb6661&unique_id=nhi_giadung&user_id=7633313959362675732&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-05T05:20:03.740Z"
+    }
+  }
+}

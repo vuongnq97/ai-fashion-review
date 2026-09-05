@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { GeminiApiClient } = require('./gemini-api');
+const { buildCartCtaPromptGuide, getCartAnchorText } = require('../cart-cta');
 
 const PANEL_MAX_RETRIES = parseInt(process.env.GEMINI_WEBAPI_PANEL_MAX_RETRIES || '3', 10);
 const PANEL_RETRY_DELAY_MS = parseFloat(process.env.GEMINI_WEBAPI_PANEL_RETRY_DELAY || '5') * 1000;
@@ -113,6 +114,10 @@ function normalizeProductMetadata(analysis, category) {
   const source = (analysis && typeof analysis === 'object') ? analysis : {};
   const productName = normalizePrompt(source.productName || source.product_name || source.name || category || 'San pham thoi trang');
   const providedTags = Array.isArray(source.hashtags) ? source.hashtags : [];
+  const rawCTA = source.cartAnchorText || source.cartCTA;
+  const cartAnchorText = (rawCTA && typeof rawCTA === 'string' && rawCTA.trim())
+    ? rawCTA.trim().slice(0, 30)
+    : getCartAnchorText({ title: productName }, { category: category || 'fashion', productName });
   const fallbackTags = [
     productName,
     category || 'Fashion product',
@@ -135,7 +140,7 @@ function normalizeProductMetadata(analysis, category) {
     hashtags.push(`#sanpham${hashtags.length + 1}`);
   }
 
-  return { productName, hashtags };
+  return { productName, hashtags, cartAnchorText };
 }
 
 function getMimeExt(mimeType) {
@@ -457,11 +462,13 @@ Requirements:
 - Each veo3 prompt must explicitly say: "Không có voice-over, không lời thoại, không phụ đề, không chữ, không watermark."
 - Each veo3 prompt must include smartphone realism cues: "ảnh chụp bằng điện thoại, ánh sáng cửa sổ tự nhiên, bề mặt sản phẩm lì có vân khuôn, không bokeh giả, không ánh sáng studio."
 - Each veo3 prompt MUST describe the exact 4-second action choreography specified for that panel.
+- ${buildCartCtaPromptGuide()}
 
 JSON schema:
 {
   "analysis": {
     "productName": "Vietnamese product name inferred from the images",
+    "cartAnchorText": "Câu CTA giỏ hàng ngắn gọn dưới 30 ký tự khớp chính xác sản phẩm (ví dụ: Mang siêu êm mua ở đây, Giày êm chân mua ở đây...)",
     "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
     "type": "footwear type such as sneaker, sandal, mule, loafer, boot",
     "materials": "describe visible material: EVA foam, soft molded rubber, matte finish, mold seam lines, texture grain — not glossy or porcelain",
@@ -739,11 +746,13 @@ Requirements:
 - Do not ask follow-up questions.
 - Return ONLY valid JSON. No markdown, no commentary.
 - If you are unable to inspect the images, still return the JSON schema with best-effort assumptions. Never mention image quota, limits, usage, or settings.
+- ${buildCartCtaPromptGuide()}
 
 JSON schema:
 {
   "analysis": {
     "productName": "Vietnamese product name inferred from the images",
+    "cartAnchorText": "Câu CTA giỏ hàng ngắn gọn dưới 30 ký tự khớp chính xác sản phẩm (ví dụ: Mang siêu êm mua ở đây, Mặc tôn dáng ở đây nè...)",
     "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
     "type": "footwear type such as sneaker, sandal, mule, loafer, boot",
     "materials": "describe visible material with realism: EVA foam, soft molded rubber, matte finish, mold seam lines, texture grain — not glossy or porcelain",
@@ -827,11 +836,13 @@ Requirements:
 - Return ONLY valid JSON. No markdown, no commentary.
 - If you are unable to inspect the images, still return the JSON schema with best-effort assumptions. Never mention image quota, limits, usage, or settings.
 - This step is only for text analysis and prompt writing. The actual image generation will happen in a later separate request.
+- ${buildCartCtaPromptGuide()}
 
 JSON schema:
 {
   "analysis": {
     "productName": "Vietnamese product name inferred from the images",
+    "cartAnchorText": "Câu CTA giỏ hàng ngắn gọn dưới 30 ký tự khớp chính xác sản phẩm (ví dụ: Mang siêu êm mua ở đây, Mặc tôn dáng ở đây nè, Đồ tiện ích mua ở đây...)",
     "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
     "type": "string",
     "materials": "string",
@@ -1264,6 +1275,7 @@ function normalizeAnalysis(data, panelCount, options = {}) {
   const prompts = Array.isArray(data.veo3Prompts) ? data.veo3Prompts : [];
   const rawAnalysis = (typeof data.analysis === 'object' && data.analysis) ? data.analysis : {};
   const productMetadata = normalizeProductMetadata(rawAnalysis, rawAnalysis.type || 'Fashion product');
+  rawAnalysis.cartAnchorText = productMetadata.cartAnchorText;
 
   const normalizedScript = [];
   for (let idx = 0; idx < panelCount; idx++) {

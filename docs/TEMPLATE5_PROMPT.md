@@ -1,61 +1,79 @@
-# ✨ Template 5: Review Đa Ngành Hàng 4 Cảnh 6 Giây (Không Dùng Ảnh Ref, Có Chữ Tiếng Việt)
+# ✨ Template 5: Review Đa Ngành Hàng 4 Cảnh (2 Video 8 Giây)
 
 ## 1. Tổng quan & Thiết lập
 - **Mục đích**: Review chuyên nghiệp, sinh động cho **bất kỳ sản phẩm nào** (Thời trang, Quần áo, Túi xách, Giày dép, Mỹ phẩm / Skincare, Đồ gia dụng / Nhà bếp, Thiết bị công nghệ, Phụ kiện...).
-- **Không dùng ảnh ref tĩnh**: Hệ thống tự động phân tích ảnh sản phẩm tải lên và sáng tạo không gian bối cảnh sống động (phòng khách, bàn trang điểm, góc bếp, bàn làm việc, boutique, quán cafe) tối ưu nhất cho sản phẩm đó.
-- **Thời lượng 4 cảnh video**: **6s — 6s — 6s — 6s** (Tổng 24s).
-- **Chế độ âm thanh**: Hoàn toàn im lặng (silent video — **không có voice-over, không lời thoại, không tiếng review, không nhạc nền AI**).
-- **Chữ trên Storyboard & Video**: Trên từng panel ảnh và video đều có **dòng chữ tiếng Việt ngắn gọn, đắt giá, chuẩn 100% chính tả tiếng Việt có dấu**.
+- **Không dùng ảnh ref tĩnh**: Hệ thống tự động phân tích sản phẩm và sáng tạo bối cảnh sống động (phòng khách, bàn trang điểm, góc bếp, bàn làm việc, boutique, quán cafe) tối ưu nhất cho sản phẩm đó.
+- **Thời lượng video**: **2 video x 8 giây** (mỗi video ghép 2 cảnh: 0s-4s cảnh 1/3, 4s-8s cảnh 2/4). Dùng model `abra_i2v_8s` sinh video từ 2 panel ảnh full viền.
+- **3 Biến thể linh hoạt**:
+  * `/template5`: **Có chữ** tiếng Việt hiển thị trên panel và video chuyển cảnh theo thời gian (4s đầu dùng chữ Cảnh 1/3, 4s sau dùng chữ Cảnh 2/4), **không voice** (ghép nhạc trend).
+  * `/template5_1`: **Không chữ** (No Text), **không voice** (ghép nhạc trend).
+  * `/template5_2`: **Không chữ** (No Text), **có giọng lồng tiếng review AI** tiếng Việt faceless (tối đa 42 từ).
 
 ---
 
 ## 2. Luồng Xử Lý 4 Cảnh (Choreography & Cấu Trúc)
 
-### 📸 Panel 1: Hero Showcase & Ngoại quan (6 Giây)
-- **Mục tiêu**: Khoe trọn vẹn ngoại quan, bao bì, nhãn mác, chất liệu cao cấp và kiểu dáng tổng thể.
-- **Chữ trên Panel / Video**: Cụm từ khóa tiếng Việt về chất lượng/ngoại quan (VD: `CHIẾT XUẤT THIÊN NHIÊN`, `DA THẬT NGUYÊN TẤM`, `THIẾT KẾ CÔNG THÁI HỌC`).
-- **Chuyển động (6s)**:
-  - `0s-2s`: Giữ yên sản phẩm trên bề mặt tự nhiên sang trọng hoặc trên tay nâng nhẹ.
-  - `2s-4s`: Nghiêng nhẹ cổ tay hoặc góc máy lướt nhẹ khoe các góc cạnh, bề mặt và nhãn mác.
-  - `4s-6s`: Đưa về vị trí tự nhiên kết thúc cảnh mở đầu ấn tượng.
+### 📸 Video 1 (8s, sinh từ Panel 1 = Cảnh 1 [Hook] + Cảnh 2 [Giải pháp]):
+- **0s-4s (Cảnh 1 - Hook)**: Khung bên trái. Cận cảnh sản phẩm và thao tác thực tế. Nếu dùng `/template5` thì hiển thị chữ Cảnh 1.
+- **4s-8s (Cảnh 2 - Giải pháp)**: Khung bên phải. Chuyển cảnh dứt khoát (clean cut) tại mốc 4s sang đặc tả công năng chi tiết. Nếu dùng `/template5` thì chuyển sang hiển thị chữ Cảnh 2.
 
-### 📸 Panel 2: Macro Detail / Chi Tiết Công Năng (6 Giây)
-- **Mục tiêu**: Cận cảnh vào điểm nhấn công năng, chất liệu, vân da, chất kem, nút bấm hoặc lưỡi dao.
-- **Chữ trên Panel / Video**: Cụm từ khóa tiếng Việt về công năng/kết cấu (VD: `THẨM THẤU TỨC THÌ`, `ĐỆM ĐẾ ÊM ÁI`, `LÒNG NỒI CHỐNG DÍNH`).
-- **Chuyển động (6s)**:
-  - `0s-2s`: Khung hình cận cảnh ổn định lấy nét vào chi tiết công năng.
-  - `2s-4s`: Ngón tay tương tác nhẹ nhàng (chạm, lướt, ấn nút hoặc miết nhẹ chất liệu).
-  - `4s-6s`: Giữ yên góc quay tôn vinh độ hoàn thiện tinh tế.
-
-### 📸 Panel 3: In-Action / Trải Nghiệm Sử Dụng Thực Tế (6 Giây)
-- **Mục tiêu**: Thao tác sử dụng thực tế của người dùng với sản phẩm trong không gian đời sống.
-- **Chữ trên Panel / Video**: Cụm từ khóa tiếng Việt về trải nghiệm (VD: `CẤP ẨM CHUYÊN SÂU`, `CÔNG SUẤT MẠNH MẼ`, `CẦM NẮM CHẮC CHẮN`).
-- **Chuyển động (6s)**:
-  - `0s-2s`: Bắt đầu thao tác sử dụng thực tế (thoa kem, xịt thử, bấm máy, cầm nắm, mặc/mang).
-  - `2s-4s`: Tương tác mượt mà thể hiện sự êm ái, tiện lợi và hiệu quả.
-  - `4s-6s`: Giữ nguyên trạng thái hài lòng tại chỗ, kết thúc thao tác dứt khoát.
-
-### 📸 Panel 4: Lifestyle Context & Tổng Thể Kết Quả (6 Giây)
-- **Mục tiêu**: Toàn cảnh sản phẩm hòa nhập vào không gian sống, phong cách cá nhân hoặc kết quả sau sử dụng.
-- **Chữ trên Panel / Video**: Cụm từ khóa tiếng Việt về giá trị/lifestyle (VD: `LÀN DA CĂNG BÓNG`, `TÔN DÁNG THỜI THƯỢNG`, `TIỆN NGHI MỖI NGÀY`).
-- **Chuyển động (6s)**:
-  - `0s-2s`: Khung hình tổng thể sang trọng trong bối cảnh sống.
-  - `2s-4s`: Chuyển động nhẹ nhàng khoe trọn giá trị và vẻ đẹp tổng thể.
-  - `4s-6s`: Kết thúc vững chãi, tự tin, chuyên nghiệp.
+### 📸 Video 2 (8s, sinh từ Panel 2 = Cảnh 3 [Bằng chứng] + Cảnh 4 [Chốt đơn]):
+- **0s-4s (Cảnh 3 - Bằng chứng)**: Khung bên trái. Cận cảnh chất liệu, độ bền và hoàn thiện. Nếu dùng `/template5` thì hiển thị chữ Cảnh 3.
+- **4s-8s (Cảnh 4 - Chốt đơn / CTA)**: Khung bên phải. Chuyển cảnh dứt khoát tại mốc 4s tôn vinh sản phẩm trong không gian sống. Nếu dùng `/template5` thì chuyển sang hiển thị chữ Cảnh 4.
 
 ---
 
 ## 3. Hướng Dẫn Sử Dụng Qua Telegram Bot
 
-1. **Khởi động Template 5**:
-   - Gõ: `/template5`
-   - Bot phản hồi xác nhận bật chế độ review đa ngành hàng 4 cảnh 6s.
-2. **Gửi ảnh sản phẩm**:
-   - Gửi 1 hoặc nhiều ảnh sản phẩm (Thời trang, Mỹ phẩm, Gia dụng, Công nghệ...).
-   - Hệ thống tự động phân tích sản phẩm $\rightarrow$ Trích xuất 4 từ khóa tiếng Việt $\rightarrow$ Tạo Master Storyboard $\rightarrow$ Tách 4 panel $9:16$ $\rightarrow$ Sinh 4 video Veo 3 gửi về Telegram.
+1. **Khởi động**:
+   - Gõ `/template5` (có chữ, không voice)
+   - Hoặc gõ `/template5_1` (không chữ, không voice)
+   - Hoặc gõ `/template5_2` (không chữ, có voice review 42 từ)
+2. **Gửi link TikTok Shop**:
+   - Gửi shortlink (vd: `https://vt.tiktok.com/...`).
+   - Hệ thống tự động phân tích $\rightarrow$ Tạo Master Storyboard 16:9 $\rightarrow$ Tách 2 panel full viền $\rightarrow$ Tạo 2 video 8s bằng Abra i2v $\rightarrow$ Auto-crop 12% loại bỏ viền trắng & xóa logo $\rightarrow$ Gửi video về Telegram.
 3. **Tạo lại video chưa ưng ý**:
-   - Gõ: `/again 1` (tạo lại cảnh 1)
-   - Gõ: `/again 2` (tạo lại cảnh 2)
-   - Gõ: `/again 3` (tạo lại cảnh 3)
-   - Gõ: `/again 4` (tạo lại cảnh 4)
-   - Gõ: `/again 1 3` hoặc `/again 2 4` (tạo lại nhiều cảnh cùng lúc).
+   - Gõ `/remake_1` (hoặc `/remake 1` kèm yêu cầu tùy chỉnh nếu muốn)
+   - Gõ `/remake_2` (hoặc `/remake 2` kèm yêu cầu tùy chỉnh nếu muốn)
+4. **Đăng lên TikTok**:
+   - Gõ `/upload` để ghép hoàn chỉnh và đăng lên TikTok.
+
+---
+
+## 4. Cấu Trúc Script & Quy Tắc Viền Trắng Cho Template 5.1 & 5.2
+
+### 🎙️ Quy Tắc Lời Thoại (Voice-over Script): Tối Đa 42 Từ Mỗi Video 8s
+1. **Thời lượng**: 2 video, mỗi video dài đúng **8 giây** chứa **2 cảnh** (Video 1: Cảnh 1 & Cảnh 2; Video 2: Cảnh 3 & Cảnh 4).
+2. **Số lượng từ**:
+   - Mỗi cảnh dài từ **15 đến 19 từ** tiếng Việt chuẩn có dấu 100%.
+   - **TỔNG LỜI THOẠI CỦA MỖI VIDEO 8S TỐI ĐA 42 TỪ** (Cảnh 1 + Cảnh 2 $\le$ 42 từ; Cảnh 3 + Cảnh 4 $\le$ 42 từ).
+   - **Đầy đủ ý câu, không cắt ngang**: Mỗi cảnh hoặc chuỗi thoại phải là câu văn hoàn chỉnh có đầy đủ chủ ngữ - vị ngữ và kết thúc bằng dấu chấm câu (. ! ?), tuyệt đối không viết dở dang hoặc bị cắt cụt giữa chừng.
+   - Tốc độ đọc nhanh, dồn dập, tự tin, cuốn hút theo phong cách review TikTok viral.
+3. **Quy tắc giá tiền**: Tuyệt đối **KHÔNG** sử dụng con số giá tiền cụ thể ("99k", "199.000đ") hoặc "% giảm giá" để video có giá trị lâu dài (evergreen).
+
+### 🖼️ Quy Tắc Viền Trắng Đầy Đủ & Cố Định (White Borders & Prompt Rules)
+1. **Hình Panel 2 cảnh Full Viền (Borderless Panels)**:
+   - Master Storyboard 16:9 được tách thành 2 hình Panel (Hình 1 = Cảnh 1 + Cảnh 2; Hình 2 = Cảnh 3 + Cảnh 4).
+   - Tách thẳng full viền (borderless), **tuyệt đối không thêm bất kỳ viền trắng nào trong panel ảnh** (không có viền ngoài và không có vạch trắng ở giữa 2 cảnh).
+2. **Chỉ dẫn khung viền trắng chi tiết trong Video Prompt gửi Flow / Abra i2v**:
+   - Prompt mô tả chi tiết độ dày viền trắng cho từng cạnh:
+     * *KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding).*
+     * *Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này (video content strictly rendered inside the white frame), tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt (seamless continuous content, no internal dividers, no vertical split lines).*
+3. **Chuyển cảnh dứt khoát tại mốc 4s (Clean Cut Transition)**:
+   - Từ 0s-4s: Cảnh trước diễn ra ổn định bên trong khung hình bên trái.
+   - Tại mốc 4 giây: Chuyển cảnh dứt khoát (clean cut transition) sang Cảnh sau ở khung hình bên phải (không lia máy quét ngang).
+4. **Xử lý hậu kỳ (Post-Processing Auto-Crop 12%)**:
+   - Video sau khi sinh sẽ tự động crop 12% (`cropPercent: 0.12`) và scale về 1080x1920 (9:16).
+   - Loại bỏ sạch 12% khung viền trắng ngoài cùng do AI vẽ ra + xóa sạch 100% logo ngôi sao Gemini ở góc dưới bên phải, trả về video 9:16 nguyên bản với nội dung tràn viền hoàn hảo.
+
+---
+
+## 5. Khung 4 Câu Hỏi Marketing Cốt Lõi
+
+| Cảnh | Câu hỏi | Triển khai thực tế |
+|---|---|---|
+| **1. Hook** | *Hook gì để họ dừng lướt?* | Nêu nỗi đau chai cũ/bất tiện, gây tò mò, cảnh báo hoặc so sánh trực quan. |
+| **2. Giải pháp** | *Sản phẩm là giải pháp gì?* | Giới thiệu tên sản phẩm, công năng chính, cơ chế thông minh, tính tiện lợi. |
+| **3. Bằng chứng** | *Bằng chứng nào khiến họ tin?* | Demo thực tế dốc ngược không rò rỉ, chất liệu cao cấp, gia công tỉ mỉ, độ bền. |
+| **4. Chốt đơn** | *Lý do gì để họ mua ngay?* | Đổi trả uy tín 7 ngày, nâng tầm không gian sống, CTA dứt khoát bấm vào giỏ hàng góc trái. |
+

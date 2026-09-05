@@ -121,7 +121,9 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       progressPercent: 25,
       message: `Đã nhận ${filePayloads.length} ảnh local. Đang phân tích bằng ${provider.name}...`,
     });
-    await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
+    if (!options.stepTracker) {
+      await sendTelegramMessage(chatId, `Đã nhận ${filePayloads.length} ảnh. Đang tạo storyboard bằng ${provider.name}...`);
+    }
 
     const result = await provider.generateStoryboard(baseDir, filePayloads, {
       ...options,
@@ -169,7 +171,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       }
     }
 
-    if (options.sendSummary !== false) {
+    if (options.sendSummary !== false && !options.stepTracker) {
       await sendTelegramMessage(chatId, `${productInfo.summary}`);
     }
     return { ...result, sentCount, productInfo };

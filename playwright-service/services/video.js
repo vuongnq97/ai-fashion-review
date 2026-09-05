@@ -16,6 +16,17 @@ const VIDEO_MODEL_MAP = {
 };
 
 const RAW_VIDEO_MODEL_ALIASES = {
+  // Abra models (Google Flow native video generation)
+  'abra': 'abra_i2v_8s',
+  'abra-8s': 'abra_i2v_8s',
+  'abra-i2v-8s': 'abra_i2v_8s',
+  'abra_i2v_8s': 'abra_i2v_8s',
+  'abra-4s': 'abra_i2v_4s',
+  'abra-i2v-4s': 'abra_i2v_4s',
+  'abra_i2v_4s': 'abra_i2v_4s',
+  'abra-t2v-8s': 'abra_t2v_8s_360p',
+  'abra_t2v_8s_360p': 'abra_t2v_8s_360p',
+  // Veo models
   'default': 'veo_3_1_i2v_lite_low_priority',
   'quality': 'veo_3_1_i2v_lite_low_priority',
   'veo-3.1-quality': 'veo_3_1_i2v_lite_low_priority',
@@ -53,7 +64,7 @@ function normalizeVideoModelKey(videoModelKey, aspectRatio = '9:16') {
   const raw = String(videoModelKey || '').trim();
   if (!raw) return getDefaultVideoModelKey(aspectRatio);
 
-  if (/^veo_/.test(raw)) return raw;
+  if (/^veo_/.test(raw) || /^abra_/.test(raw)) return raw;
 
   const normalized = raw.toLowerCase();
   if (RAW_VIDEO_MODEL_ALIASES[normalized]) return RAW_VIDEO_MODEL_ALIASES[normalized];
@@ -702,13 +713,18 @@ async function executeVideoGeneration({ context, bearerToken, mediaName, config 
   console.log(`[VideoGen] ✅ Video fetched (base64 length: ${resultBase64.length}).`);
 
   // Post-process (crop borders + scale)
-  try {
-    resultBase64 = await processVideoBase64(resultBase64, {
-      cropPercent: 0.04, aspectRatio: config.aspectRatio || '9:16'
-    });
-    console.log(`[VideoGen] ✅ Post-processed (base64 length: ${resultBase64.length}).`);
-  } catch (resizeErr) {
-    console.error(`[VideoGen] ⚠️ Post-processing failed, using original: ${resizeErr.message}`);
+  if (config.preserveBorder || config.skipPostProcess || config.cropPercent === 0) {
+    console.log(`[VideoGen] ℹ️ Preserving white borders as requested (skipping crop).`);
+  } else {
+    try {
+      resultBase64 = await processVideoBase64(resultBase64, {
+        cropPercent: typeof config.cropPercent === 'number' ? config.cropPercent : 0.12,
+        aspectRatio: config.aspectRatio || '9:16'
+      });
+      console.log(`[VideoGen] ✅ Post-processed (base64 length: ${resultBase64.length}).`);
+    } catch (resizeErr) {
+      console.error(`[VideoGen] ⚠️ Post-processing failed, using original: ${resizeErr.message}`);
+    }
   }
 
   return resultBase64;

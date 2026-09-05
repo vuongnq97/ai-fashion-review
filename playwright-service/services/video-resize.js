@@ -64,6 +64,9 @@ async function processVideo(inputBuffer, options = {}) {
             const cropY = `trunc(ih*${pct}/2)*2`;
             vf = `crop=iw-2*${cropX}:ih-2*${cropY}:${cropX}:${cropY},scale=${width}:${height}:force_original_aspect_ratio=disable`;
             cropLog = `${(pct * 100).toFixed(2)}% each side`;
+        } else if (Number.isFinite(Number(cropPercent)) && Number(cropPercent) === 0) {
+            vf = `scale=${width}:${height}:force_original_aspect_ratio=disable`;
+            cropLog = `0% (no crop), scale=${width}x${height}`;
         } else {
             const cropW = cropPx * 2;
             const cropH = cropPx * 2;

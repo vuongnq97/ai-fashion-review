@@ -22,7 +22,7 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
     systemSettings: {
       storyboardProvider: "aistudio-playwright",
       aiStudioUrl: "https://aistudio.google.com/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true",
-      flowProjectUrl: "https://labs.google/fx/vi/tools/flow/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
+      flowProjectUrl: "https://flow.google.com/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
       flowProjectId: "8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
       recaptchaSiteKey: "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
       chromeExtensionId: "jmobnhoghinjlmjogafjadohcmdebbej"
@@ -31,6 +31,30 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
       panelCount: 5,
       sceneRatio: "9:16",
       nhiReferencePath: "assets/nhi"
+    },
+    autoT3Settings: {
+      enabled: false,
+      chatId: "",
+      timezone: "Asia/Ho_Chi_Minh",
+      template: "template3",
+      times: ["09:00", "12:00", "15:00", "18:00", "21:00"],
+      shortlinks: []
+    },
+    autoT4Settings: {
+      enabled: false,
+      chatId: "",
+      timezone: "Asia/Ho_Chi_Minh",
+      template: "template4",
+      times: ["09:00", "12:00", "15:00", "18:00", "21:00"],
+      shortlinks: []
+    },
+    autoT5Settings: {
+      enabled: false,
+      chatId: "",
+      timezone: "Asia/Ho_Chi_Minh",
+      template: "template5_2",
+      times: ["09:00", "12:00", "15:00", "18:00", "21:00"],
+      shortlinks: []
     }
   };
 
@@ -45,9 +69,9 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
       uiSettings: { ...defaults.uiSettings, ...parsed.uiSettings },
       systemSettings: { ...defaults.systemSettings, ...parsed.systemSettings },
       dailyVlogSettings: { ...defaults.dailyVlogSettings, ...parsed.dailyVlogSettings },
-      autoT3Settings: { ...(parsed.autoT3Settings || {}) },
-      autoT4Settings: { ...(parsed.autoT4Settings || {}) },
-      autoT5Settings: { ...(parsed.autoT5Settings || {}) },
+      autoT3Settings: { ...defaults.autoT3Settings, ...(parsed.autoT3Settings || {}) },
+      autoT4Settings: { ...defaults.autoT4Settings, ...(parsed.autoT4Settings || {}) },
+      autoT5Settings: { ...defaults.autoT5Settings, ...(parsed.autoT5Settings || {}) },
       channels: parsed.channels || {},
     };
   } catch (err) {

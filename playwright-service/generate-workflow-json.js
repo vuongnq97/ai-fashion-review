@@ -1026,13 +1026,93 @@ const affiliateData = $input.item.json;
 const products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);
 const matched = products.find(p => String(p.product_id) === String(job.product?.productId));
 
+const defaultTags = ['#review', '#sanphamchinhhang', '#tiktokshop', '#xuhuong', '#trending'];
+const hashtags = (Array.isArray(job.hashtags) && job.hashtags.length > 0)
+  ? job.hashtags
+  : (Array.isArray(job.analysis?.hashtags) && job.analysis.hashtags.length > 0 ? job.analysis.hashtags : defaultTags);
+
+// Ưu tiên tên sản phẩm từ bước phân tích sản phẩm (AI analysis)
+const analyzedTitle = job.analysis?.productName || job.analysis?.product_name || job.product?.productName || job.product?.title;
+const pTitle = (analyzedTitle || (matched ? matched.title : '') || 'Sản phẩm TikTok Shop').trim();
+
+let finalCaption = (job.caption || '').trim();
+if (!finalCaption || !finalCaption.includes('#')) {
+  finalCaption = pTitle + '\\n\\n' + hashtags.join(' ');
+}
+
+// Sinh CTA text trên giỏ hàng (anchor displayName) theo phân tích sản phẩm
+function generateCartCTA(j) {
+  function clean(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}\u{2190}-\u{21FF}]/gu, '').replace(/\s+/g, ' ').slice(0, 30).trim();
+  }
+  const analyzedCTA = j.cartAnchorText || j.analysis?.cartAnchorText || j.analysis?.analysis?.cartAnchorText || j.analysis?.cartCTA;
+  if (analyzedCTA && typeof analyzedCTA === 'string' && analyzedCTA.trim()) {
+    const c = clean(analyzedCTA);
+    if (c) return c;
+  }
+  const category = (j.analysis?.category || j.category || '').toLowerCase();
+  const textToScan = [
+    pTitle,
+    j.product?.title || '',
+    category
+  ].join(' ').toLowerCase();
+
+  const generalPool = [
+    'Mua ở đây nè', 'Đang khuyến mãi ở đây', 'Deal hot ở đây nè',
+    'Săn deal tại đây', 'Xem giá ưu đãi ở đây', 'Mua ngay tại đây nè',
+    'Bấm giỏ hàng ở đây nha', 'Chính hãng mua ở đây', 'Giá sốc hôm nay ở đây',
+    'Ưu đãi độc quyền ở đây', 'Chốt deal tại đây nè', 'Săn mã giảm giá ở đây',
+    'Giỏ hàng có sẵn ở đây', 'Hàng chuẩn mua ở đây', 'Săn sale sốc ở đây nè',
+    'Đang giảm giá ở đây', 'Mua chính hãng tại đây', 'Xem khuyến mãi ở đây'
+  ];
+
+  let specificPool = [];
+  const fashionKw = ['áo', 'quần', 'váy', 'đầm', 'giày', 'dép', 'guốc', 'túi', 'ví', 'balo', 'kính', 'thời trang', 'fashion', 'shoes', 'boots', 'sneaker', 'sandal'];
+  const beautyKw = ['kem', 'son', 'serum', 'toner', 'da', 'mặt', 'dưỡng', 'chống nắng', 'nước hoa', 'mỹ phẩm', 'cosmetics', 'beauty', 'skincare', 'makeup'];
+  const techKw = ['sạc', 'tai nghe', 'pin', 'đèn', 'điện thoại', 'máy tính', 'cáp', 'loa', 'gadget', 'tech', 'smart', 'thông minh', 'bluetooth', 'usb'];
+  const homeKw = ['nồi', 'chảo', 'bình', 'ly', 'cốc', 'ga', 'gối', 'nệm', 'đèn ngủ', 'kệ', 'máy hút', 'gia dụng', 'nhà bếp', 'kitchen', 'home', 'appliances'];
+
+  if (category.includes('beauty') || beautyKw.some(k => textToScan.includes(k))) {
+    specificPool = [
+      'Chính hãng 100% ở đây', 'Da căng bóng mua ở đây', 'Dưỡng ẩm sâu ở đây nè',
+      'Săn combo giá hời ở đây', 'Bí quyết da đẹp ở đây', 'Hàng chuẩn auth ở đây',
+      'Trắng sáng da ở đây nè', 'Mùi thơm lâu mua ở đây', 'Chăm da đẹp ở đây nha'
+    ];
+  } else if (category.includes('fashion') || category.includes('shoe') || fashionKw.some(k => textToScan.includes(k))) {
+    specificPool = [
+      'Mẫu hot mua ở đây', 'Xem bảng size ở đây', 'Săn mẫu xinh ở đây nè',
+      'Mang siêu êm mua ở đây', 'Form chuẩn mua ở đây', 'Mặc tôn dáng ở đây nè',
+      'Mẫu mới về ở đây nha', 'Hàng đẹp mua ở đây', 'Phối đồ xinh ở đây nè'
+    ];
+  } else if (category.includes('tech') || category.includes('gadget') || techKw.some(k => textToScan.includes(k))) {
+    specificPool = [
+      'Chính hãng bảo hành ở đây', 'Đồ tiện ích mua ở đây', 'Công nghệ mới ở đây nè',
+      'Dùng cực thích ở đây', 'Bền bỉ tiện lợi ở đây', 'Sạc siêu nhanh ở đây', 'Đổi trả 7 ngày ở đây'
+    ];
+  } else if (category.includes('home') || homeKw.some(k => textToScan.includes(k))) {
+    specificPool = [
+      'Gia dụng thông minh ở đây', 'Tiện ích mỗi ngày ở đây', 'Nâng tầm không gian ở đây',
+      'Bền đẹp tiện lợi ở đây', 'Nhà cửa gọn gàng ở đây', 'Chính hãng mua ở đây', 'Đồ bếp tiện ích ở đây'
+    ];
+  }
+
+  const pool = specificPool.length > 0 ? [...specificPool, ...specificPool, ...generalPool] : generalPool;
+  const picked = pool[Math.floor(Math.random() * pool.length)] || 'Mua ở đây nè';
+  return clean(picked);
+}
+
+const ctaText = generateCartCTA(job);
+
 return {
   json: {
     jobId: job.jobId,
     chatId: job.chatId,
     productId: job.product?.productId,
-    productTitle: matched ? (matched.title || job.product?.title) : (job.product?.title || 'Sản phẩm TikTok Shop'),
-    caption: job.caption || job.product?.title || 'Review sản phẩm #review #tiktokshop',
+    productTitle: pTitle,
+    cartAnchorText: ctaText,
+    caption: finalCaption,
+    hashtags: hashtags,
     canAttachCart: Boolean(matched),
     matchedProduct: matched || null
   }
@@ -1123,7 +1203,7 @@ return {
               {
                 type: 'product',
                 productId: '={{ $(\'Find Product By product_id\').item.json.productId }}',
-                displayName: '={{ $(\'Find Product By product_id\').item.json.productTitle }}'
+                displayName: '={{ $(\'Find Product By product_id\').item.json.cartAnchorText || $(\'Find Product By product_id\').item.json.productTitle }}'
               }
             ]
           }
@@ -1167,27 +1247,6 @@ return {
       position: [3120, 200],
       id: 'node-http-cleanup-job',
       name: 'Cleanup Generation Job'
-    },
-    {
-      parameters: {
-        chatId: '={{ $(\'Find Product By product_id\').item.json.chatId }}',
-        text: '={{ "🎉 Video đã upload thành công lên TikTok!\\n\\n🛒 Sản phẩm gắn giỏ: " + $(\'Find Product By product_id\').item.json.productTitle + "\\n🆔 Publish ID: " + ($(\'TikTok Upload With Product\').item.json.publish_id || "OK") }}',
-        additionalFields: {
-          appendAttribution: false,
-          parse_mode: 'HTML'
-        }
-      },
-      type: 'n8n-nodes-base.telegram',
-      typeVersion: 1.2,
-      position: [3360, 200],
-      id: 'node-tg-upload-completed',
-      name: 'Telegram — Upload Completed',
-      credentials: {
-        telegramApi: {
-          id: 'telegramAccount',
-          name: 'Telegram account'
-        }
-      }
     }
   ];
 
@@ -1493,9 +1552,7 @@ return {
       ]
     },
     'Cleanup Generation Job': {
-      main: [
-        [{ node: 'Telegram — Upload Completed', type: 'main', index: 0 }]
-      ]
+      main: []
     }
   };
 

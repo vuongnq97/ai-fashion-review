@@ -196,6 +196,86 @@ function decodeHtml(value) {
     .replace(/&gt;/g, '>');
 }
 
+function normalizeExtractedImageUrl(value) {
+  let raw = decodeHtml(String(value || '').trim())
+    .replace(/\\u002F/gi, '/')
+    .replace(/\\\//g, '/')
+    .replace(/\\&/g, '&');
+
+  raw = raw.replace(/^["']+|["']+$/g, '');
+  if (raw.startsWith('//')) raw = `https:${raw}`;
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+function addImage(images, url, width = null, height = null) {
+  const normalized = normalizeExtractedImageUrl(url);
+  if (!normalized) return;
+  if (images.some(item => item.url === normalized)) return;
+  images.push({ url: normalized, width, height });
+}
+
+function collectImagesFromObject(value, images, seen = new Set()) {
+  if (!value || typeof value !== 'object') return;
+  if (seen.has(value)) return;
+  seen.add(value);
+
+  if (Array.isArray(value.url_list)) {
+    for (const url of value.url_list) addImage(images, url, value.width || null, value.height || null);
+  }
+  if (Array.isArray(value.urlList)) {
+    for (const url of value.urlList) addImage(images, url, value.width || null, value.height || null);
+  }
+  if (typeof value.url === 'string') {
+    addImage(images, value.url, value.width || null, value.height || null);
+  }
+  if (typeof value.image === 'string') {
+    addImage(images, value.image, value.width || null, value.height || null);
+  }
+  if (typeof value.cover === 'string') {
+    addImage(images, value.cover, value.width || null, value.height || null);
+  }
+
+  for (const child of Object.values(value)) {
+    if (child && typeof child === 'object') collectImagesFromObject(child, images, seen);
+  }
+}
+
+function collectMetaImages(html, images) {
+  const properties = [
+    'og:image',
+    'og:image:url',
+    'og:image:secure_url',
+    'twitter:image',
+    'twitter:image:src',
+  ];
+
+  for (const property of properties) {
+    addImage(images, getMetaContent(html, property));
+  }
+}
+
+function collectCdnImagesFromHtml(html, images) {
+  const text = String(html || '');
+  const matches = text.match(/https?:\\?\/\\?\/[^"'<>\s]+?(?:\.jpg|\.jpeg|\.png|\.webp)(?:[^"'<>\s]*)?/gi) || [];
+
+  for (const match of matches) {
+    const cleaned = normalizeExtractedImageUrl(match);
+    if (!cleaned) continue;
+    try {
+      const host = new URL(cleaned).hostname.toLowerCase();
+      if (!/(ibyteimg|byteimg|tiktokcdn|tiktok)/i.test(host)) continue;
+      addImage(images, cleaned);
+    } catch (_) {}
+  }
+}
+
 function parseProductModelFromHtml(html) {
   const scripts = [...String(html || '').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
     .map(match => match[1])
@@ -234,18 +314,20 @@ function extractProductAssetsFromHtml(html, productUrl = '') {
         }
         if (block?.type === 'image' && block.image) {
           const url = block.image.url_list?.[0];
-          if (url) {
-            images.push({
-              url,
-              width: block.image.width || null,
-              height: block.image.height || null,
-            });
-          }
+          addImage(images, url, block.image.width || null, block.image.height || null);
         }
       }
     } catch (error) {
       console.warn(`[ProductAssets] Could not parse product_model.description: ${error.message}`);
     }
+  }
+
+  if (model) {
+    collectImagesFromObject(model, images);
+  }
+  collectMetaImages(html, images);
+  if (images.length === 0) {
+    collectCdnImagesFromHtml(html, images);
   }
 
   const hashtags = [...new Set((descriptionText.match(/#[\p{L}\p{N}_-]+/gu) || []))];

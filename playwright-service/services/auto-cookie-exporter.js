@@ -20,9 +20,17 @@ function setEnvValue(envPath, key, value) {
   try {
     let text = fs.readFileSync(envPath, 'utf8');
     const line = `${key}=${value || ''}`;
-    const regex = new RegExp(`^${key}=.*$`, 'm');
+    const regex = new RegExp(`^${key}=.*$`, 'gm');
     if (regex.test(text)) {
-      text = text.replace(regex, line);
+      let replaced = false;
+      text = text.replace(regex, () => {
+        if (!replaced) {
+          replaced = true;
+          return line;
+        }
+        return '';
+      });
+      text = text.replace(/\n{3,}/g, '\n\n');
     } else {
       text = text.replace(/\s*$/, '') + `\n${line}\n`;
     }
@@ -72,20 +80,20 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
     });
 
     const page = await context.newPage();
-    // Điều hướng nhanh đến Gemini để làm mới session/timestamp cookie
+    // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
     try {
-      await page.goto('https://gemini.google.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
-    } catch (_) {
-      // Dù timeout vẫn lấy được cookie từ profile chrome-data
-    }
+      await page.goto('https://gemini.google.com', { waitUntil: 'domcontentloaded', timeout: 12000 });
+    } catch (_) {}
 
-    const cookies = await context.cookies([
-      'https://gemini.google.com',
-      'https://accounts.google.com',
-      'https://google.com',
-    ]);
+    try {
+      await page.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    } catch (_) {}
 
-    const secure1psid = cookies.find(cookie => cookie.name === '__Secure-1PSID');
+    // Lấy toàn bộ cookies trong context để không bỏ sót các domain .google.com
+    const cookies = await context.cookies();
+
+    const secure1psid = cookies.find(cookie => cookie.name === '__Secure-1PSID' && cookie.domain.includes('google.com'))
+      || cookies.find(cookie => cookie.name === '__Secure-1PSID');
     const secure1psidts = cookies.find(cookie => cookie.name === '__Secure-1PSIDTS');
 
     if (secure1psid && secure1psid.value) {
@@ -102,8 +110,12 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
       const cookieFilePath = path.join(cookieDir, 'cookies.json');
       fs.writeFileSync(cookieFilePath, JSON.stringify(cookies, null, 2), 'utf8');
 
+      // Đồng bộ ra labs.google.cookies.json cho services/browser.js (Google Flow)
+      const labsCookiePath = path.join(baseDir, 'labs.google.cookies.json');
+      fs.writeFileSync(labsCookiePath, JSON.stringify(cookies, null, 2), 'utf8');
+
       clearCookieCache(cookieDir);
-      console.log(`🍪 [AutoCookie] ✅ Đã tự động cập nhật ${cookies.length} cookies mới nhất vào .env & gemini-cookies/cookies.json!`);
+      console.log(`🍪 [AutoCookie] ✅ Đã tự động cập nhật ${cookies.length} cookies mới nhất vào gemini-cookies & labs.google.cookies.json!`);
       await context.close();
       return true;
     } else {

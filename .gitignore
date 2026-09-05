@@ -46,6 +46,7 @@ playwright-service/gemini-cookies/
 gemini-cookies/
 playwright-service/labs.google.cookies.json
 playwright-service/labs.google.cookies.backup-*.json
+playwright-service/tiktok-accounts.backup-*.json
 config
 
 # Browser profiles / sessions

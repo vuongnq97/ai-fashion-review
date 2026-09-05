@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst data = $json.body || $json;\nconst text = String(data.text || '').trim();\nconst chatId = String(data.chatId || '');\nconst messageId = data.messageId || null;\n\nconst channelId = data.channelId || 'default';\nconst tiktokCredentialId = data.tiktokCredentialId || 'cJDNuW2i1tFFXivi';\nconst tiktokCredentialName = data.tiktokCredentialName || 'TikTok Credential account';\n\nif (!text && !data.shortlink && !data.targetJobId) {\n  return { json: { route: 'invalid', chatId, messageId, error: 'Tin nhắn không có nội dung hợp lệ' } };\n}\n\n// 1. Check if command is /upload [jobId] / /remake <panels> [instruction] / /templateX\nif (data.route === 'upload' || text.startsWith('/upload')) {\n  const parts = text.split(/\\s+/);\n  const targetJobId = data.targetJobId || parts[1] || null;\n  return {\n    json: {\n      route: 'command',\n      command: 'upload',\n      chatId,\n      messageId,\n      targetJobId,\n      channelId,\n      tiktokCredentialId,\n      tiktokCredentialName,\n      rawText: text\n    }\n  };\n}\n\nif (data.route === 'remake' || text.startsWith('/remake')) {\n  let panels = [];\n  let instruction = '';\n  const underscoreMatch = text.match(/^\\/remake_([0-9_]+)(?:@\\w+)?(?:\\s+(.*))?$/i);\n  if (underscoreMatch) {\n    panels = underscoreMatch[1].split('_').map(d => parseInt(d, 10)).filter(n => !Number.isNaN(n) && n > 0 && n <= 10);\n    instruction = (underscoreMatch[2] || '').trim();\n  } else {\n    const parts = text.replace(/^\\/remake(?:@\\w+)?\\s*/i, '').trim();\n    const tokens = parts ? parts.split(/\\s+/) : [];\n    const remaining = [];\n    for (const token of tokens) {\n      const n = parseInt(token, 10);\n      if (!Number.isNaN(n) && n > 0 && n <= 10 && remaining.length === 0) {\n        panels.push(n);\n      } else if (token) {\n        remaining.push(token);\n      }\n    }\n    instruction = remaining.join(' ').trim();\n  }\n  if (panels.length === 0) panels = [1];\n  return {\n    json: {\n      route: 'command',\n      command: 'remake',\n      chatId,\n      messageId,\n      targetJobId: data.targetJobId || null,\n      panels,\n      instruction,\n      rawText: text\n    }\n  };\n}\n\nconst commandTemplateMatch = text.match(/^\\/(template[0-9_]+)/i);\nif (data.route === 'template' || commandTemplateMatch) {\n  return {\n    json: {\n      route: 'command',\n      command: 'template',\n      chatId,\n      messageId,\n      targetJobId: data.targetJobId || null,\n      template: data.template || commandTemplateMatch?.[1] || null,\n      rawText: text\n    }\n  };\n}\n\n// 2. Check if message contains TikTok shortlink or URL\nconst urlMatch = data.shortlink || text.match(/(https?:\\/\\/(?:vt\\.tiktok\\.com|www\\.tiktok\\.com|shop\\.tiktok\\.com)\\/[^\\s]+)/i)?.[1];\nif (urlMatch) {\n  let template = data.template || 'template3';\n  const templateMatch = text.match(/\\/(template[0-9_]+)/i);\n  if (templateMatch) {\n    template = templateMatch[1];\n  }\n  return {\n    json: {\n      route: 'generate',\n      chatId,\n      messageId,\n      shortlink: urlMatch,\n      template,\n      channelId,\n      tiktokCredentialId,\n      tiktokCredentialName,\n      rawText: text\n    }\n  };\n}\n\nreturn {\n  json: {\n    route: 'invalid',\n    chatId,\n    messageId,\n    error: 'Vui lòng gửi shortlink TikTok Shop (vd: https://vt.tiktok.com/...) để tạo video, hoặc gõ /upload để đăng video hoàn tất gần nhất.'\n  }\n};\n"
+        "jsCode": "\nconst data = $json.body || $json;\nconst text = String(data.text || '').trim();\nconst chatId = String(data.chatId || '');\nconst messageId = data.messageId || null;\n\nif (!text && !data.shortlink && !data.targetJobId) {\n  return { json: { route: 'invalid', chatId, messageId, error: 'Tin nhắn không có nội dung hợp lệ' } };\n}\n\n// 1. Check if command is /upload [jobId] / /remake <panels> [instruction] / /templateX\nif (data.route === 'upload' || text.startsWith('/upload')) {\n  const parts = text.split(/\\s+/);\n  const targetJobId = data.targetJobId || parts[1] || null;\n  return {\n    json: {\n      route: 'command',\n      command: 'upload',\n      chatId,\n      messageId,\n      targetJobId,\n      rawText: text\n    }\n  };\n}\n\nif (data.route === 'remake' || text.startsWith('/remake')) {\n  let panels = [];\n  let instruction = '';\n  const underscoreMatch = text.match(/^\\/remake_([0-9_]+)(?:@\\w+)?(?:\\s+(.*))?$/i);\n  if (underscoreMatch) {\n    panels = underscoreMatch[1].split('_').map(d => parseInt(d, 10)).filter(n => !Number.isNaN(n) && n > 0 && n <= 10);\n    instruction = (underscoreMatch[2] || '').trim();\n  } else {\n    const parts = text.replace(/^\\/remake(?:@\\w+)?\\s*/i, '').trim();\n    const tokens = parts ? parts.split(/\\s+/) : [];\n    const remaining = [];\n    for (const token of tokens) {\n      const n = parseInt(token, 10);\n      if (!Number.isNaN(n) && n > 0 && n <= 10 && remaining.length === 0) {\n        panels.push(n);\n      } else if (token) {\n        remaining.push(token);\n      }\n    }\n    instruction = remaining.join(' ').trim();\n  }\n  if (panels.length === 0) panels = [1];\n  return {\n    json: {\n      route: 'command',\n      command: 'remake',\n      chatId,\n      messageId,\n      targetJobId: data.targetJobId || null,\n      panels,\n      instruction,\n      rawText: text\n    }\n  };\n}\n\nconst commandTemplateMatch = text.match(/^\\/(template[0-9_]+)/i);\nif (data.route === 'template' || commandTemplateMatch) {\n  return {\n    json: {\n      route: 'command',\n      command: 'template',\n      chatId,\n      messageId,\n      targetJobId: data.targetJobId || null,\n      template: data.template || commandTemplateMatch?.[1] || null,\n      rawText: text\n    }\n  };\n}\n\n// 2. Check if message contains TikTok shortlink or URL\nconst urlMatch = data.shortlink || text.match(/(https?:\\/\\/(?:vt\\.tiktok\\.com|www\\.tiktok\\.com|shop\\.tiktok\\.com)\\/[^\\s]+)/i)?.[1];\nif (urlMatch) {\n  let template = data.template || 'template3';\n  const templateMatch = text.match(/\\/(template[0-9_]+)/i);\n  if (templateMatch) {\n    template = templateMatch[1];\n  }\n  return {\n    json: {\n      route: 'generate',\n      chatId,\n      messageId,\n      shortlink: urlMatch,\n      template,\n      rawText: text\n    }\n  };\n}\n\nreturn {\n  json: {\n    route: 'invalid',\n    chatId,\n    messageId,\n    error: 'Vui lòng gửi shortlink TikTok Shop (vd: https://vt.tiktok.com/...) để tạo video, hoặc gõ /upload để đăng video hoàn tất gần nhất.'\n  }\n};\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -337,19 +337,7 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{\nJSON.stringify({\n  chatId: $('Parse Telegram Message').item.json.chatId,\n  sourceMessageId: $('Parse Telegram Message').item.json.messageId,\n  shortlink: $('Parse Telegram Message').item.json.shortlink,\n  productUrl: $('Resolve TikTok Shortlink').item.json.headers?.location || $('Parse Telegram Message').item.json.shortlink,\n  template: $('Parse Telegram Message').item.json.template || 'template3',\n  productId: $json.productId,\n  productTitle: $json.title,\n  productDescription: $json.productDescription,\n  productImages: ($json.productImages || []).slice(0, 8)\n})\n}}",
-        "options": {},
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "channelId",
-              "value": "={{ $json.channelId || 'default' }}"
-            },
-            {
-              "name": "tiktokCredentialId",
-              "value": "={{ $json.tiktokCredentialId || 'cJDNuW2i1tFFXivi' }}"
-            }
-          ]
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -1247,7 +1235,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst job = $('Validate Job Found').item.json;\nconst affiliateData = $input.item.json;\nconst products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);\nconst matched = products.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst channelInfo = $('Parse Telegram Message').item.json;\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: matched ? (matched.title || job.product?.title) : (job.product?.title || 'Sản phẩm TikTok Shop'),\n    caption: job.caption || job.product?.title || 'Review sản phẩm #review #tiktokshop',\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null,\n    channelId: job.channelId || channelInfo.channelId || 'default',\n    tiktokCredentialId: job.tiktokCredentialId || channelInfo.tiktokCredentialId || 'cJDNuW2i1tFFXivi',\n    tiktokCredentialName: job.tiktokCredentialName || channelInfo.tiktokCredentialName || 'TikTok Credential account'\n  }\n};\n"
+        "jsCode": "\nconst job = $('Validate Job Found').item.json;\nconst affiliateData = $input.item.json;\nconst products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);\nconst matched = products.find(p => String(p.product_id) === String(job.product?.productId));\n\nconst defaultTags = ['#review', '#sanphamchinhhang', '#tiktokshop', '#xuhuong', '#trending'];\nconst hashtags = (Array.isArray(job.hashtags) && job.hashtags.length > 0)\n  ? job.hashtags\n  : (Array.isArray(job.analysis?.hashtags) && job.analysis.hashtags.length > 0 ? job.analysis.hashtags : defaultTags);\n\n// Ưu tiên tên sản phẩm từ bước phân tích sản phẩm (AI analysis)\nconst analyzedTitle = job.analysis?.productName || job.analysis?.product_name || job.product?.productName || job.product?.title;\nconst pTitle = (analyzedTitle || (matched ? matched.title : '') || 'Sản phẩm TikTok Shop').trim();\n\nlet finalCaption = (job.caption || '').trim();\nif (!finalCaption || !finalCaption.includes('#')) {\n  finalCaption = pTitle + '\\n\\n' + hashtags.join(' ');\n}\n\n// Sinh CTA text trên giỏ hàng (anchor displayName) theo phân tích sản phẩm\nfunction generateCartCTA(j) {\n  function clean(str) {\n    if (!str || typeof str !== 'string') return '';\n    return str.replace(/[\\u{1F600}-\\u{1F6FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}\\u{1F300}-\\u{1F5FF}\\u{1F900}-\\u{1F9FF}\\u{1F1E0}-\\u{1F1FF}\\u{2190}-\\u{21FF}]/gu, '').replace(/\\s+/g, ' ').slice(0, 30).trim();\n  }\n  const analyzedCTA = j.cartAnchorText || j.analysis?.cartAnchorText || j.analysis?.analysis?.cartAnchorText || j.analysis?.cartCTA;\n  if (analyzedCTA && typeof analyzedCTA === 'string' && analyzedCTA.trim()) {\n    const c = clean(analyzedCTA);\n    if (c) return c;\n  }\n  const category = (j.analysis?.category || j.category || '').toLowerCase();\n  const textToScan = [\n    pTitle,\n    j.product?.title || '',\n    category\n  ].join(' ').toLowerCase();\n\n  const generalPool = [\n    'Mua ở đây nè', 'Đang khuyến mãi ở đây', 'Deal hot ở đây nè',\n    'Săn deal tại đây', 'Xem giá ưu đãi ở đây', 'Mua ngay tại đây nè',\n    'Bấm giỏ hàng ở đây nha', 'Chính hãng mua ở đây', 'Giá sốc hôm nay ở đây',\n    'Ưu đãi độc quyền ở đây', 'Chốt deal tại đây nè', 'Săn mã giảm giá ở đây',\n    'Giỏ hàng có sẵn ở đây', 'Hàng chuẩn mua ở đây', 'Săn sale sốc ở đây nè',\n    'Đang giảm giá ở đây', 'Mua chính hãng tại đây', 'Xem khuyến mãi ở đây'\n  ];\n\n  let specificPool = [];\n  const fashionKw = ['áo', 'quần', 'váy', 'đầm', 'giày', 'dép', 'guốc', 'túi', 'ví', 'balo', 'kính', 'thời trang', 'fashion', 'shoes', 'boots', 'sneaker', 'sandal'];\n  const beautyKw = ['kem', 'son', 'serum', 'toner', 'da', 'mặt', 'dưỡng', 'chống nắng', 'nước hoa', 'mỹ phẩm', 'cosmetics', 'beauty', 'skincare', 'makeup'];\n  const techKw = ['sạc', 'tai nghe', 'pin', 'đèn', 'điện thoại', 'máy tính', 'cáp', 'loa', 'gadget', 'tech', 'smart', 'thông minh', 'bluetooth', 'usb'];\n  const homeKw = ['nồi', 'chảo', 'bình', 'ly', 'cốc', 'ga', 'gối', 'nệm', 'đèn ngủ', 'kệ', 'máy hút', 'gia dụng', 'nhà bếp', 'kitchen', 'home', 'appliances'];\n\n  if (category.includes('beauty') || beautyKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng 100% ở đây', 'Da căng bóng mua ở đây', 'Dưỡng ẩm sâu ở đây nè',\n      'Săn combo giá hời ở đây', 'Bí quyết da đẹp ở đây', 'Hàng chuẩn auth ở đây',\n      'Trắng sáng da ở đây nè', 'Mùi thơm lâu mua ở đây', 'Chăm da đẹp ở đây nha'\n    ];\n  } else if (category.includes('fashion') || category.includes('shoe') || fashionKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Mẫu hot mua ở đây', 'Xem bảng size ở đây', 'Săn mẫu xinh ở đây nè',\n      'Mang siêu êm mua ở đây', 'Form chuẩn mua ở đây', 'Mặc tôn dáng ở đây nè',\n      'Mẫu mới về ở đây nha', 'Hàng đẹp mua ở đây', 'Phối đồ xinh ở đây nè'\n    ];\n  } else if (category.includes('tech') || category.includes('gadget') || techKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Chính hãng bảo hành ở đây', 'Đồ tiện ích mua ở đây', 'Công nghệ mới ở đây nè',\n      'Dùng cực thích ở đây', 'Bền bỉ tiện lợi ở đây', 'Sạc siêu nhanh ở đây', 'Đổi trả 7 ngày ở đây'\n    ];\n  } else if (category.includes('home') || homeKw.some(k => textToScan.includes(k))) {\n    specificPool = [\n      'Gia dụng thông minh ở đây', 'Tiện ích mỗi ngày ở đây', 'Nâng tầm không gian ở đây',\n      'Bền đẹp tiện lợi ở đây', 'Nhà cửa gọn gàng ở đây', 'Chính hãng mua ở đây', 'Đồ bếp tiện ích ở đây'\n    ];\n  }\n\n  const pool = specificPool.length > 0 ? [...specificPool, ...specificPool, ...generalPool] : generalPool;\n  const picked = pool[Math.floor(Math.random() * pool.length)] || 'Mua ở đây nè';\n  return clean(picked);\n}\n\nconst ctaText = generateCartCTA(job);\n\nreturn {\n  json: {\n    jobId: job.jobId,\n    chatId: job.chatId,\n    productId: job.product?.productId,\n    productTitle: pTitle,\n    cartAnchorText: ctaText,\n    caption: finalCaption,\n    hashtags: hashtags,\n    canAttachCart: Boolean(matched),\n    matchedProduct: matched || null\n  }\n};\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1360,7 +1348,7 @@
               {
                 "type": "product",
                 "productId": "={{ $('Find Product By product_id').item.json.productId }}",
-                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
+                "displayName": "={{ $('Find Product By product_id').item.json.cartAnchorText || $('Find Product By product_id').item.json.productTitle }}"
               }
             ]
           }
@@ -1413,260 +1401,6 @@
       ],
       "id": "node-http-cleanup-job",
       "name": "Cleanup Generation Job"
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Find Product By product_id').item.json.chatId }}",
-        "text": "={{ \"🎉 Video đã upload thành công lên TikTok!\\n\\n🛒 Sản phẩm gắn giỏ: \" + $('Find Product By product_id').item.json.productTitle + \"\\n🆔 Publish ID: \" + ($('TikTok Upload With Product').item.json.publish_id || \"OK\") }}",
-        "additionalFields": {
-          "appendAttribution": false,
-          "parse_mode": "HTML"
-        }
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        3360,
-        200
-      ],
-      "id": "node-tg-upload-completed",
-      "name": "Telegram — Upload Completed",
-      "credentials": {
-        "telegramApi": {
-          "id": "telegramAccount",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "postSettings": {
-          "text": "={{ $('Find Product By product_id').item.json.caption }}",
-          "visibilityType": 0,
-          "allowComment": 1,
-          "scheduleTime": "=0",
-          "anchors": {
-            "anchor": [
-              {
-                "type": "product",
-                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
-                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
-              }
-            ]
-          }
-        }
-      },
-      "type": "n8n-nodes-social-tiktok.tikTokUpload",
-      "typeVersion": 1,
-      "position": [
-        2640,
-        500
-      ],
-      "id": "node-tiktok-upload-1",
-      "name": "TikTok Upload (Lady)",
-      "credentials": {
-        "tiktokApi": {
-          "id": "WIFMkBwL39jBHjxo",
-          "name": "Lady Shop"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "product"
-      },
-      "type": "n8n-nodes-social-tiktok.tiktokAll",
-      "typeVersion": 1,
-      "position": [
-        1440,
-        550
-      ],
-      "id": "node-affiliate-1",
-      "name": "Get Link Affiliate (Lady)",
-      "credentials": {
-        "tiktokApi": {
-          "id": "WIFMkBwL39jBHjxo",
-          "name": "Lady Shop"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "postSettings": {
-          "text": "={{ $('Find Product By product_id').item.json.caption }}",
-          "visibilityType": 0,
-          "allowComment": 1,
-          "scheduleTime": "=0",
-          "anchors": {
-            "anchor": [
-              {
-                "type": "product",
-                "productId": "={{ $('Find Product By product_id').item.json.productId }}",
-                "displayName": "={{ $('Find Product By product_id').item.json.productTitle }}"
-              }
-            ]
-          }
-        }
-      },
-      "type": "n8n-nodes-social-tiktok.tikTokUpload",
-      "typeVersion": 1,
-      "position": [
-        2640,
-        800
-      ],
-      "id": "node-tiktok-upload-2",
-      "name": "TikTok Upload (Nhi)",
-      "credentials": {
-        "tiktokApi": {
-          "id": "Q9JStYDsDEzn5Tg3",
-          "name": "Nhi SHop"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "product"
-      },
-      "type": "n8n-nodes-social-tiktok.tiktokAll",
-      "typeVersion": 1,
-      "position": [
-        1440,
-        850
-      ],
-      "id": "node-affiliate-2",
-      "name": "Get Link Affiliate (Nhi)",
-      "credentials": {
-        "tiktokApi": {
-          "id": "Q9JStYDsDEzn5Tg3",
-          "name": "Nhi SHop"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
-                    "rightValue": "WIFMkBwL39jBHjxo",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "outputKey": "lady"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
-                    "rightValue": "Q9JStYDsDEzn5Tg3",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "outputKey": "nhi"
-            }
-          ]
-        },
-        "options": {
-          "fallbackOutput": "extra"
-        }
-      },
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        1160,
-        400
-      ],
-      "id": "node-switch-tiktok-channel",
-      "name": "Switch TikTok Channel"
-    },
-    {
-      "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
-                    "rightValue": "WIFMkBwL39jBHjxo",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "outputKey": "lady"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 2
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Parse Telegram Message').item.json.tiktokCredentialId }}",
-                    "rightValue": "Q9JStYDsDEzn5Tg3",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "outputKey": "nhi"
-            }
-          ]
-        },
-        "options": {
-          "fallbackOutput": "extra"
-        }
-      },
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        2360,
-        350
-      ],
-      "id": "node-switch-upload-channel",
-      "name": "Switch Upload Channel"
     }
   ],
   "connections": {
@@ -2287,7 +2021,7 @@
         ],
         [
           {
-            "node": "Switch TikTok Channel",
+            "node": "Get Link Affiliate",
             "type": "main",
             "index": 0
           }
@@ -2349,7 +2083,7 @@
       "main": [
         [
           {
-            "node": "Switch Upload Channel",
+            "node": "TikTok Upload With Product",
             "type": "main",
             "index": 0
           }
@@ -2379,109 +2113,7 @@
       ]
     },
     "Cleanup Generation Job": {
-      "main": [
-        [
-          {
-            "node": "Telegram — Upload Completed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch TikTok Channel": {
-      "main": [
-        [
-          {
-            "node": "Get Link Affiliate",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Link Affiliate (Lady)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Link Affiliate (Nhi)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Link Affiliate (Lady)": {
-      "main": [
-        [
-          {
-            "node": "Find Product By product_id",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Link Affiliate (Nhi)": {
-      "main": [
-        [
-          {
-            "node": "Find Product By product_id",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "TikTok Upload (Lady)": {
-      "main": [
-        [
-          {
-            "node": "Save Publish Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "TikTok Upload (Nhi)": {
-      "main": [
-        [
-          {
-            "node": "Save Publish Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch Upload Channel": {
-      "main": [
-        [
-          {
-            "node": "TikTok Upload With Product",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "TikTok Upload (Lady)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "TikTok Upload (Nhi)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     }
   },
   "pinData": {},

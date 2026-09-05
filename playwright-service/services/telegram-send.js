@@ -32,7 +32,7 @@ function toBuffer(data) {
   return null;
 }
 
-async function sendTelegramMessage(chatId, text) {
+async function sendTelegramMessage(chatId, text, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
 
@@ -40,7 +40,11 @@ async function sendTelegramMessage(chatId, text) {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+      }),
       signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
     });
     if (!response.ok) {
@@ -51,6 +55,36 @@ async function sendTelegramMessage(chatId, text) {
     return json?.result?.message_id || true;
   } catch (err) {
     console.error(`[Telegram] sendMessage error:`, err.message);
+    return false;
+  }
+}
+
+async function editTelegramMessage(chatId, messageId, text, options = {}) {
+  const botToken = getBotToken();
+  if (!botToken || !messageId) return false;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+      }),
+      signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      if (!errText.includes('message is not modified')) {
+        console.warn(`[Telegram] editMessageText HTTP ${response.status}: ${errText}`);
+      }
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[Telegram] editMessageText error:`, err.message);
     return false;
   }
 }
@@ -202,21 +236,22 @@ async function sendOrUpdateLivePanel(chatId, previousMessageId, imageBufferOrBas
   return newMsgId;
 }
 
-async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName, caption) {
+async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName, caption, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
 
   const pName = panelName || `Panel ${panelIndex || 1}`;
 
   try {
-    console.log(`[Telegram] Resizing ${pName} before sending...`);
+    const cropPct = typeof options.cropPercent === 'number' ? options.cropPercent : 0;
+    console.log(`[Telegram] Preparing ${pName} before sending (crop: ${cropPct * 100}%)...`);
     const resizedBase64 = await processVideoBase64(videoBase64, {
-      cropPercent: 0.04,
+      cropPercent: cropPct,
       aspectRatio: '9:16',
     });
 
     console.log(`[Telegram] Sending status update to chat ${chatId}...`);
-    await sendTelegramMessage(chatId, `${pName} đã resize xong. Đang gửi video về Telegram...`);
+    await sendTelegramMessage(chatId, `${pName} đã sẵn sàng. Đang gửi video về Telegram...`);
 
     console.log(`[Telegram] Uploading video to chat ${chatId}...`);
     const videoBuffer = Buffer.from(resizedBase64, 'base64');
@@ -300,6 +335,7 @@ async function sendMergedVideoToTelegram(chatId, videoPathOrBase64, caption) {
 
 module.exports = {
   sendTelegramMessage,
+  editTelegramMessage,
   deleteTelegramMessage,
   sendPhotoToTelegram,
   sendMediaGroupToTelegram,

@@ -83,8 +83,7 @@ async function verifySession(credentialId) {
   if (!account) throw new Error(`Account ${credentialId} not found in tiktok-accounts.json`);
 
   const cookieStr = buildCookieString(account);
-  const resp = await httpClient.get('https://www.tiktok.com/api/user/settings/', {
-    params: { app_language: 'en', app_name: 'tiktok_web' },
+  const resp = await httpClient.get('https://www.tiktok.com/passport/web/account/info/', {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
       'Cookie': cookieStr,
@@ -94,8 +93,8 @@ async function verifySession(credentialId) {
   });
 
   const data = resp.data;
-  if (data?.statusCode === 0 && data?.data?.user?.uid) {
-    console.log(`[TikTokWeb] ✅ Session valid for ${credentialId} — user: ${data.data.user.uniqueId}`);
+  if (data?.message === 'success' && (data?.data?.user_id_str || data?.data?.username)) {
+    console.log(`[TikTokWeb] ✅ Session valid for ${credentialId} — user: @${data.data.username} (UID: ${data.data.user_id_str})`);
     return true;
   }
   throw new Error(`Session expired or invalid for ${credentialId}`);

@@ -13,8 +13,11 @@ const {
   sendVideoToTelegramDirect,
   sendMergedVideoToTelegram
 } = require('./telegram-send');
+const { FlowStepTracker } = require('./flow-step-tracker');
+const { buildTemplateOptions } = require('./template-options');
 const { downloadProductImages } = require('./product-assets');
 const { mergeVideos } = require('./video-merge');
+const { getConfig } = require('../utils/config-manager');
 
 const JOB_ROOT = process.env.GENERATION_JOB_ROOT || path.join(os.tmpdir(), 'ai-fashion-review', 'jobs');
 const DEFAULT_TEMPLATE = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3';
@@ -68,29 +71,245 @@ function setStep(job, currentStep, message, extra = {}) {
 
 function normalizeHashtags(value) {
   const tags = [];
-  for (const item of Array.isArray(value) ? value : []) {
-    const tag = String(item || '').trim();
-    if (!tag) continue;
-    const normalized = (tag.startsWith('#') ? tag : `#${tag}`).replace(/\s+/g, '');
+  const list = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' ? value.split(/[,\s]+/) : []);
+  for (const item of list) {
+    const raw = String(item || '').trim();
+    if (!raw) continue;
+    const cleanTag = raw.replace(/^#+/, '').trim();
+    if (!cleanTag) continue;
+    const normalized = `#${cleanTag.replace(/\s+/g, '')}`;
     if (!tags.some(existing => existing.toLowerCase() === normalized.toLowerCase())) {
       tags.push(normalized);
     }
   }
-  return tags.slice(0, 8);
+  return tags;
+}
+
+function getConfigHashtags(job) {
+  try {
+    const baseDir = job?.baseDir || path.resolve(__dirname, '..');
+    const config = getConfig(baseDir);
+    if (!config) return [];
+
+    const tmpl = String(job?.template || '').toLowerCase();
+    const chatId = String(job?.chatId || '').trim();
+
+    // 1. Check auto settings tương ứng với template hoặc chatId
+    let autoKey = null;
+    if (tmpl.includes('template3') || config.autoT3Settings?.chatId === chatId) {
+      autoKey = 'autoT3Settings';
+    } else if (tmpl.includes('template4') || config.autoT4Settings?.chatId === chatId) {
+      autoKey = 'autoT4Settings';
+    } else if (tmpl.includes('template5') || config.autoT5Settings?.chatId === chatId) {
+      autoKey = 'autoT5Settings';
+    }
+
+    if (autoKey && config[autoKey]) {
+      const tags = config[autoKey].hashtags || config[autoKey].hashtag;
+      if (Array.isArray(tags) && tags.length > 0) {
+        return normalizeHashtags(tags);
+      }
+    }
+
+    // 2. Check channel settings
+    if (chatId && config.channels?.[chatId]) {
+      const channelTags = config.channels[chatId].hashtags || config.channels[chatId].hashtag;
+      if (Array.isArray(channelTags) && channelTags.length > 0) {
+        return normalizeHashtags(channelTags);
+      }
+    }
+
+    // 3. Check root level
+    const rootTags = config.hashtags || config.hashtag;
+    if (Array.isArray(rootTags) && rootTags.length > 0) {
+      return normalizeHashtags(rootTags);
+    }
+  } catch (err) {
+    console.warn('[GenerationJob] Error reading config hashtags:', err.message);
+  }
+  return [];
 }
 
 function buildCaption(job, result) {
-  const analysis = result?.analysis || {};
-  const productName = analysis.productName || analysis.product_name || job.productTitle || 'Sản phẩm TikTok Shop';
-  const hashtags = normalizeHashtags(analysis.hashtags?.length ? analysis.hashtags : job.sourceHashtags);
+  const analysis = result?.analysis || job.analysis || {};
+  // 1. Tên sản phẩm ưu tiên lấy từ bước phân tích sản phẩm (AI analysis)
+  const productName = (analysis.productName || analysis.product_name || job.productTitle || 'Sản phẩm TikTok Shop').trim();
+
+  // Đồng bộ lại job.productTitle để toàn bộ hệ thống (publicJob, Telegram, TikTok Upload) dùng đúng tên chuẩn này
+  job.productTitle = productName;
+
+  // 2. Lấy hashtag mặc định từ config (nếu có 2 cái thì lấy 2, nếu rỗng thì 0)
+  const configTags = getConfigHashtags(job);
+  const finalHashtags = configTags.slice(0, 5);
+
+  // 3. Số lượng hashtag cần lấy thêm để đủ đúng 5 hashtags (nếu có 2 thì thêm 3, nếu rỗng thì thêm 5)
+  const needed = Math.max(0, 5 - finalHashtags.length);
+
+  if (needed > 0) {
+    const tmpl = String(job.template || '').toLowerCase();
+    let templateDefaults = ['#review', '#sanphamchinhhang', '#lifestyle', '#trending', '#xuhuong'];
+    if (tmpl.includes('template4')) {
+      templateDefaults = ['#GuocNu', '#GiayCaoGot', '#SandalNu', '#ReviewGiayNu', '#TikTokShopVN'];
+    } else if (tmpl.includes('template3')) {
+      templateDefaults = ['#GiaySneaker', '#GiayTheThao', '#ReviewGiay', '#SneakerVN', '#TikTokShopVN'];
+    }
+
+    const candidatePool = [
+      ...(Array.isArray(analysis.hashtags) ? analysis.hashtags : []),
+      ...(Array.isArray(job.sourceHashtags) ? job.sourceHashtags : []),
+      ...templateDefaults,
+      '#review', '#sanphamchinhhang', '#xuhuong', '#trending', '#tiktokshop'
+    ];
+
+    const normalizedCandidates = normalizeHashtags(candidatePool);
+    for (const tag of normalizedCandidates) {
+      if (finalHashtags.length >= 5) break;
+      if (!finalHashtags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+        finalHashtags.push(tag);
+      }
+    }
+  }
+
   const text = [
     productName,
-    hashtags.join(' '),
-  ].filter(Boolean).join('\n');
+    '',
+    finalHashtags.join(' '),
+  ].filter((line, i) => i === 1 || Boolean(line)).join('\n');
+
+  const { getCartAnchorText } = require('./cart-cta');
+  const aiCta = job.cartAnchorText ||
+    analysis?.cartAnchorText ||
+    analysis?.analysis?.cartAnchorText ||
+    analysis?.cartCTA ||
+    analysis?.analysis?.cartCTA;
+  const cartAnchorText = (aiCta && typeof aiCta === 'string' && aiCta.trim())
+    ? aiCta.trim().slice(0, 30)
+    : getCartAnchorText(job.product || { title: productName }, analysis);
+  job.cartAnchorText = cartAnchorText;
 
   return {
     caption: text,
-    hashtags,
+    hashtags: finalHashtags,
+    cartAnchorText,
+  };
+}
+
+function getExpectedPanelIndices(job) {
+  const result = job?.result || {};
+  let expectedPanels = [];
+  if (Array.isArray(result.panels) && result.panels.length > 0) {
+    expectedPanels = result.panels.map(p => Number(p.index || p.panelIndex)).filter(n => Number.isInteger(n) && n > 0);
+  } else if (Array.isArray(job?.panels) && job.panels.length > 0) {
+    expectedPanels = job.panels.map(p => Number(p.index || p.panelIndex)).filter(n => Number.isInteger(n) && n > 0);
+  }
+  if (expectedPanels.length === 0) {
+    const tmpl = String(job?.template || '').toLowerCase();
+    let count = 2;
+    if (tmpl.includes('dailyvlog')) {
+      count = 5;
+    } else if (tmpl.includes('5_3') || tmpl.includes('5.3') || tmpl.includes('53')) {
+      count = 4;
+    }
+    expectedPanels = Array.from({ length: count }, (_, i) => i + 1);
+  }
+  return [...new Set(expectedPanels)].sort((a, b) => a - b);
+}
+
+function getOrderedVideoPathsForJob(job) {
+  if (!job) return { orderedVideoPaths: [], orderedVideos: [], missingPanels: [], completedPanels: [], expectedPanels: [] };
+  const result = job.result || {};
+  const expectedPanels = getExpectedPanelIndices(job);
+
+  const searchDirs = [
+    result.reviewArchive?.videosDir,
+    result.reviewArchive?.root ? path.join(result.reviewArchive.root, 'videos') : null,
+    job.jobDir ? path.join(job.jobDir, 'videos') : null,
+  ].filter(Boolean);
+
+  try {
+    const { lastRunByChat } = require('./telegram-bot');
+    const runInfo = lastRunByChat.get(String(job.chatId));
+    if (runInfo?.videosDir) searchDirs.push(runInfo.videosDir);
+    if (runInfo?.runDir) searchDirs.push(path.join(runInfo.runDir, 'videos'));
+  } catch (_) { }
+
+  const orderedVideos = [];
+  const missingPanels = [];
+  const completedPanels = [];
+
+  if (!Array.isArray(result.videos)) {
+    result.videos = [];
+  }
+
+  for (const pIdx of expectedPanels) {
+    let validPath = null;
+
+    // 1. Kiểm tra video trong result.videos hiện tại
+    const inMem = result.videos.find(v => Number(v.panelIndex) === pIdx && !v.error && v.videoPath && fs.existsSync(v.videoPath));
+    if (inMem) {
+      validPath = inMem.videoPath;
+    }
+
+    // 2. Quét tìm file panel-${pIdx}.mp4 trên thư mục của run / archive
+    if (!validPath) {
+      for (const dir of searchDirs) {
+        if (!fs.existsSync(dir)) continue;
+        const candidate = path.join(dir, `panel-${pIdx}.mp4`);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).size > 1000) {
+          validPath = candidate;
+          break;
+        }
+      }
+    }
+
+    // 3. Quét tìm file gần nhất trong uploads/aistudio-videos/
+    if (!validPath) {
+      const uploadVideosDir = path.join(job.baseDir || path.resolve(__dirname, '..'), 'uploads', 'aistudio-videos');
+      if (fs.existsSync(uploadVideosDir)) {
+        try {
+          const files = fs.readdirSync(uploadVideosDir)
+            .filter(f => f.startsWith(`panel-${pIdx}-video-`) && f.endsWith('.mp4'))
+            .map(f => ({ file: f, path: path.join(uploadVideosDir, f), mtime: fs.statSync(path.join(uploadVideosDir, f)).mtimeMs }))
+            .sort((a, b) => b.mtime - a.mtime);
+          if (files.length > 0 && fs.statSync(files[0].path).size > 1000) {
+            validPath = files[0].path;
+          }
+        } catch (_) { }
+      }
+    }
+
+    if (validPath) {
+      orderedVideos.push({
+        panelIndex: pIdx,
+        videoPath: validPath,
+      });
+      completedPanels.push(pIdx);
+
+      // Đồng bộ lại vào result.videos để xoá cờ error cũ nếu có
+      let vEntry = result.videos.find(v => Number(v.panelIndex) === pIdx);
+      if (!vEntry) {
+        vEntry = { panelIndex: pIdx };
+        result.videos.push(vEntry);
+      }
+      vEntry.videoPath = validPath;
+      delete vEntry.error;
+      vEntry.status = 'completed';
+    } else {
+      missingPanels.push(pIdx);
+    }
+  }
+
+  // Sắp xếp TUYỆT ĐỐI theo đúng thứ tự cảnh tăng dần (1, 2, 3...)
+  orderedVideos.sort((a, b) => a.panelIndex - b.panelIndex);
+
+  return {
+    orderedVideoPaths: orderedVideos.map(v => v.videoPath),
+    orderedVideos,
+    missingPanels,
+    completedPanels,
+    expectedPanels,
   };
 }
 
@@ -102,9 +321,13 @@ function getVideoPaths(result) {
 }
 
 async function executeJob(job) {
+  const tracker = job.stepTracker || new FlowStepTracker(job.chatId, { title: job.productTitle });
+  job.stepTracker = tracker;
+
   try {
     ensureDir(job.jobDir);
     setStep(job, 'product_assets_extracted', 'Đang tải ảnh Product description về local...', { status: 'running', progressPercent: 10 });
+    await tracker.start(1);
 
     const downloaded = await downloadProductImages(job.productImages, job.jobDir, {
       limit: MAX_IMAGES,
@@ -112,14 +335,6 @@ async function executeJob(job) {
       timeoutMs: Number(process.env.PRODUCT_IMAGE_DOWNLOAD_TIMEOUT_MS || '15000'),
       maxBytesPerImage: Number(process.env.PRODUCT_IMAGE_MAX_BYTES || String(10 * 1024 * 1024)),
     });
-
-    if (downloaded.files && downloaded.files.length > 0) {
-      await sendMediaGroupToTelegram(
-        job.chatId,
-        downloaded.files,
-        `📥 Đã nhận ${downloaded.files.length} ảnh sản phẩm [${job.productTitle || 'TikTok Shop'}]. Đang tiến hành phân tích & tạo video...`
-      ).catch(err => console.error('[GenerationJob] sendMediaGroup error:', err.message));
-    }
 
     job.sourceImagesDir = downloaded.dir;
     job.sourceImageErrors = downloaded.errors;
@@ -138,6 +353,8 @@ async function executeJob(job) {
       path: file.path,
     }));
 
+    await tracker.setStep(1, 'completed');
+    await tracker.setStep(2, 'running');
     setStep(job, 'product_analyzed', 'Đang phân tích sản phẩm bằng Gemini...', { progressPercent: 25 });
 
     const result = await runStoryboardFullFlow(job.chatId, filePayloads, job.baseDir, {
@@ -147,6 +364,7 @@ async function executeJob(job) {
       cleanupFiles: false,
       sendPanelVideos: true,
       sendSummary: false,
+      stepTracker: tracker,
       productContext: {
         productId: job.productId,
         productUrl: job.productUrl,
@@ -160,6 +378,17 @@ async function executeJob(job) {
     });
 
     job.result = result;
+    job.analysis = result?.analysis || {};
+    const analyzedName = result?.analysis?.productName || result?.analysis?.product_name;
+    if (analyzedName) {
+      job.productTitle = analyzedName;
+      await tracker.setTitle(analyzedName);
+    }
+    const analyzedCTA = result?.analysis?.cartAnchorText || result?.analysis?.analysis?.cartAnchorText || result?.analysis?.cartCTA;
+    if (analyzedCTA && typeof analyzedCTA === 'string' && analyzedCTA.trim()) {
+      job.cartAnchorText = analyzedCTA.trim().slice(0, 30);
+      console.log(`[Job ${job.jobId}] 🛒 Cart Anchor CTA from AI analysis: "${job.cartAnchorText}"`);
+    }
 
     try {
       const { lastRunByChat } = require('./telegram-bot');
@@ -176,27 +405,48 @@ async function executeJob(job) {
       }
     } catch (_) { }
 
-    const videoPaths = getVideoPaths(result);
-    if (videoPaths.length === 0) {
+    const { orderedVideoPaths, missingPanels, completedPanels, expectedPanels } = getOrderedVideoPathsForJob(job);
+    if (completedPanels.length === 0) {
       throw new Error('No completed panel videos found');
     }
 
     const captionData = buildCaption(job, result);
     job.caption = captionData.caption;
     job.hashtags = captionData.hashtags;
+    job.cartAnchorText = captionData.cartAnchorText || null;
     job.finalVideoPath = null;
     job.finalVideoSize = null;
 
-    setStep(job, 'videos_generated', `Đã tạo ${videoPaths.length} video panel. Đang chờ /remake hoặc /upload.`, {
+    await tracker.setStep(5, 'completed');
+
+    setStep(job, 'videos_generated', `Đã tạo ${completedPanels.length}/${expectedPanels.length} video panel. Đang chờ /remake hoặc /upload.`, {
       progressPercent: 95,
-      panels: videoPaths.map((_, index) => ({ index: index + 1, status: 'completed' })),
+      panels: expectedPanels.map(idx => ({ index: idx, status: completedPanels.includes(idx) ? 'completed' : 'failed' })),
     });
 
-    const remakeLines = videoPaths.map((_, index) => `  • Cảnh ${index + 1}: /remake_${index + 1}`).join('\n');
+    // 1. Gửi tin nhắn CHỈ CHỨA TITLE VÀ HASHTAG (để user dễ dàng copy thủ công nếu muốn tự đăng tay)
+    const hashtagText = (job.hashtags && job.hashtags.length > 0)
+      ? job.hashtags.join(' ')
+      : '#review #trending';
     await sendTelegramMessage(
       job.chatId,
-      `✅ Đã tạo xong ${videoPaths.length} video panel.\n\n👉 Nhấn lệnh để tạo lại từng cảnh nếu cần:\n${remakeLines}\n\n👉 Gõ /upload để ghép video 9:16 và đăng lên TikTok.`
+      `${job.productTitle} ${hashtagText}`
     );
+
+    // 2. Gửi tin nhắn hướng dẫn và lệnh remake / upload
+    if (missingPanels.length > 0) {
+      const remakeMissingLines = missingPanels.map(p => `  • Cảnh ${p}: /remake_${p}`).join('\n');
+      await sendTelegramMessage(
+        job.chatId,
+        `⚠️ Đã tạo được ${completedPanels.length}/${expectedPanels.length} video panel (Cảnh ${missingPanels.join(', ')} bị lỗi).\n\n👉 Nhấn lệnh để tạo lại cảnh lỗi:\n${remakeMissingLines}\n\n👉 Sau khi remake đủ các cảnh, gõ /upload để ghép đầy đủ video theo đúng thứ tự 1 -> ${expectedPanels.length} và đăng lên TikTok.`
+      );
+    } else {
+      const allRemakeLines = expectedPanels.map(p => `  • Cảnh ${p}: /remake_${p}`).join('\n');
+      await sendTelegramMessage(
+        job.chatId,
+        `✅ Đã tạo xong toàn bộ ${completedPanels.length} video panel theo thứ tự.\n\n👉 Nhấn lệnh để tạo lại từng cảnh nếu cần:\n${allRemakeLines}\n\n👉 Gõ /upload để ghép video hoàn chỉnh (Cảnh 1 -> Cảnh ${completedPanels.length}) và đăng lên TikTok.`
+      );
+    }
 
     latestCompletedByChat.set(String(job.chatId), job.jobId);
     job.status = 'completed';
@@ -209,9 +459,9 @@ async function executeJob(job) {
       failedStep: job.currentStep,
     };
     setStep(job, 'failed', error.message, { status: 'failed', progressPercent: job.progressPercent || 0 });
-    try {
-      await sendTelegramMessage(job.chatId, `⚠️ Generation failed at ${job.error.failedStep}: ${error.message}`);
-    } catch (_) { }
+    if (tracker) {
+      await tracker.fail(null, error.message);
+    }
   } finally {
     activeByChatProduct.delete(activeKey(job.chatId, job.productId));
   }
@@ -248,10 +498,11 @@ function enqueueGenerationJob(input, baseDir = path.resolve(__dirname, '..')) {
     sourceHashtags: normalizeHashtags(input.hashtags),
     productImages: input.productImages.slice(0, MAX_IMAGES),
     template,
-    templateOptions: { template },
+    templateOptions: buildTemplateOptions(template),
     baseDir: effectiveBaseDir,
     jobDir,
     status: 'queued',
+    stepTracker: input.stepTracker || null,
     currentStep: 'queued',
     stepOrder: STEPS.queued,
     progressPercent: 0,
@@ -287,6 +538,8 @@ function enqueueGenerationJob(input, baseDir = path.resolve(__dirname, '..')) {
 
 function publicJob(job) {
   if (!job) return null;
+  const analysis = job.result?.analysis || job.analysis || {};
+  const productName = analysis.productName || analysis.product_name || job.productTitle || '';
   return {
     jobId: job.jobId,
     chatId: job.chatId,
@@ -296,17 +549,28 @@ function publicJob(job) {
     progressPercent: job.progressPercent,
     message: job.message,
     panels: job.panels,
+    caption: job.caption || '',
+    hashtags: job.hashtags || [],
+    cartAnchorText: job.cartAnchorText || '',
+    analysis,
     error: job.error ? {
       message: job.error.message,
       failedStep: job.error.failedStep,
     } : null,
     product: {
       productId: job.productId,
-      title: job.productTitle,
+      title: productName || job.productTitle,
+      productName: productName || job.productTitle,
       productUrl: job.productUrl,
       shortlink: job.shortlink,
     },
+    trendingMusic: job.trendingMusic ? {
+      title: job.trendingMusic.title,
+      authorName: job.trendingMusic.authorName,
+      videoUrl: job.trendingMusic.videoUrl,
+    } : null,
     upload: job.upload,
+    uploadMessageId: job.uploadMessageId || null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
@@ -324,14 +588,19 @@ function getLatestCompletedJobForChat(chatId) {
 function getJobResult(jobId) {
   const job = getJob(jobId);
   if (!job) return null;
+  const analysis = job.result?.analysis || job.analysis || {};
+  const productName = analysis.productName || analysis.product_name || job.productTitle || '';
   return {
     jobId: job.jobId,
-    analysis: job.result?.analysis || {},
+    analysis,
     caption: job.caption || '',
     hashtags: job.hashtags || [],
+    cartAnchorText: job.cartAnchorText || '',
+    uploadMessageId: job.uploadMessageId || null,
     product: {
       productId: job.productId,
-      title: job.productTitle,
+      title: productName || job.productTitle,
+      productName: productName || job.productTitle,
       productUrl: job.productUrl,
       shortlink: job.shortlink,
     },
@@ -358,52 +627,72 @@ async function prepareUploadJob(jobId) {
     throw new Error('Job result is missing');
   }
 
-  const videoPaths = getVideoPaths(job.result);
-  if (videoPaths.length === 0) {
+  const { orderedVideoPaths, missingPanels, expectedPanels } = getOrderedVideoPathsForJob(job);
+  if (missingPanels.length > 0) {
+    throw new Error(`Chưa có đủ video cho tất cả các cảnh (Thiếu Cảnh ${missingPanels.join(', ')} / ${expectedPanels.length}). Vui lòng gõ /remake_${missingPanels[0]} để tạo lại cảnh này trước khi /upload!`);
+  }
+  if (orderedVideoPaths.length === 0) {
     throw new Error('No completed panel videos found to merge');
   }
 
-  setStep(job, 'videos_generated', `Đang ghép ${videoPaths.length} video panel và chèn nhạc TikTok trend...`, {
+  const videoPaths = orderedVideoPaths;
+  console.log(`[GenerationJob] 🎬 Merging ${videoPaths.length} videos in strict order: ${videoPaths.map((p, i) => `Cảnh ${i + 1} (${path.basename(p)})`).join(' -> ')}`);
+
+  // Check if template has voice-over script (e.g. template5_2, template5_3, hasVoice)
+  const tmpl = String(job.template || '').toLowerCase();
+  const isVoiceTemplate = !!(
+    tmpl.includes('template5_2') || tmpl.includes('template5.2') || tmpl.includes('template52') ||
+    tmpl.includes('template5_3') || tmpl.includes('template5.3') || tmpl.includes('template53') ||
+    job.hasVoice === true ||
+    job.options?.hasVoice === true
+  );
+
+  setStep(job, 'videos_generated', isVoiceTemplate
+    ? `Đang ghép ${videoPaths.length} video panel (giữ nguyên giọng lồng tiếng Voice-over)...`
+    : `Đang ghép ${videoPaths.length} video panel và chèn nhạc TikTok trend...`, {
     status: 'preparing_upload',
     progressPercent: 98,
-    panels: videoPaths.map((_, index) => ({ index: index + 1, status: 'completed' })),
+    panels: expectedPanels.map((pIdx) => ({ index: pIdx, status: 'completed' })),
   });
 
-  const { getRandomTrendingTrackAudio } = require('./tiktok-music-scraper');
   let trendingMusic = null;
-  try {
-    console.log(`[GenerationJob] 🎵 Selecting random trending music track for job ${jobId}...`);
-    trendingMusic = await getRandomTrendingTrackAudio(job.jobDir);
-  } catch (mErr) {
-    console.warn(`[GenerationJob] ⚠️ Could not fetch trending music: ${mErr.message}`);
+  if (!isVoiceTemplate) {
+    const { getRandomTrendingTrackAudio } = require('./tiktok-music-scraper');
+    try {
+      console.log(`[GenerationJob] 🎵 Selecting random trending music track for job ${jobId}...`);
+      trendingMusic = await getRandomTrendingTrackAudio(job.jobDir);
+    } catch (mErr) {
+      console.warn(`[GenerationJob] ⚠️ Could not fetch trending music: ${mErr.message}`);
+    }
+  } else {
+    console.log(`[GenerationJob] 🎙️ Template ${job.template} có voice script — KHÔNG chèn nhạc trending, giữ nguyên voice-over.`);
   }
 
   const finalDir = path.join(job.jobDir, 'final');
   ensureDir(finalDir);
   const finalVideoPath = path.join(finalDir, 'final-video.mp4');
+
   await mergeVideos(videoPaths, finalVideoPath, {
     width: 1080,
     height: 1920,
     aspectRatio: '9:16',
     musicPath: trendingMusic?.audioPath || null,
-    muteAudio: true,
+    muteAudio: !trendingMusic && !isVoiceTemplate, // Chỉ mute khi không có nhạc VÀ không phải voice template
   });
 
   job.finalVideoPath = finalVideoPath;
   job.finalVideoSize = fs.statSync(finalVideoPath).size;
   job.trendingMusic = trendingMusic;
   job.status = 'completed';
-  setStep(job, 'completed', 'Final video merged with trending music for upload.', { status: 'completed', progressPercent: 100 });
-
-  const musicInfo = trendingMusic
-    ? `\n🎵 Nhạc nền TikTok trend: "${trendingMusic.title}" - ${trendingMusic.authorName}`
-    : '';
+  setStep(job, 'completed', isVoiceTemplate
+    ? 'Final video merged with original voice-over for upload.'
+    : 'Final video merged with trending music for upload.', { status: 'completed', progressPercent: 100 });
 
   try {
     await sendMergedVideoToTelegram(
       job.chatId,
       finalVideoPath,
-      `🎬 Video 9:16 hoàn chỉnh đã ghép xong!${musicInfo}\n🛒 Đang xác minh giỏ hàng Affiliate và đăng lên TikTok...`
+      '🎬 Video 9:16 hoàn chỉnh.'
     );
   } catch (mErr) {
     console.error('[GenerationJob] sendMergedVideo error:', mErr.message);
@@ -512,9 +801,40 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
       continue;
     }
 
-    const idx = job.result.videos.findIndex(existing => existing.panelIndex === v.panelIndex);
-    if (idx >= 0) job.result.videos[idx] = v;
-    else job.result.videos.push(v);
+    const archiveVideosDir = job.result?.reviewArchive?.videosDir
+      || (job.result?.reviewArchive?.root ? path.join(job.result.reviewArchive.root, 'videos') : null)
+      || path.join(job.jobDir, 'videos');
+    ensureDir(archiveVideosDir);
+    const targetVideoPath = path.join(archiveVideosDir, `panel-${v.panelIndex}.mp4`);
+    if (v.videoPath && fs.existsSync(v.videoPath)) {
+      try { fs.copyFileSync(v.videoPath, targetVideoPath); } catch (_) { }
+    }
+
+    const vItem = {
+      panelIndex: Number(v.panelIndex),
+      videoPath: fs.existsSync(targetVideoPath) ? targetVideoPath : v.videoPath,
+      video: v.video,
+      prompt: v.prompt,
+      status: 'completed',
+    };
+    delete vItem.error;
+
+    if (!Array.isArray(job.result.videos)) job.result.videos = [];
+    const idx = job.result.videos.findIndex(existing => Number(existing.panelIndex) === Number(v.panelIndex));
+    if (idx >= 0) job.result.videos[idx] = vItem;
+    else job.result.videos.push(vItem);
+
+    // Đồng bộ lại vào lastRunByChat nếu có
+    try {
+      const { lastRunByChat } = require('./telegram-bot');
+      const mem = lastRunByChat.get(String(job.chatId));
+      if (mem) {
+        if (!Array.isArray(mem.videos)) mem.videos = [];
+        const mIdx = mem.videos.findIndex(m => Number(m.panelIndex) === Number(v.panelIndex));
+        if (mIdx >= 0) mem.videos[mIdx] = vItem;
+        else mem.videos.push(vItem);
+      }
+    } catch (_) { }
 
     const base64 = v.video?.base64 || (v.videoPath && fs.existsSync(v.videoPath) ? fs.readFileSync(v.videoPath).toString('base64') : null);
     if (base64) {
@@ -534,7 +854,7 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
   setStep(job, 'completed', 'Remake completed. Waiting for /remake or /upload.', { status: 'completed', progressPercent: 100 });
   await sendTelegramMessage(
     job.chatId,
-    `✅ Đã remake xong cảnh ${numbers.join(', ')}.\n\n👉 Nhấn để tạo lại tiếp nếu cần: ${numbers.map(n => `/remake_${n}`).join(' ')}\n👉 Gõ /upload để ghép video 9:16 và đăng TikTok.`
+    `✅ Đã remake xong cảnh ${numbers.join(', ')}.\n\n👉 Gõ /upload để ghép đầy đủ video theo thứ tự (1 -> 2) và đăng TikTok.\n👉 Nhấn để tạo lại tiếp nếu cần: ${numbers.map(n => `/remake_${n}`).join(' ')}`
   );
   return { success: true, jobId: job.jobId, remadePanels: numbers };
 }
@@ -543,7 +863,7 @@ async function changeJobTemplate(jobId, newTemplate) {
   const job = getJob(jobId);
   if (!job) throw new Error('Job not found');
   job.template = newTemplate;
-  job.templateOptions = { template: newTemplate };
+  job.templateOptions = buildTemplateOptions(newTemplate);
   job.status = 'queued';
   setStep(job, 'queued', `Đang đổi template sang ${newTemplate}...`, { status: 'running', progressPercent: 10 });
   await executeJob(job);
@@ -565,10 +885,14 @@ const generationJobService = {
   waitForJobCommand,
   remakeJobPanels,
   changeJobTemplate,
+  getOrderedVideoPathsForJob,
+  getExpectedPanelIndices,
   STEPS,
 };
 
 module.exports = {
   ...generationJobService,
   generationJobService,
+  getOrderedVideoPathsForJob,
+  getExpectedPanelIndices,
 };

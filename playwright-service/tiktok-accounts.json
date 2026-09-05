@@ -1,18 +1,8 @@
 {
-  "WIFMkBwL39jBHjxo": {
-    "label": "Lady Shop (ladystore2000)",
-    "sessionid": "PASTE_SESSION_ID_HERE",
-    "uid_tt": "PASTE_UID_TT_HERE",
-    "tt_csrf_token": "PASTE_CSRF_TOKEN_HERE",
-    "sid_tt": "PASTE_SESSION_ID_HERE",
-    "sid_guard": "PASTE_SID_GUARD_HERE",
-    "msToken": "PASTE_MSTOKEN_HERE",
-    "updatedAt": ""
-  },
   "cJDNuW2i1tFFXivi": {
     "label": "Men Shop",
     "_ttp": "3Ht0rXvudODUIRSG06lcUdde9OP",
-    "tt_chain_token": "dYt7WiSje2RfNQ0pvb9ceg==",
+    "tt_chain_token": "dYt7WiSje2RfNQ0pvb9ceg",
     "tt_csrf_token": "qMDSQHca-UUr17z9jbWP32IDQecAQ4dxXjPY",
     "s_v_web_id": "verify_mte71dwc_d8P2yB50_T82u_4urK_9wah_YpIK0gAR703e",
     "d_ticket": "572e283e8f53ee8b89a79d05538159e338fa1",
@@ -25,16 +15,42 @@
     "msToken": "WAxK75_fW1nXgudKKQ2xDxFi7q1ZzFcHwJ4YhA8qRlVX9I-B8hMgA4AfSZmZ4BfTlqztE07Xe74x5keYyiZuC60n7W6kMCYdIdkgZdFCIpJ99xysiG9JbwAUtE90fvfKsmyB3u3t0a7iB-PisSzO_QvVa2xz_3g",
     "ttwid": "1%7CqwJJaWbArcfbCiaoS38SeJUjLQrCeV1uUrHwlI2lfVg%7C1787996870%7Cd0765b15dcaf2e174efce352cf3f48a9cf1ca0f602d5988383ab2c494523e60b",
     "odin_tt": "86e276d2a0b1cc32b7975183680f90e86f1a8ef077f9ecc411d3aad01cd5fc45915363aa0417beb45e616e5e57a62530b3eb94b3815bc20e13185cefb9957480c83fe2e37cbe137512e4955bab24bfac",
-    "updatedAt": "2026-09-02T12:28:00.000Z"
+    "updatedAt": "2026-08-29T09:47:59.299Z"
+  },
+  "WIFMkBwL39jBHjxo": {
+    "label": "Lady Shop (ladystore2000)",
+    "_ttp": "3Ht0rXvudODUIRSG06lcUdde9OP.tt.1",
+    "tt_chain_token": "dYt7WiSje2RfNQ0pvb9ceg",
+    "tt_csrf_token": "3S7cxMA4-iPgrMOaZBGqkw_Tyo0khJkk0SHU",
+    "s_v_web_id": "verify_mtnwblrr_wFQWWj43_t9qn_49sB_9A45_Kw07YCLQEv1M",
+    "d_ticket": "82a17c036ffd0342c60edb9d894997e038fa1",
+    "uid_tt": "ce5317bc5f701be10e7021eb06e08262dc608b47fc77961a2ff5680c46b9d8fa",
+    "uid_tt_ss": "ce5317bc5f701be10e7021eb06e08262dc608b47fc77961a2ff5680c46b9d8fa",
+    "sid_tt": "ccaf223111924b78cd67d7f6da69d63c",
+    "sessionid": "ccaf223111924b78cd67d7f6da69d63c",
+    "sessionid_ss": "ccaf223111924b78cd67d7f6da69d63c",
+    "sid_guard": "ccaf223111924b78cd67d7f6da69d63c%7C1788583363%7C15552000%7CThu%2C+04-Mar-2027+04%3A42%3A43+GMT",
+    "msToken": "5VMvGuwPrx_ONlmzuTvQQFC5haUZ9ohI5PaJjpjsSeagkAN5AtV9gIC3mlsmSUr0FRhQMFulb02N2FTT_uAuxAtu-YlN9hke6TeniblVX5RnJKOpYYikjeHr2FaR4dq2X9GgwQLLM3aDXpnSOqsiUMQqG45H66GB",
+    "ttwid": "1%7CqwJJaWbArcfbCiaoS38SeJUjLQrCeV1uUrHwlI2lfVg%7C1788583367%7C51e63296c60171f76db71cbc26bfa5489e96c05c354b4e29d7ba79416018b7fa",
+    "odin_tt": "2b4c8a136cc0d3f43b4467fe189a39d63680407a02e80b798f8d8ab4152dd92614988e6551a234b31c4bd7489c19f87ba21668dc2425ecc0187ce8e77c895885ab03cd593c9dfde9c5868e7fb8572531",
+    "updatedAt": "2026-09-05T04:43:00.448Z"
   },
   "Q9JStYDsDEzn5Tg3": {
-    "label": "Nhi Shop (hanhi012002)",
-    "sessionid": "PASTE_SESSION_ID_HERE",
-    "uid_tt": "PASTE_UID_TT_HERE",
-    "tt_csrf_token": "PASTE_CSRF_TOKEN_HERE",
-    "sid_tt": "PASTE_SESSION_ID_HERE",
-    "sid_guard": "PASTE_SID_GUARD_HERE",
-    "msToken": "PASTE_MSTOKEN_HERE",
-    "updatedAt": ""
+    "label": "Nhi Shop (nhi_giadung)",
+    "_ttp": "3IrogOdbb1wFD5RiRgmBwlzmfyh.1788532158068",
+    "tt_chain_token": "AmQu4w849LCMhwYM80yTxg",
+    "tt_csrf_token": "QxQJInXd-h6MgvX7msi-AMqOF0lKJfgWzzbA",
+    "s_v_web_id": "verify_mtny2o24_LG8Ge1rb_k4K9_4Zo2_BRlC_EfHhIKkZ1kAk",
+    "d_ticket": "8a8d1f3c2580cab2fa7ac5fb46104192700c4",
+    "uid_tt": "a2955a0eb13b7f682a26f691f7f607c7cf10bfb326d5a7f690489d672132276f",
+    "uid_tt_ss": "a2955a0eb13b7f682a26f691f7f607c7cf10bfb326d5a7f690489d672132276f",
+    "sid_tt": "e331ccfc0248c5aeb2aae747ab61af80",
+    "sessionid": "e331ccfc0248c5aeb2aae747ab61af80",
+    "sessionid_ss": "e331ccfc0248c5aeb2aae747ab61af80",
+    "sid_guard": "e331ccfc0248c5aeb2aae747ab61af80%7C1788586302%7C15552000%7CThu%2C+04-Mar-2027+05%3A31%3A42+GMT",
+    "msToken": "SJ2e1xKC5gpmDHSwk3fi2I2ziLltLCSEDIBLVFhvwue8HV5JDOW_crXRhMNKx2vX1duYRzZe2S5HH1zVJMDF1bkomFbixdCl_3zMxVjOpctN9T9IWFAPL2G_6ihgDcQbJ2g8p_3faHF2oECsmFJr-Rz5mgsNTxc",
+    "ttwid": "1%7CC7pmMV9iiSB_xW8rb7XOjz9XwHsjPQ0Qn9lPwvABu5w%7C1788586313%7Ca74330f610c9df3a96a5911eb18ea17f018a1c8771db068b0b5cc86c92dfa41d",
+    "odin_tt": "d626ebd659c91ab7d98171c1d44df787ea2fcee712c87953cd01913b6bb28ee7626dbd0f3f000d1135ab782f600895a18ddde0152093f95ab338a54e0b0c91f0554bcf2d3df98fa096eeb19c32ab3ca6",
+    "updatedAt": "2026-09-05T05:32:28.204Z"
   }
 }

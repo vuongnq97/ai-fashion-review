@@ -6,7 +6,7 @@ const { getConfig } = require('../utils/config-manager');
 
 const config = getConfig(path.resolve(__dirname, '..'));
 
-const PROJECT_URL = config.systemSettings.flowProjectUrl || 'https://labs.google/fx/vi/tools/flow/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c';
+const PROJECT_URL = config.systemSettings.flowProjectUrl || 'https://flow.google.com/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c';
 const PROJECT_ID = config.systemSettings.flowProjectId || '8ac10c4a-44b5-4d55-b470-10ab24db4c1c';
 const SITE_KEY = config.systemSettings.recaptchaSiteKey || '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
 
@@ -41,23 +41,65 @@ async function adoptBrowserPage(context, page) {
   return globalPage;
 }
 
+function invalidateBearerToken() {
+  cachedBearerToken = null;
+  tokenCapturedAt = 0;
+  console.log('[Browser] Bearer token invalidated.');
+}
+
 async function ensureBearerToken(page) {
   // Token valid for 30 minutes
   if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
     return cachedBearerToken;
   }
-  // Reload page to trigger auth requests
-  console.log('[Browser] Bearer token expired or missing. Reloading page...');
-  await page.reload();
-  await page.waitForTimeout(6000);
+
+  console.log('[Browser] Bearer token expired or missing. Refreshing via labs.google/fx/tools/flow...');
+  const context = page.context();
+  const tokenPage = await context.newPage();
+  setupTokenInterceptor(tokenPage);
+  try {
+    await tokenPage.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    for (let i = 0; i < 30; i++) {
+      if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
+        break;
+      }
+      await tokenPage.waitForTimeout(500);
+    }
+  } catch (err) {
+    console.warn(`[Browser] ⚠️ Token page navigation warning: ${err.message}`);
+  } finally {
+    try { await tokenPage.close(); } catch (_) {}
+  }
+
+  if (!cachedBearerToken) {
+    // Fallback: try reloading page directly
+    console.log('[Browser] Falling back to page reload...');
+    await page.reload();
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(1000);
+      if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
+        break;
+      }
+    }
+  }
+
   if (!cachedBearerToken) {
     throw new Error('[Browser] Could not capture Bearer token from network requests');
   }
+  console.log('[Browser] ✅ Captured Bearer token successfully!');
   return cachedBearerToken;
 }
 
 // ── reCAPTCHA token ──────────────────────────────────────────
 async function getRecaptchaToken(page, action = 'IMAGE_GENERATION') {
+  // Wait up to 10 seconds for grecaptcha.enterprise to be ready on the page
+  try {
+    await page.waitForFunction(
+      () => typeof grecaptcha !== 'undefined' && typeof grecaptcha.enterprise !== 'undefined',
+      { timeout: 10000 }
+    );
+  } catch (_) {}
+
   const token = await page.evaluate(async ({ siteKey, action }) => {
     if (typeof grecaptcha === 'undefined' || !grecaptcha.enterprise) {
       throw new Error('grecaptcha.enterprise not loaded');
@@ -135,6 +177,7 @@ async function getSharedContext(baseDir) {
     globalContext = await chromium.launchPersistentContext(userDataDir, {
       channel: chromeChannel,
       headless: isHeadless,
+      ignoreHTTPSErrors: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         ...getExtensionArgs(baseDir),
@@ -142,11 +185,15 @@ async function getSharedContext(baseDir) {
       acceptDownloads: true
     });
 
-    if (fs.existsSync(cookieFile)) {
+    const targetCookieFile = fs.existsSync(cookieFile)
+      ? cookieFile
+      : (fs.existsSync(path.join(baseDir, 'gemini-cookies', 'cookies.json')) ? path.join(baseDir, 'gemini-cookies', 'cookies.json') : null);
+
+    if (targetCookieFile) {
       try {
-        const cookies = JSON.parse(fs.readFileSync(cookieFile, 'utf-8'));
+        const cookies = JSON.parse(fs.readFileSync(targetCookieFile, 'utf-8'));
         await globalContext.addCookies(cookies);
-        console.log(`[Browser] Loaded ${cookies.length} cookies from ${cookieFile}`);
+        console.log(`[Browser] Loaded ${cookies.length} cookies from ${targetCookieFile}`);
       } catch (e) {
         console.log(`[Browser] Failed to load cookies: ${e.message}`);
       }
@@ -232,6 +279,7 @@ module.exports = {
   adoptBrowserPage,
   getContext,
   ensureBearerToken,
+  invalidateBearerToken,
   getRecaptchaToken,
   PROJECT_URL,
   PROJECT_ID,

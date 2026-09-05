@@ -446,6 +446,7 @@ function archiveStoryboardReview(baseDir, filePayloads, request, bridgeResult, p
   };
 }
 
+
 function buildFilePayloadFromPanel(panel) {
   if (!panel.imagePath || !fs.existsSync(panel.imagePath)) return null;
   const ext = path.extname(panel.imagePath).toLowerCase();
@@ -467,61 +468,120 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     return [];
   }
 
-  // Each flow gets its own browser tab for isolation.
-  // This allows multiple flows to run video generation concurrently.
   const page = await createFlowPage(baseDir);
   const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos');
   ensureDir(videoDir);
 
-  try {
-    const preparedJobs = [];
-    for (const job of jobs) {
-      const { panel, filePayload } = job;
-      const resolvedModelKey = panel.videoModelKey
-        || (panel.prompt?.includes('8 giây') ? 'veo_3_1_i2v_lite_low_priority' : (panel.prompt?.includes('4 giây') ? 'veo_3_1_i2v_s_lite_4s_low_priority' : (options.videoModelKey || null)));
+  const MAX_VIDEO_ATTEMPTS = 3;
+  const resultsByPanel = new Map();
 
+  async function prepareJobVideo(job, attemptNumber = 1) {
+    const { panel, filePayload } = job;
+    const resolvedModelKey = panel.videoModelKey
+      || options.videoModelKey
+      || (panel.prompt?.includes('8 giây') ? 'veo_3_1_i2v_lite_low_priority' : (panel.prompt?.includes('4 giây') ? 'veo_3_1_i2v_s_lite_4s_low_priority' : null));
+
+    if (attemptNumber > 1) {
+      console.log(`[GeminiWebAPI->Flow] 🔄 Retrying video generation for panel ${panel.index} (Attempt ${attemptNumber}/${MAX_VIDEO_ATTEMPTS})...`);
+    } else {
       console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length} (model: ${resolvedModelKey || 'default'})...`);
-      const prepared = await prepareVideoGeneration(
-        page,
-        panel.prompt,
-        null,
-        [filePayload],
-        {
-          imageSelection: [`name:${filePayload.name}`],
-          aspectRatio: options.aspectRatio || '9:16',
-          videoModelKey: resolvedModelKey,
-        },
-        baseDir
-      );
-      preparedJobs.push({ panel, prepared });
     }
 
-    console.log(`[GeminiWebAPI->Flow] Polling ${preparedJobs.length} video job(s) in parallel...`);
-    const settled = await Promise.allSettled(preparedJobs.map(async ({ panel, prepared }) => {
-      const base64 = await executeVideoGeneration(prepared);
-      const videoPath = path.join(videoDir, `panel-${panel.index}-video-${Date.now()}.mp4`);
-      fs.writeFileSync(videoPath, Buffer.from(base64, 'base64'));
-      const item = {
-        panelIndex: panel.index,
-        prompt: panel.prompt,
-        videoPath,
-      };
-      if (options.includeVideoBase64) {
-        item.video = { base64, mimeType: 'video/mp4' };
+    const prepared = await prepareVideoGeneration(
+      page,
+      panel.prompt,
+      null,
+      [filePayload],
+      {
+        imageSelection: [`name:${filePayload.name}`],
+        aspectRatio: options.aspectRatio || '9:16',
+        videoModelKey: resolvedModelKey,
+        preserveBorder: options.preserveBorder !== undefined ? options.preserveBorder : false,
+        cropPercent: typeof options.cropPercent === 'number' ? options.cropPercent : undefined,
+      },
+      baseDir
+    );
+
+    return { panel, prepared };
+  }
+
+  async function executeAndSaveVideo(panel, prepared) {
+    const base64 = await executeVideoGeneration(prepared);
+    const videoPath = path.join(videoDir, `panel-${panel.index}-video-${Date.now()}.mp4`);
+    fs.writeFileSync(videoPath, Buffer.from(base64, 'base64'));
+    const item = {
+      panelIndex: panel.index,
+      prompt: panel.prompt,
+      videoPath,
+    };
+    if (options.includeVideoBase64) {
+      item.video = { base64, mimeType: 'video/mp4' };
+    }
+    return item;
+  }
+
+  try {
+    // 1. Chuẩn bị batch đầu tiên tuần tự trên page
+    const preparedJobs = [];
+    for (const job of jobs) {
+      try {
+        const item = await prepareJobVideo(job, 1);
+        preparedJobs.push({ job, ...item });
+      } catch (prepErr) {
+        console.warn(`[GeminiWebAPI->Flow] ⚠️ Initial preparation failed for panel ${job.panel.index}: ${prepErr.message}`);
+        preparedJobs.push({ job, panel: job.panel, prepared: null, error: prepErr });
       }
-      return item;
+    }
+
+    // 2. Poll song song đợt 1
+    console.log(`[GeminiWebAPI->Flow] Polling ${preparedJobs.filter(pj => pj.prepared).length} video job(s) in parallel...`);
+    const initialSettled = await Promise.allSettled(preparedJobs.map(async ({ panel, prepared, error }) => {
+      if (!prepared) throw error || new Error('Preparation failed');
+      return await executeAndSaveVideo(panel, prepared);
     }));
 
-    return settled.map((result, index) => {
-      const panelIndex = preparedJobs[index].panel.index;
-      if (result.status === 'fulfilled') return result.value;
+    initialSettled.forEach((res, idx) => {
+      const { panel } = preparedJobs[idx];
+      if (res.status === 'fulfilled') {
+        resultsByPanel.set(panel.index, res.value);
+        console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video completed successfully (attempt 1)!`);
+      } else {
+        console.warn(`[GeminiWebAPI->Flow] ⚠️ Panel ${panel.index} video attempt 1 failed: ${res.reason?.message || res.reason}`);
+      }
+    });
+
+    // 3. Cơ chế retry tối đa 3 lần cho các panel bị lỗi
+    for (let attempt = 2; attempt <= MAX_VIDEO_ATTEMPTS; attempt++) {
+      const failedJobs = jobs.filter(j => !resultsByPanel.has(j.panel.index));
+      if (failedJobs.length === 0) break;
+
+      console.log(`[GeminiWebAPI->Flow] 🔄 Bắt đầu retry đợt ${attempt}/${MAX_VIDEO_ATTEMPTS} cho ${failedJobs.length} panel video bị lỗi...`);
+      await new Promise(r => setTimeout(r, 4000));
+
+      for (const job of failedJobs) {
+        try {
+          const { panel, prepared } = await prepareJobVideo(job, attempt);
+          const item = await executeAndSaveVideo(panel, prepared);
+          resultsByPanel.set(panel.index, item);
+          console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video thành công ở lần thử thứ ${attempt}!`);
+        } catch (retryErr) {
+          console.warn(`[GeminiWebAPI->Flow] ❌ Panel ${job.panel.index} lần thử ${attempt}/${MAX_VIDEO_ATTEMPTS} thất bại: ${retryErr.message}`);
+        }
+      }
+    }
+
+    // 4. Trả về kết quả đầy đủ theo thứ tự các panel
+    return jobs.map(job => {
+      const panelIndex = job.panel.index;
+      if (resultsByPanel.has(panelIndex)) {
+        return resultsByPanel.get(panelIndex);
+      }
       return {
         panelIndex,
-        error: result.reason?.message || String(result.reason),
+        error: `Video generation failed after ${MAX_VIDEO_ATTEMPTS} attempts`,
       };
     });
   } finally {
-    // Close the per-flow tab when done
     await closeFlowPage(page);
   }
 }

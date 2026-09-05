@@ -1,49 +1,67 @@
 @echo off
-title AI Fashion Review Setup
+chcp 65001 >nul
+title AI Fashion Review - Setup
 
 echo ============================================================
-echo  [AI Fashion Review] SETUP TU DONG CHO WINDOWS (YARN)
+echo   [AI Fashion Review] SETUP TỰ ĐỘNG CHO WINDOWS
 echo ============================================================
 echo.
 
 cd /d "%~dp0playwright-service"
 
+:: 1. Kiểm tra Node.js
 where node >nul 2>nul
-if %errorlevel% equ 0 goto :check_yarn
+if %errorlevel% equ 0 goto :node_ok
 
 if exist "%ProgramFiles%\nodejs\node.exe" (
     set "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
-    goto :check_yarn
+    goto :node_ok
 )
 
 if exist "%LocalAppData%\Programs\nodejs\node.exe" (
     set "PATH=%LocalAppData%\Programs\nodejs;%PATH%"
-    goto :check_yarn
+    goto :node_ok
 )
 
-echo [!] May cua ban chua cai dat Node.js.
-echo [*] Vui long tai va cai dat Node.js tai: https://nodejs.org/ (Ban v20 LTS)
-echo     Sau khi cai xong, hay mo lai file setup.bat nay nhe!
+echo [!] Máy của bạn chưa cài đặt Node.js.
+echo [*] Vui lòng tải và cài đặt Node.js tại: https://nodejs.org/ (Khuyến nghị bản v20 LTS)
+echo     Sau khi cài đặt xong, hãy mở lại file setup.bat này nhé!
 echo.
-goto :done
+pause
+exit /b 1
 
-:check_yarn
-echo [OK] Da tim thay Node.js.
+:node_ok
+echo [OK] Đã tìm thấy Node.js:
+node -v
+echo.
 
-where yarn >nul 2>nul
-if %errorlevel% equ 0 goto :run_setup
-
-echo [*] Dang cai dat Yarn package manager...
-call npm install -g yarn
-
-:run_setup
-echo [*] Dang khoi chay qua trinh cai dat thu vien va cau hinh qua Yarn...
+:: 2. Chạy setup.js (tạo thư mục, cài dependencies, cài Playwright Chromium, cấu hình .env, đăng nhập Google)
+echo [*] Đang khởi chạy quá trình thiết lập tự động...
 echo.
 node setup.js
 
-:done
+if %errorlevel% neq 0 (
+    echo.
+    echo ============================================================
+    echo [!] Quá trình setup gặp lỗi (exit code %errorlevel%).
+    echo ============================================================
+    pause
+    exit /b %errorlevel%
+)
+
 echo.
 echo ============================================================
-echo [OK] Hoan tat. Nhan phim bat ky de thoat...
+echo [OK] Setup hoàn tất thành công!
+echo      Bạn có thể khởi động server bằng file start.bat
 echo ============================================================
+echo.
+set /p START_NOW="Bạn có muốn khởi động server ngay bây giờ không? (y/n, mặc định y): "
+if /i "%START_NOW%"=="n" goto :done
+
+echo.
+echo [*] Đang khởi động server...
+cd /d "%~dp0"
+call start.bat
+
+:done
 pause

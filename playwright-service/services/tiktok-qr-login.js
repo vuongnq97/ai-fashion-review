@@ -69,6 +69,14 @@ async function fetchTikTokUserInfo(cookiesMap) {
   });
 }
 
+async function closeSessionContext(sessionObj, context) {
+  try {
+    if (context) await context.close();
+    else if (sessionObj?.context) await sessionObj.context.close();
+    else if (sessionObj?.browser) await sessionObj.browser.close();
+  } catch (_) {}
+}
+
 /**
  * Hủy một phiên QR đang chạy nếu có
  * @param {string|number} chatId
@@ -78,9 +86,7 @@ async function cancelSession(chatId) {
   const session = activeQrSessions.get(key);
   if (session) {
     session.isCancelled = true;
-    try {
-      if (session.browser) await session.browser.close();
-    } catch (_) {}
+    await closeSessionContext(session);
     activeQrSessions.delete(key);
     console.log(`[TikTokQR] Cancelled QR session for chat ${key}`);
   }
@@ -109,40 +115,38 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
   };
   activeQrSessions.set(key, sessionObj);
 
+  const profileDir = path.resolve(baseDir, '.tiktok-login-profile');
+  let context = null;
+
   try {
-    console.log(`[TikTokQR] Launching browser for chat ${key}...`);
-    let browser;
-    const launchArgs = [
-      '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--disable-setuid-sandbox'
-    ];
-    try {
-      // Dùng real Google Chrome để tránh TikTok phát hiện HeadlessChrome (gây lỗi error_code: 7)
-      browser = await chromium.launch({
-        headless: false,
-        channel: 'chrome',
-        args: launchArgs
-      });
-    } catch (_) {
-      browser = await chromium.launch({
-        headless: false,
-        args: launchArgs
-      });
-    }
-    sessionObj.browser = browser;
-
-    if (sessionObj.isCancelled) {
-      await browser.close();
-      return;
-    }
-
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    console.log(`[TikTokQR] Launching persistent browser for chat ${key}...`);
+    const launchOptions = {
+      headless: false,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ],
       viewport: { width: 1280, height: 800 },
       locale: 'vi-VN',
       timezoneId: 'Asia/Ho_Chi_Minh'
-    });
+    };
+
+    try {
+      // Dùng Google Chrome thật với profile lưu trữ để vượt qua cơ chế anti-bot của TikTok
+      context = await chromium.launchPersistentContext(profileDir, {
+        ...launchOptions,
+        channel: 'chrome'
+      });
+    } catch (_) {
+      context = await chromium.launchPersistentContext(profileDir, launchOptions);
+    }
+    sessionObj.context = context;
+
+    if (sessionObj.isCancelled) {
+      await context.close();
+      return;
+    }
 
     // Stealth: che giấu dấu vết automation để TikTok không giới hạn/block
     await context.addInitScript(() => {
@@ -150,7 +154,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       window.chrome = { runtime: {} };
     });
 
-    const page = await context.newPage();
+    const page = context.pages()[0] || await context.newPage();
 
     let hasNotifiedScanned = false;
     let qrConfirmed = false;
@@ -162,21 +166,24 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
         try {
           const text = await res.text();
           const json = JSON.parse(text);
-          if (json.message === 'success' && json.data) {
-            const status = json.data.status;
-            console.log(`[TikTokQR] 📡 check_qrconnect status: "${status}" for chat ${key}`);
-            if (status === 'scanned' && !hasNotifiedScanned) {
+          const data = json.data || {};
+          const status = String(data.status || '').toLowerCase();
+          const redirectUrl = data.redirect_url;
+
+          if (json.message === 'success' || status) {
+            console.log(`[TikTokQR] 📡 check_qrconnect status: "${status}" (redirect: ${Boolean(redirectUrl)}) for chat ${key}`);
+            if ((status === 'scanned' || status === 'scan') && !hasNotifiedScanned) {
               hasNotifiedScanned = true;
               console.log(`[TikTokQR] 📱 Phone scanned QR code for chat ${key}! Waiting for confirmation button...`);
               if (typeof callbacks.onScanned === 'function') {
                 callbacks.onScanned().catch(() => {});
               }
-            } else if (status === 'confirmed') {
+            } else if (status === 'confirmed' || status === 'confirm' || redirectUrl) {
               qrConfirmed = true;
               console.log(`[TikTokQR] 🎉 Login confirmed on phone for chat ${key}! Extracting session...`);
-              if (json.data.redirect_url) {
-                console.log(`[TikTokQR] Navigating to redirect_url: ${json.data.redirect_url}`);
-                page.goto(json.data.redirect_url).catch(() => {});
+              if (redirectUrl) {
+                console.log(`[TikTokQR] Navigating to redirect_url: ${redirectUrl}`);
+                page.goto(redirectUrl).catch(() => {});
               }
             }
           }
@@ -188,7 +195,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
     await page.goto('https://www.tiktok.com/login/qrcode', { waitUntil: 'domcontentloaded', timeout: 35000 });
 
     if (sessionObj.isCancelled) {
-      await browser.close();
+      await context.close();
       return;
     }
 
@@ -216,7 +223,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
     while (Date.now() - startTime < MAX_WAIT_MS) {
       if (sessionObj.isCancelled) {
-        await browser.close();
+        await closeSessionContext(sessionObj, context);
         return;
       }
 
@@ -291,9 +298,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       }
     }
 
-    try {
-      await browser.close();
-    } catch (_) {}
+    await closeSessionContext(sessionObj, context);
     activeQrSessions.delete(key);
 
     if (loginSuccess && savedAccountInfo) {
@@ -310,9 +315,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
   } catch (err) {
     console.error(`[TikTokQR] ❌ Error in QR login for chat ${key}:`, err.message);
-    try {
-      if (sessionObj.browser) await sessionObj.browser.close();
-    } catch (_) {}
+    await closeSessionContext(sessionObj, context);
     activeQrSessions.delete(key);
 
     if (typeof callbacks.onError === 'function') {

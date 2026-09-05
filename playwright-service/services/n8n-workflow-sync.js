@@ -117,6 +117,13 @@ process.stdin.on('end', () => {
     const nodes = JSON.parse(wf.nodes);
     const conns = JSON.parse(wf.connections);
 
+    // Đảm bảo node Webhook luôn có webhookId cố định cho n8n v2
+    for (const node of nodes) {
+      if (node.type === 'n8n-nodes-base.webhook' && !node.webhookId) {
+        node.webhookId = '69495aa4-a56d-4d5d-a672-e4dbf7151bb2';
+      }
+    }
+
     const switch1 = nodes.find(n => n.name === 'Switch TikTok Channel');
     const switch2 = nodes.find(n => n.name === 'Switch Upload Channel');
     const findNode = nodes.find(n => n.name === 'Find Product By product_id');
@@ -273,6 +280,12 @@ process.stdin.on('end', () => {
     // 2. Cập nhật workflow_entity với active = 1 và versionId/activeVersionId khớp nhau (Published hoàn toàn)
     db.prepare("UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, versionId = ?, activeVersionId = ?, versionCounter = versionCounter + 1, updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW') WHERE id = ?")
       .run(nodesJson, connsJson, newVersionId, newVersionId, targetWfId);
+
+    // 3. Đảm bảo bảng webhook_entity luôn đồng bộ webhookId hợp lệ
+    try {
+      db.prepare("UPDATE webhook_entity SET webhookId = ? WHERE workflowId = ? AND (webhookId IS NULL OR webhookId = '')")
+        .run('69495aa4-a56d-4d5d-a672-e4dbf7151bb2', targetWfId);
+    } catch (_) { }
 
     console.log(JSON.stringify({
       success: true,

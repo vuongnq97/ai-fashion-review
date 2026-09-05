@@ -152,7 +152,25 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       return;
     }
 
-    const page = context.pages()[0] || await context.newPage();
+    // Đóng các tab thừa nếu phiên trước để lại, chỉ giữ 1 tab
+    const pages = context.pages();
+    for (let i = 1; i < pages.length; i++) {
+      await pages[i].close().catch(() => { });
+    }
+    const page = pages[0] || await context.newPage();
+
+    // Xóa sạch các cookies đăng nhập của tài khoản trước đó để TikTok không tự động redirect
+    try {
+      const existingCookies = await context.cookies();
+      for (const c of existingCookies) {
+        if (/session|sid|uid|passport_csrf|multi_sid/i.test(c.name)) {
+          await context.clearCookies({ name: c.name });
+        }
+      }
+      console.log(`[TikTokQR] 🧹 Cleared previous session/auth cookies for fresh QR session (chat ${key}).`);
+    } catch (clearErr) {
+      console.log(`[TikTokQR] Note on clearing cookies:`, clearErr.message);
+    }
 
     let hasNotifiedScanned = false;
     let qrConfirmed = false;

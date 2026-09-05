@@ -737,10 +737,14 @@ async function handleCallbackQuery(botToken, callbackQuery) {
         );
       },
       onError: async (errMsg) => {
+        const safeErr = String(errMsg || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
         await sendTelegramMessage(
           botToken,
           chatId,
-          `❌ <b>Lỗi khi tạo mã QR:</b> ${errMsg}\n` +
+          `❌ <b>Lỗi khi tạo mã QR:</b> <code>${safeErr.slice(0, 150)}</code>\n` +
           `👉 Vui lòng bấm thử lại sau giây lát.`,
           { parse_mode: 'HTML' }
         );

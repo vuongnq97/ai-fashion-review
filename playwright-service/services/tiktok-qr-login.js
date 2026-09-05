@@ -126,7 +126,10 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       args: [
         '--disable-blink-features=AutomationControlled',
         '--no-sandbox',
-        '--disable-setuid-sandbox'
+        '--disable-setuid-sandbox',
+        '--disable-session-crashed-bubble',
+        '--hide-crash-restore-bubble',
+        '--disable-infobars'
       ],
       viewport: { width: 1280, height: 800 },
       locale: 'vi-VN',
@@ -153,6 +156,47 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
     let hasNotifiedScanned = false;
     let qrConfirmed = false;
+    let isWaitingForOtp = false;
+
+    // Hàm nhận và điền mã OTP 6 số do người dùng gửi từ Telegram
+    sessionObj.submitOtp = async (code) => {
+      const cleanCode = String(code).replace(/\D/g, '').trim();
+      console.log(`[TikTokQR] 📥 Submitting 2FA code "${cleanCode}" for chat ${key}...`);
+      try {
+        const otpInput = page.locator('input[placeholder*="6"], input[placeholder*="digit"], input[maxlength="6"], input[type="text"]').first();
+        if (!(await otpInput.isVisible().catch(() => false))) {
+          return { success: false, error: 'Không tìm thấy ô nhập mã OTP trên màn hình TikTok.' };
+        }
+
+        await otpInput.click();
+        await otpInput.fill('');
+        await page.waitForTimeout(100);
+        for (const char of cleanCode) {
+          await page.keyboard.press(char);
+          await page.waitForTimeout(50);
+        }
+        await page.waitForTimeout(400);
+
+        // Bấm nút "Tiếp" / "Next" / Submit
+        const nextBtn = page.locator('button:has-text("Tiếp"), button:has-text("Next"), button[type="submit"]').first();
+        if (await nextBtn.isVisible().catch(() => false)) {
+          await nextBtn.click();
+          console.log(`[TikTokQR] Clicked "Tiếp" button for chat ${key}`);
+        }
+
+        // Đợi 2s xem có thông báo lỗi sai mã không
+        await page.waitForTimeout(2000);
+        const errEl = page.locator('text=/không chính xác|không đúng|incorrect|invalid|hết hạn|expired/i').first();
+        if (await errEl.isVisible().catch(() => false)) {
+          const errText = await errEl.innerText().catch(() => 'Mã xác minh không chính xác');
+          return { success: false, error: errText };
+        }
+
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    };
 
     // Theo dõi điều hướng trang chính
     page.on('framenavigated', frame => {
@@ -232,20 +276,46 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       await callbacks.onQrReady(qrBuffer);
     }
 
-    // ── Vòng lặp kiểm tra đăng nhập (tối đa 100 giây, mỗi 2s kiểm tra 1 lần) ──
-    const MAX_WAIT_MS = 100000;
+    // ── Vòng lặp kiểm tra đăng nhập (tối đa 100 giây mặc định, tự động kéo dài nếu cần 2FA) ──
+    let maxWaitMs = 100000;
     const POLL_INTERVAL_MS = 2000;
     const startTime = Date.now();
     let loginSuccess = false;
     let savedAccountInfo = null;
 
-    while (Date.now() - startTime < MAX_WAIT_MS) {
+    while (Date.now() - startTime < maxWaitMs) {
       if (sessionObj.isCancelled) {
         await closeSessionContext(sessionObj, context);
         return;
       }
 
       await page.waitForTimeout(POLL_INTERVAL_MS);
+
+      // 1. Kiểm tra xem có popup 2FA "Xác minh danh tính" (mã 6 số) xuất hiện không
+      if (!isWaitingForOtp) {
+        const otpInput = page.locator('input[placeholder*="6"], input[placeholder*="digit"], input[maxlength="6"]').first();
+        const isOtpVisible = await otpInput.isVisible().catch(() => false);
+        if (isOtpVisible) {
+          isWaitingForOtp = true;
+          sessionObj.waitingForOtp = true;
+
+          let hint = '';
+          try {
+            const bodyText = await page.locator('body').innerText().catch(() => '');
+            const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+            const phoneMatch = bodyText.match(/\+?\d[\d\s*-]{7,}\d/);
+            hint = emailMatch ? emailMatch[0] : (phoneMatch ? phoneMatch[0] : '');
+          } catch (_) { }
+
+          console.log(`[TikTokQR] 🔐 2FA verification modal detected for chat ${key}! Hint: ${hint}`);
+          // Kéo dài thời gian timeout thêm 150 giây để người dùng có thời gian check mail và nhập
+          maxWaitMs = (Date.now() - startTime) + 150000;
+
+          if (typeof callbacks.onNeed2FA === 'function') {
+            callbacks.onNeed2FA({ hint }).catch(() => { });
+          }
+        }
+      }
 
       const currentUrl = page.url();
       const cookies = await context.cookies();
@@ -254,6 +324,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       // Nhận diện thành công khi: có sessionid HOẶC trang đã chuyển hướng ra khỏi trang login sau khi confirm
       if (sessionCookie || (qrConfirmed && !currentUrl.includes('/login') && currentUrl.includes('tiktok.com'))) {
         console.log(`[TikTokQR] 🎉 Detected session login for chat ${key}! (url: ${currentUrl}). Verifying profile...`);
+        sessionObj.waitingForOtp = false;
 
         // Đợi thêm 1.5s để các cookies liên quan tải đủ
         await page.waitForTimeout(1500);
@@ -354,8 +425,36 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
   }
 }
 
+/**
+ * Gửi mã xác minh OTP (6 chữ số) vào phiên đăng nhập TikTok đang chờ
+ * @param {string|number} chatId
+ * @param {string} otpCode
+ * @returns {Promise<{ success: boolean, notFound?: boolean, error?: string }>}
+ */
+async function submitOtpForChat(chatId, otpCode) {
+  const key = String(chatId);
+  const session = activeQrSessions.get(key);
+  if (!session || typeof session.submitOtp !== 'function') {
+    return { success: false, notFound: true, error: 'Không tìm thấy phiên đăng nhập TikTok đang chờ mã OTP.' };
+  }
+  return session.submitOtp(otpCode);
+}
+
+/**
+ * Kiểm tra xem phiên của chatId có đang đợi mã OTP không
+ * @param {string|number} chatId
+ * @returns {boolean}
+ */
+function isChatWaitingForOtp(chatId) {
+  const key = String(chatId);
+  const session = activeQrSessions.get(key);
+  return Boolean(session && session.waitingForOtp);
+}
+
 module.exports = {
   startTikTokQrLoginSession,
   cancelSession,
-  fetchTikTokUserInfo
+  fetchTikTokUserInfo,
+  submitOtpForChat,
+  isChatWaitingForOtp
 };

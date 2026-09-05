@@ -20,7 +20,7 @@ const { extractProductAssetsFromHtml } = require('./product-assets');
 const { autoT3Scheduler, autoT4Scheduler, autoT5Scheduler } = require('./auto-template-scheduler');
 const { getChannelForChat, getRawChannelForChat, registerChannelForChat, updateChannelCredential } = require('../utils/config-manager');
 const { normalizeTemplateName } = require('./template-options');
-const { startTikTokQrLoginSession, cancelSession } = require('./tiktok-qr-login');
+const { startTikTokQrLoginSession, cancelSession, submitOtpForChat, isChatWaitingForOtp } = require('./tiktok-qr-login');
 const { sendPhotoToTelegram } = require('./telegram-send');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
@@ -692,6 +692,17 @@ async function handleCallbackQuery(botToken, callbackQuery) {
           { parse_mode: 'HTML' }
         );
       },
+      onNeed2FA: async ({ hint }) => {
+        const hintMsg = hint ? `\n\n📧 Mã xác nhận đã được gửi đến: <b>${hint}</b>` : '';
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `🔐 <b>TIKTOK YÊU CẦU MÃ XÁC MINH 2 LỚP (2FA)!</b>${hintMsg}\n\n` +
+          `👉 Bạn hãy mở email hoặc tin nhắn SMS, lấy <b>mã gồm 6 chữ số</b> và <b>gửi trực tiếp vào chat này</b> (hoặc gõ: <code>/otp 123456</code>) nhé!\n\n` +
+          `⏳ <i>Bạn có 2.5 phút để nhập mã trước khi phiên hết hạn.</i>`,
+          { parse_mode: 'HTML' }
+        );
+      },
       onSuccess: async (info) => {
         let n8nStatus = '⚡ <b>n8n Automation:</b> Đã tạo Credential & tự động inject 3 nodes vào n8n!';
         if (info.n8nSync) {
@@ -761,6 +772,37 @@ async function handleUpdate(botToken, update) {
   // ── 1. Handle commands ────────────────────────────────────────────────────
   if (message.text) {
     const text = message.text.trim();
+
+    // ── 0. Kiểm tra nếu tin nhắn là mã OTP cho phiên TikTok đang yêu cầu xác minh 2FA ──
+    const otpMatch = text.match(/^(?:\/otp\s+)?(\d{6})$/);
+    if (otpMatch && isChatWaitingForOtp(chatId)) {
+      const otpCode = otpMatch[1];
+      await sendTelegramMessage(botToken, chatId, `⏳ <b>Đang nhập mã OTP <code>${otpCode}</code> vào TikTok...</b> Vui lòng đợi trong giây lát!`, { parse_mode: 'HTML' });
+      const submitRes = await submitOtpForChat(chatId, otpCode);
+      if (!submitRes.success && !submitRes.notFound) {
+        await sendTelegramMessage(botToken, chatId, `❌ <b>Lỗi xác minh OTP:</b> ${submitRes.error || 'Mã xác nhận không đúng hoặc đã hết hạn.'}\n👉 Vui lòng kiểm tra lại email/SMS và gửi lại mã mới vào đây!`, { parse_mode: 'HTML' });
+      }
+      return;
+    }
+
+    if (text.startsWith('/otp')) {
+      const parts = text.split(/\s+/);
+      const code = parts[1] || '';
+      if (!code) {
+        await sendTelegramMessage(botToken, chatId, '⚠️ Vui lòng nhập cú pháp: <code>/otp 123456</code>', { parse_mode: 'HTML' });
+        return;
+      }
+      if (!isChatWaitingForOtp(chatId)) {
+        await sendTelegramMessage(botToken, chatId, '⚠️ Hiện tại không có phiên TikTok nào đang chờ mã OTP. Bạn hãy gõ <b>/register</b> để quét mã QR.', { parse_mode: 'HTML' });
+        return;
+      }
+      await sendTelegramMessage(botToken, chatId, `⏳ <b>Đang nhập mã OTP <code>${code}</code> vào TikTok...</b>`, { parse_mode: 'HTML' });
+      const res = await submitOtpForChat(chatId, code);
+      if (!res.success) {
+        await sendTelegramMessage(botToken, chatId, `❌ <b>Lỗi xác minh OTP:</b> ${res.error}\n👉 Vui lòng kiểm tra lại mã và gửi lại!`, { parse_mode: 'HTML' });
+      }
+      return;
+    }
 
     // ── Check if message contains TikTok shortlink or /upload ──────────────────
     const urlMatch = text.match(/(https?:\/\/(?:vt\.tiktok\.com|www\.tiktok\.com|shop\.tiktok\.com)\/[^\s]+)/i);

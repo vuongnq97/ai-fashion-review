@@ -58,7 +58,7 @@ async function fetchTikTokUserInfo(cookiesMap) {
             });
             return;
           }
-        } catch (_) {}
+        } catch (_) { }
         resolve({ valid: false });
       });
     });
@@ -74,7 +74,7 @@ async function closeSessionContext(sessionObj, context) {
     if (context) await context.close();
     else if (sessionObj?.context) await sessionObj.context.close();
     else if (sessionObj?.browser) await sessionObj.browser.close();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 /**
@@ -122,6 +122,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
     console.log(`[TikTokQR] Launching persistent browser for chat ${key}...`);
     const launchOptions = {
       headless: false,
+      ignoreDefaultArgs: ['--enable-automation'],
       args: [
         '--disable-blink-features=AutomationControlled',
         '--no-sandbox',
@@ -148,47 +149,64 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       return;
     }
 
-    // Stealth: che giấu dấu vết automation để TikTok không giới hạn/block
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = { runtime: {} };
-    });
-
     const page = context.pages()[0] || await context.newPage();
 
     let hasNotifiedScanned = false;
     let qrConfirmed = false;
+
+    // Theo dõi điều hướng trang chính
+    page.on('framenavigated', frame => {
+      if (frame === page.mainFrame()) {
+        const frameUrl = frame.url();
+        console.log(`[TikTokQR] 🧭 Page navigated to: ${frameUrl}`);
+      }
+    });
 
     // Lắng nghe trực tiếp API kiểm tra trạng thái QR của TikTok
     page.on('response', async res => {
       const url = res.url();
       if (url.includes('check_qrconnect')) {
         try {
+          const u = new URL(url);
           const text = await res.text();
           const json = JSON.parse(text);
           const data = json.data || {};
           const status = String(data.status || '').toLowerCase();
           const redirectUrl = data.redirect_url;
 
-          if (json.message === 'success' || status) {
-            console.log(`[TikTokQR] 📡 check_qrconnect status: "${status}" (redirect: ${Boolean(redirectUrl)}) for chat ${key}`);
+          if (json.message === 'success') {
+            console.log(`[TikTokQR] 📡 [${u.hostname}] status: "${status}" (redirect: ${Boolean(redirectUrl)}) for chat ${key}`);
+
             if ((status === 'scanned' || status === 'scan') && !hasNotifiedScanned) {
               hasNotifiedScanned = true;
               console.log(`[TikTokQR] 📱 Phone scanned QR code for chat ${key}! Waiting for confirmation button...`);
               if (typeof callbacks.onScanned === 'function') {
-                callbacks.onScanned().catch(() => {});
+                callbacks.onScanned().catch(() => { });
               }
             } else if (status === 'confirmed' || status === 'confirm' || redirectUrl) {
               qrConfirmed = true;
               console.log(`[TikTokQR] 🎉 Login confirmed on phone for chat ${key}! Extracting session...`);
               if (redirectUrl) {
-                console.log(`[TikTokQR] Navigating to redirect_url: ${redirectUrl}`);
-                page.goto(redirectUrl).catch(() => {});
+                const fullRedirect = redirectUrl.startsWith('http') ? redirectUrl : new URL(redirectUrl, 'https://www.tiktok.com').href;
+                console.log(`[TikTokQR] Navigating to redirect_url: ${fullRedirect}`);
+                page.goto(fullRedirect).catch(e => console.log('[TikTokQR] Redirect note:', e.message));
               }
             }
+          } else if (data.error_code) {
+            console.log(`[TikTokQR] ⚠️ [${u.hostname}] check_qrconnect error: [code ${data.error_code}] ${data.description || json.message}`);
           }
-        } catch (_) {}
+        } catch (_) { }
       }
+
+      // Bắt Set-Cookie header nếu TikTok trả về sessionid trực tiếp qua API
+      try {
+        const headers = res.headers();
+        const setCookie = headers['set-cookie'];
+        if (setCookie && (setCookie.includes('sessionid=') || setCookie.includes('sessionid_ss='))) {
+          console.log(`[TikTokQR] 🎯 Detected sessionid in Set-Cookie header from ${res.url().substring(0, 50)}!`);
+          qrConfirmed = true;
+        }
+      } catch (_) { }
     });
 
     console.log(`[TikTokQR] Navigating directly to https://www.tiktok.com/login/qrcode for chat ${key}...`);
@@ -229,19 +247,31 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
       await page.waitForTimeout(POLL_INTERVAL_MS);
 
+      const currentUrl = page.url();
       const cookies = await context.cookies();
       const sessionCookie = cookies.find(c => (c.name === 'sessionid' || c.name === 'sessionid_ss') && c.value);
 
-      if (sessionCookie) {
-        console.log(`[TikTokQR] 🎉 Detected sessionid cookie for chat ${key}! Verifying profile...`);
+      // Nhận diện thành công khi: có sessionid HOẶC trang đã chuyển hướng ra khỏi trang login sau khi confirm
+      if (sessionCookie || (qrConfirmed && !currentUrl.includes('/login') && currentUrl.includes('tiktok.com'))) {
+        console.log(`[TikTokQR] 🎉 Detected session login for chat ${key}! (url: ${currentUrl}). Verifying profile...`);
 
-        // Đợi thêm 1s để các cookies liên quan tải đủ
-        await page.waitForTimeout(1000);
+        // Đợi thêm 1.5s để các cookies liên quan tải đủ
+        await page.waitForTimeout(1500);
         const finalCookies = await context.cookies();
 
         const cookieMap = {};
         for (const c of finalCookies) {
           cookieMap[c.name] = c.value;
+        }
+
+        // Kiểm tra xem đã có sessionid trong cookieMap chưa
+        if (!cookieMap['sessionid'] && !cookieMap['sessionid_ss']) {
+          console.log(`[TikTokQR] ⏳ Waiting slightly more for sessionid to populate...`);
+          await page.waitForTimeout(2000);
+          const retryCookies = await context.cookies();
+          for (const c of retryCookies) {
+            cookieMap[c.name] = c.value;
+          }
         }
 
         // Lấy thông tin user

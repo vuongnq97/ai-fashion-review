@@ -227,6 +227,16 @@
       "label": "Gia dụng",
       "tiktokCredentialId": "Q9JStYDsDEzn5Tg3",
       "tiktokCredentialName": "Nhi SHop"
+    },
+    "-5575155415": {
+      "label": "QShop",
+      "status": "pending_link",
+      "updatedAt": "2026-09-05T08:49:08.489Z"
+    },
+    "-5349912870": {
+      "label": "Qv",
+      "status": "pending_link",
+      "updatedAt": "2026-09-05T09:12:21.732Z"
     }
   }
 }

@@ -257,9 +257,16 @@ process.stdin.on('end', () => {
       }
     }
 
-    // Lưu workflow đã update vào database
-    db.prepare("UPDATE workflow_entity SET nodes = ?, connections = ?, updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW') WHERE id = ?")
-      .run(JSON.stringify(nodes), JSON.stringify(conns), targetWfId);
+    // Lưu workflow đã update vào database với trạng thái published/active
+    const newVersionId = crypto.randomUUID();
+    db.prepare("UPDATE workflow_entity SET nodes = ?, connections = ?, active = 1, versionId = ?, activeVersionId = ?, versionCounter = versionCounter + 1, updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW') WHERE id = ?")
+      .run(JSON.stringify(nodes), JSON.stringify(conns), newVersionId, newVersionId, targetWfId);
+
+    // Ghi nhận lịch sử version trong workflow_history
+    try {
+      db.prepare("INSERT INTO workflow_history (versionId, workflowId, authors, nodes, connections, name, autosaved, createdAt, updatedAt) VALUES (?, ?, 'automation', ?, ?, 'TikTok Upload Only', 0, STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'), STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))")
+        .run(newVersionId, targetWfId, JSON.stringify(nodes), JSON.stringify(conns));
+    } catch (_) {}
 
     console.log(JSON.stringify({
       success: true,

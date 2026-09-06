@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const { saveAccount } = require('./tiktok-web-upload');
 const { updateChannelCredential, getChannelForChat } = require('../utils/config-manager');
 const { syncShopToN8n } = require('./n8n-workflow-sync');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 // Lưu trữ các phiên quét QR đang hoạt động: chatId -> session info
 const activeQrSessions = new Map();
@@ -49,12 +50,12 @@ async function fetchTikTokUserInfo(cookiesMap) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.data && (json.data.user_id_str || json.data.username)) {
+          if (json.data && (json.data.user_id_str || json.data.user_id || json.data.username)) {
             resolve({
               valid: true,
               username: json.data.username || '',
               screenName: json.data.screen_name || json.data.username || '',
-              userId: json.data.user_id_str || ''
+              userId: json.data.user_id_str || (json.data.user_id ? String(json.data.user_id) : '')
             });
             return;
           }
@@ -105,15 +106,17 @@ async function cancelSession(chatId) {
  */
 async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.resolve(__dirname, '..')) {
   const key = String(chatId);
-  await cancelSession(key);
+  const shopName = getShopNameForChat(chatId, baseDir);
+  return runWithShop(shopName, async () => {
+    await cancelSession(key);
 
-  const sessionObj = {
-    chatId: key,
-    browser: null,
-    isCancelled: false,
-    startedAt: Date.now()
-  };
-  activeQrSessions.set(key, sessionObj);
+    const sessionObj = {
+      chatId: key,
+      browser: null,
+      isCancelled: false,
+      startedAt: Date.now()
+    };
+    activeQrSessions.set(key, sessionObj);
 
   const profileDir = path.resolve(baseDir, '.tiktok-login-profile');
   let context = null;
@@ -403,7 +406,12 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
         const userInfo = await fetchTikTokUserInfo(cookieMap);
         const username = userInfo.username || 'tiktok_shop_user';
         const screenName = userInfo.screenName || username;
-        const userId = userInfo.userId || '';
+        let userId = userInfo.userId || '';
+        if (!userId && cookieMap['multi_sids']) {
+          const decoded = decodeURIComponent(cookieMap['multi_sids']);
+          const match = decoded.match(/(\d{10,})/);
+          if (match) userId = match[1];
+        }
 
         // Tạo credentialId ngẫu nhiên 16 ký tự
         const credentialId = crypto.randomBytes(8).toString('hex');
@@ -416,15 +424,17 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
 
         const accountLabel = `${channelLabel} (@${username})`;
 
-        // Lưu vào tiktok-accounts.json
-        saveAccount(credentialId, {
+        const accountData = {
           label: accountLabel,
           ...cookieMap,
           username,
           screenName,
           userId,
           updatedAt: new Date().toISOString()
-        });
+        };
+
+        // Lưu vào tiktok-accounts.json
+        saveAccount(credentialId, accountData);
 
         // Cập nhật mapping trong config.json
         updateChannelCredential(baseDir, key, credentialId, accountLabel);
@@ -433,7 +443,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
         let n8nSyncResult = null;
         try {
           console.log(`[TikTokQR] 🔄 Syncing account to n8n workflow for "${channelLabel}"...`);
-          n8nSyncResult = await syncShopToN8n(credentialId, cookieMap, channelLabel);
+          n8nSyncResult = await syncShopToN8n(credentialId, accountData, channelLabel);
           console.log(`[TikTokQR] ✅ n8n sync result:`, n8nSyncResult);
         } catch (n8nErr) {
           console.error(`[TikTokQR] ⚠️ Failed to sync to n8n:`, n8nErr.message);
@@ -477,6 +487,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
       await callbacks.onError(err.message);
     }
   }
+  });
 }
 
 /**
@@ -487,11 +498,14 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
  */
 async function submitOtpForChat(chatId, otpCode) {
   const key = String(chatId);
-  const session = activeQrSessions.get(key);
-  if (!session || typeof session.submitOtp !== 'function') {
-    return { success: false, notFound: true, error: 'Không tìm thấy phiên đăng nhập TikTok đang chờ mã OTP.' };
-  }
-  return session.submitOtp(otpCode);
+  const shopName = getShopNameForChat(chatId);
+  return runWithShop(shopName, async () => {
+    const session = activeQrSessions.get(key);
+    if (!session || typeof session.submitOtp !== 'function') {
+      return { success: false, notFound: true, error: 'Không tìm thấy phiên đăng nhập TikTok đang chờ mã OTP.' };
+    }
+    return session.submitOtp(otpCode);
+  });
 }
 
 /**

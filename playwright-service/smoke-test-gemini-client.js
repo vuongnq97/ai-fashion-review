@@ -13,19 +13,18 @@ const { GeminiApiClient } = require('./services/gemini-client/gemini-api');
 const path = require('path');
 
 async function main() {
+  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
+    ? path.resolve(__dirname, process.env.GEMINI_COOKIE_PATH)
+    : path.resolve(__dirname, 'gemini-cookies');
   const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
   const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
 
-  if (!secure1Psid) {
-    console.error('[SmokeTest] ❌ GEMINI_SECURE_1PSID not set in .env');
-    process.exit(1);
-  }
-
-  console.log('[SmokeTest] Initializing GeminiApiClient...');
-  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(__dirname, process.env.GEMINI_COOKIE_PATH)
-    : null;
-  const client = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
+  console.log('[SmokeTest] Initializing GeminiApiClient with cookie path:', cookieFilePath);
+  const client = new GeminiApiClient({
+    secure1Psid: secure1Psid || undefined,
+    secure1Psidts: secure1Psidts || undefined,
+    cookieFilePath,
+  });
 
   try {
     await client.init();

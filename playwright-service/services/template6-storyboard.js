@@ -536,19 +536,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   }
 
   const effectiveBaseDir = baseDir || path.resolve(__dirname, '..');
-  const secure1Psid = process.env.GEMINI_SECURE_1PSID;
-  const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
     ? path.resolve(effectiveBaseDir, process.env.GEMINI_COOKIE_PATH)
-    : path.join(effectiveBaseDir, 'gemini.cookies.json');
-
-  if (!secure1Psid && !cookieFilePath) {
-    throw new Error('GEMINI_SECURE_1PSID or GEMINI_COOKIE_PATH is required for Template 6 storyboard generation');
-  }
+    : path.join(effectiveBaseDir, 'gemini-cookies');
 
   const geminiClient = new GeminiApiClient({
-    secure1Psid,
-    secure1Psidts,
     cookieFilePath: fs.existsSync(cookieFilePath) ? cookieFilePath : undefined,
   });
 

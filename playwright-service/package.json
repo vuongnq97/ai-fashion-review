@@ -8,6 +8,7 @@
     "setup": "node setup.js",
     "login": "node login.js",
     "cookies": "node export-gemini-cookies.js",
+    "broadcast": "node broadcast-notification.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

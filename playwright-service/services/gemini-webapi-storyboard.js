@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn } = require('child_process');
 
 const { createFlowPage, closeFlowPage } = require('./browser');
 const { prepareVideoGeneration, executeVideoGeneration } = require('./video');
@@ -110,14 +109,6 @@ function buildTemplate3ReferenceAssets(baseDir) {
  * @returns {Promise<object>} - Same JSON format as Python bridge output
  */
 async function runBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
-  const impl = String(process.env.GEMINI_WEBAPI_IMPL || 'python').trim().toLowerCase();
-  if (impl === 'python' || impl === 'py' || impl === 'hanaokayuzu') {
-    return runPythonBridge(baseDir, request, timeoutMs);
-  }
-  if (impl !== 'node' && impl !== 'js') {
-    throw new Error(`Unknown GEMINI_WEBAPI_IMPL: ${impl}`);
-  }
-
   const tmpRoot = path.join(baseDir, 'uploads', 'gemini-webapi-runs');
   ensureDir(tmpRoot);
   const workDir = fs.mkdtempSync(path.join(tmpRoot, 'run-'));
@@ -135,95 +126,6 @@ async function runBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
   } finally {
     removeDirQuietly(workDir);
   }
-}
-
-function getPythonCommand(baseDir) {
-  const localVenvPython = path.join(baseDir, '.venv', 'Scripts', 'python.exe');
-  if (fs.existsSync(localVenvPython)) return localVenvPython;
-
-  const configured = String(process.env.GEMINI_WEBAPI_PYTHON || '').trim();
-  if (configured && fs.existsSync(configured)) return configured;
-
-  const commonWindowsPython = path.join(
-    process.env.LOCALAPPDATA || '',
-    'Programs',
-    'Python',
-    'Python312',
-    'python.exe'
-  );
-  if (commonWindowsPython && fs.existsSync(commonWindowsPython)) return commonWindowsPython;
-
-  return process.platform === 'win32' ? 'python' : 'python3';
-}
-
-async function runPythonBridge(baseDir, request, timeoutMs = 30 * 60 * 1000) {
-  const tmpRoot = path.join(baseDir, 'uploads', 'gemini-webapi-runs');
-  ensureDir(tmpRoot);
-  const workDir = fs.mkdtempSync(path.join(tmpRoot, 'py-run-'));
-  const inputPath = path.join(workDir, 'request.json');
-  const outputPath = path.join(workDir, 'response.json');
-  const scriptPath = path.join(baseDir, 'gemini-webapi-bridge', 'gemini_storyboard.py');
-  const pythonCmd = getPythonCommand(baseDir);
-
-  fs.writeFileSync(inputPath, JSON.stringify(request), 'utf8');
-
-  return new Promise((resolve, reject) => {
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-    const child = spawn(pythonCmd, [
-      scriptPath,
-      '--input', inputPath,
-      '--output', outputPath,
-      '--work-dir', workDir,
-    ], {
-      cwd: baseDir,
-      env: {
-        ...process.env,
-        PYTHONIOENCODING: 'utf-8',
-      },
-      windowsHide: true,
-    });
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGTERM');
-      reject(new Error(`Gemini Python bridge timed out after ${Math.round(timeoutMs / 1000)}s`));
-    }, timeoutMs);
-
-    child.stdout.on('data', chunk => { stdout += chunk.toString(); });
-    child.stderr.on('data', chunk => {
-      const text = chunk.toString();
-      stderr += text;
-      process.stderr.write(text);
-    });
-    child.on('error', error => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      removeDirQuietly(workDir);
-      reject(new Error(`Failed to start Python bridge (${pythonCmd}): ${error.message}`));
-    });
-    child.on('close', code => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        if (code !== 0) {
-          throw new Error(`Python bridge exited with code ${code}\n${stderr || stdout}`.trim());
-        }
-        if (!fs.existsSync(outputPath)) {
-          throw new Error(`Python bridge did not write output file\n${stderr || stdout}`.trim());
-        }
-        const result = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-        resolve(result);
-      } catch (error) {
-        reject(error);
-      } finally {
-        removeDirQuietly(workDir);
-      }
-    });
-  });
 }
 
 function buildRequest(filePayloads, options, baseDir) {
@@ -608,11 +510,15 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   if (!filePayloads || filePayloads.length === 0) {
     throw new Error('At least one product image is required');
   }
-  if (!process.env.GEMINI_SECURE_1PSID) {
-    throw new Error('GEMINI_SECURE_1PSID is required for storyboardProvider=gemini-webapi');
+  const cookiePath = process.env.GEMINI_COOKIE_PATH
+    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(baseDir, 'gemini-cookies');
+  const hasCookieFile = fs.existsSync(cookiePath);
+  if (!process.env.GEMINI_SECURE_1PSID && !hasCookieFile) {
+    throw new Error('Gemini cookies not found (checked gemini-cookies/cookies.json). Please run "node login.js" to authenticate.');
   }
 
-  console.log(`[GeminiWebAPI] Generating storyboard from ${filePayloads.length} image(s) using ${process.env.GEMINI_WEBAPI_IMPL || 'python'} bridge...`);
+  console.log(`[GeminiWebAPI] Generating storyboard from ${filePayloads.length} image(s) using Node.js client...`);
   const request = buildRequest(filePayloads, options, baseDir);
   const bridgeResult = await runBridge(baseDir, request, Number(process.env.GEMINI_WEBAPI_TIMEOUT_MS) || 30 * 60 * 1000);
   const { panels, downloadDir } = writePanels(baseDir, bridgeResult);

@@ -119,12 +119,8 @@ async function waitForEnter(message) {
     || cookies.find(cookie => cookie.name === '__Secure-1PSID');
   const secure1psidts = cookies.find(cookie => cookie.name === '__Secure-1PSIDTS');
 
-  if (secure1psid) {
-    setEnvValue(envPath, 'GEMINI_SECURE_1PSID', secure1psid.value);
-    setEnvValue(envPath, 'GEMINI_SECURE_1PSIDTS', secure1psidts ? secure1psidts.value : '');
-    setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
-    console.log('✅ Đã cập nhật token Gemini vào .env');
-  }
+  setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
+  console.log('✅ Đã cấu hình GEMINI_COOKIE_PATH=./gemini-cookies trong .env');
 
   const nextAuth = cookies.find(c => c.name === '__Secure-next-auth.session-token');
   if (nextAuth) {

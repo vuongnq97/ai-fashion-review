@@ -67,6 +67,18 @@ process.stdin.on('end', () => {
       }
     }
 
+    // Lấy userId từ cookies hoặc multi_sids
+    let userId = (cookies && (cookies.userId || cookies.user_id)) || '';
+    if (!userId && cleanCookies.multi_sids) {
+      const decoded = decodeURIComponent(cleanCookies.multi_sids);
+      const match = decoded.match(/^(\d+):/) || decoded.match(/(\d{15,})/);
+      if (match) userId = match[1];
+    }
+
+    const cookieString = Object.entries(cleanCookies)
+      .map(([k, v]) => k + '=' + v)
+      .join('; ');
+
     // Đóng gói payload tiktokSession theo chuẩn của n8n-nodes-social-tiktok
     const sessionObj = {
       http: {
@@ -76,9 +88,22 @@ process.stdin.on('end', () => {
         timestamp: new Date().toISOString(),
         headers: {
           'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-          'referer': 'https://www.tiktok.com/'
+          'referer': 'https://www.tiktok.com/',
+          'accept': 'application/json, text/plain, */*',
+          'cookie': cookieString,
+          'Cookie': cookieString
         },
-        params: {},
+        params: {
+          aid: '1988',
+          app_name: 'tiktok_web',
+          channel: 'tiktok_web',
+          device_platform: 'web_pc',
+          device_id: cleanCookies.device_id || '7681919433773811201',
+          odinId: userId || '',
+          msToken: cleanCookies.msToken || '',
+          verifyFp: cleanCookies.s_v_web_id || '',
+          user_is_login: 'true'
+        },
         cookies: cleanCookies,
         body: ''
       }
@@ -297,7 +322,7 @@ process.stdin.on('end', () => {
       fullWorkflowJson: { nodes, connections: conns }
     }));
   } catch (err) {
-    console.error(JSON.stringify({ success: false, error: err.message, stack: err.stack }));
+    console.log(JSON.stringify({ success: false, error: err.message, stack: err.stack }));
   }
 });
 `;
@@ -340,10 +365,22 @@ async function syncShopToN8n(credentialId, cookies, shopLabel) {
 
   ensureN8nContainerRunning();
 
+  // Bổ sung thông tin tài khoản từ tiktok-accounts.json nếu có
+  let fullCookies = { ...cookies };
+  try {
+    const accountsFile = path.resolve(__dirname, '..', 'tiktok-accounts.json');
+    if (fs.existsSync(accountsFile)) {
+      const accounts = JSON.parse(fs.readFileSync(accountsFile, 'utf8'));
+      if (accounts[credentialId]) {
+        fullCookies = { ...accounts[credentialId], ...fullCookies };
+      }
+    }
+  } catch (_) { }
+
   const payload = {
     credentialId,
     credentialName: shopLabel || credentialId,
-    cookies,
+    cookies: fullCookies,
     workflowId: '0e2fc3f8b32d4b0d'
   };
 
@@ -385,22 +422,44 @@ async function syncShopToN8n(credentialId, cookies, shopLabel) {
       }
     }
 
-    // Khởi động lại n8n container chỉ khi có thêm node mới hoặc cần refresh
-    if (result.addedNodes) {
-      try {
-        console.log('[n8nSync] 🔄 Khởi động lại container n8n để nạp cấu hình mới...');
-        execFileSync('docker', ['restart', DOCKER_CONTAINER_NAME], { stdio: 'ignore' });
-        console.log('[n8nSync] ⚡ Container n8n đã sẵn sàng với các node mới cho shop!');
-      } catch (rErr) {
-        console.warn('[n8nSync] ⚠️ Không thể restart container n8n:', rErr.message);
-      }
+    // Khởi động lại n8n container (~0.7s) để n8n xóa cache và nạp credential/workflow mới ngay lập tức
+    try {
+      console.log('[n8nSync] 🔄 Khởi động lại container n8n để nạp cấu hình mới...');
+      execFileSync('docker', ['restart', DOCKER_CONTAINER_NAME], { stdio: 'ignore' });
+      console.log('[n8nSync] ⚡ Container n8n đã sẵn sàng với cấu hình mới cho shop!');
+    } catch (rErr) {
+      console.warn('[n8nSync] ⚠️ Không thể restart container n8n:', rErr.message);
     }
   }
 
   return result;
 }
 
+/**
+ * Đồng bộ tất cả tài khoản từ tiktok-accounts.json vào n8n SQLite
+ */
+async function syncAllAccountsToN8n() {
+  const accountsFile = path.resolve(__dirname, '..', 'tiktok-accounts.json');
+  if (!fs.existsSync(accountsFile)) return [];
+  const accounts = JSON.parse(fs.readFileSync(accountsFile, 'utf8'));
+  const results = [];
+  for (const [id, acc] of Object.entries(accounts)) {
+    if (acc.sessionid || acc.multi_sids) {
+      const name = acc.label?.replace(/\s*\(@.*?\)/, '').trim() || id;
+      try {
+        const res = await syncShopToN8n(id, acc, name);
+        results.push({ id, name, ...res });
+      } catch (e) {
+        results.push({ id, name, success: false, error: e.message });
+      }
+    }
+  }
+  return results;
+}
+
 module.exports = {
   syncShopToN8n,
+  syncAllAccountsToN8n,
   ensureN8nContainerRunning
 };
+

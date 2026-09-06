@@ -376,10 +376,6 @@ async function runDailyVlogFlow(baseDir, filePayloads, nhiPayloads, options = {}
     throw new Error('At least one product image is required for daily vlog');
   }
 
-  if (!process.env.GEMINI_SECURE_1PSID) {
-    throw new Error('GEMINI_SECURE_1PSID is required (same as normal storyboard flow)');
-  }
-
   // Read daily vlog config
   const dvConfig = getDailyVlogConfig(baseDir);
   const panelCount = options.panelCount || dvConfig.panelCount;
@@ -388,13 +384,11 @@ async function runDailyVlogFlow(baseDir, filePayloads, nhiPayloads, options = {}
   const outputDir = path.join(baseDir, 'uploads', 'dailyvlog-outputs');
   ensureDir(outputDir);
 
-  const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
-  const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(process.env.GEMINI_COOKIE_PATH)
-    : null;
+    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(baseDir, 'gemini-cookies');
 
-  const client = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
+  const client = new GeminiApiClient({ cookieFilePath });
 
   try {
     log('Initializing Gemini client...');

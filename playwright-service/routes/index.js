@@ -31,10 +31,22 @@ const {
   extractProductAssetsFromHtml,
   extractProductIdFromUrl,
 } = require('../services/product-assets');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 const baseDir = path.resolve(__dirname, '..');
+
+// Middleware to bind shop context for any route carrying chatId
+router.use((req, res, next) => {
+  const chatId = req.query?.chatId || req.body?.chatId || req.headers?.['x-telegram-chat-id'];
+  if (chatId) {
+    const shopName = getShopNameForChat(chatId, baseDir);
+    runWithShop(shopName, next);
+  } else {
+    next();
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 // n8n orchestration job routes

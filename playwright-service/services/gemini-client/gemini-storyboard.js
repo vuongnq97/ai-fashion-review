@@ -3,9 +3,8 @@
 /**
  * gemini-storyboard.js
  *
- * Node.js equivalent of the Python gemini-webapi-bridge/gemini_storyboard.py.
- * Accepts the same JSON input/output format so the calling code in
- * gemini-webapi-storyboard.js can be swapped with minimal changes.
+ * Native Node.js Gemini WebAPI storyboard client.
+ * Uses Playwright-driven reverse-engineered Gemini API client.
  *
  * Flow:
  *   1. Upload product images
@@ -1443,15 +1442,11 @@ async function generateAnalysisJson(client, options, fileData) {
 }
 
 async function run(request, workDir) {
-  const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
-  const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
     ? path.resolve(process.env.GEMINI_COOKIE_PATH)
-    : null;
-
-  if (!secure1Psid) {
-    throw new Error('GEMINI_SECURE_1PSID environment variable is required');
-  }
+    : path.resolve(__dirname, '../../gemini-cookies');
+  const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
+  const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
 
   const options = request.options || {};
   const panelCount = resolvePanelCount(options);
@@ -1493,7 +1488,11 @@ async function run(request, workDir) {
     referenceFiles.push({ filePath, filename, mimeType, buffer: fs.readFileSync(filePath), role: asset.role || '' });
   }
 
-  const client = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
+  const client = new GeminiApiClient({
+    secure1Psid: secure1Psid || undefined,
+    secure1Psidts: secure1Psidts || undefined,
+    cookieFilePath,
+  });
 
   try {
     log('Initializing Gemini client...');

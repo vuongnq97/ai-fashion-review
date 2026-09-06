@@ -52,6 +52,7 @@ config
 # Browser profiles / sessions
 playwright-service/chrome-data/
 playwright-service/google_labs_profile/
+playwright-service/.tiktok-login-profile/
 gemini-image-service/chrome-data/
 
 # Uploads, generated media, debug output
@@ -81,6 +82,7 @@ ngrok
 # Local scratch files / dumps
 image_1.jpg
 model.jpeg
+bot-avatar.png
 Untitled-1777099574829.n8n
 docs.md
 playwright-service/a.html

@@ -19,6 +19,7 @@ const { generationJobService } = require('./generation-job');
 const { extractProductAssetsFromHtml } = require('./product-assets');
 const { autoT3Scheduler, autoT4Scheduler, autoT5Scheduler } = require('./auto-template-scheduler');
 const { getChannelForChat, getRawChannelForChat, registerChannelForChat, updateChannelCredential } = require('../utils/config-manager');
+const { runWithShop, getShopNameForChat, getActiveShopName } = require('../utils/shop-context');
 const { normalizeTemplateName } = require('./template-options');
 const { startTikTokQrLoginSession, cancelSession, submitOtpForChat, isChatWaitingForOtp } = require('./tiktok-qr-login');
 const { sendPhotoToTelegram } = require('./telegram-send');
@@ -759,6 +760,15 @@ async function handleCallbackQuery(botToken, callbackQuery) {
  * Process a single Telegram update
  */
 async function handleUpdate(botToken, update) {
+  const updateChatId = update.callback_query?.message?.chat?.id
+    || update.callback_query?.from?.id
+    || update.message?.chat?.id;
+
+  if (updateChatId && !getActiveShopName()) {
+    const shopName = getShopNameForChat(updateChatId, path.resolve(__dirname, '..'));
+    return runWithShop(shopName, () => handleUpdate(botToken, update));
+  }
+
   if (update.callback_query) {
     await handleCallbackQuery(botToken, update.callback_query);
     return;
@@ -1318,10 +1328,12 @@ async function handleUpdate(botToken, update) {
     if (batch.timer) clearTimeout(batch.timer);
 
     batch.timer = setTimeout(async () => {
-      // Clean up the batch map entry immediately so new photos create a new batch
-      botBatches.delete(chatId);
+      const shopName = getShopNameForChat(chatId, path.resolve(__dirname, '..'));
+      await runWithShop(shopName, async () => {
+        // Clean up the batch map entry immediately so new photos create a new batch
+        botBatches.delete(chatId);
 
-      console.log(`[Telegram Bot] Batch timed out for chat ${chatId}. Checking downloads...`);
+        console.log(`[Telegram Bot] Batch timed out for chat ${chatId}. Checking downloads...`);
 
       // Give active downloads 2 seconds to finish up
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1416,7 +1428,7 @@ async function handleUpdate(botToken, update) {
           sendTelegramMessage(botToken, chatId,
             `⚠️ Lỗi chạy full flow: ${err.message}`).catch(() => { });
         });
-
+      });
     }, BATCH_WINDOW_MS);
   }
 }
@@ -1519,7 +1531,11 @@ function startTelegramBot() {
         }
         for (const update of updates) {
           pollingOffset = update.update_id + 1;
-          await handleUpdate(botToken, update);
+          const chatId = update.message?.chat?.id
+            || update.callback_query?.message?.chat?.id
+            || update.callback_query?.from?.id;
+          const shopName = chatId ? getShopNameForChat(chatId, path.resolve(__dirname, '..')) : null;
+          await runWithShop(shopName, () => handleUpdate(botToken, update));
         }
 
         // Small 1s cooldown between poll requests to prevent Telegram TCP overlap

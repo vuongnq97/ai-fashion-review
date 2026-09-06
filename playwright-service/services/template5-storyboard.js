@@ -645,8 +645,10 @@ async function analyzeProductTemplate5(geminiClient, filePayloads, options = {})
       }
     } catch (err) {
       lastAnalysisErr = err;
-      console.warn(`[Template5] Analysis attempt ${attempt}/3 failed: ${err.message}. Retrying in 3s...`);
-      await new Promise(r => setTimeout(r, 3000));
+      console.warn(`[Template5] Analysis attempt ${attempt}/3 failed: ${err.message}.`);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
     }
   }
 
@@ -1412,23 +1414,29 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   console.log(`[Template5] Starting ${template.toUpperCase()} (${isNoText ? 'No Text' : 'With Text'}${hasVoice ? ' + Voice' : ''}) review generation for ${filePayloads.length} input image(s)...`);
 
   const effectiveBaseDir = baseDir || path.resolve(__dirname, '..');
-  const secure1Psid = process.env.GEMINI_SECURE_1PSID;
-  const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
-  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(effectiveBaseDir, process.env.GEMINI_COOKIE_PATH)
-    : path.join(effectiveBaseDir, 'gemini.cookies.json');
 
-  if (!secure1Psid && !cookieFilePath) {
-    throw new Error('GEMINI_SECURE_1PSID or GEMINI_COOKIE_PATH is required for Template 5 storyboard generation');
+  // Đảm bảo cookies Gemini được kiểm tra và làm mới ngay từ đầu
+  try {
+    const { maybeRefreshCookies } = require('./gemini-cookie-refresher');
+    await maybeRefreshCookies(effectiveBaseDir);
+  } catch (refreshErr) {
+    console.warn(`[Template5] Tự động refresh cookie đầu luồng: ${refreshErr.message}`);
   }
 
+  const cookieFilePath = process.env.GEMINI_COOKIE_PATH
+    ? path.resolve(effectiveBaseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(effectiveBaseDir, 'gemini-cookies');
+
   const geminiClient = new GeminiApiClient({
-    secure1Psid,
-    secure1Psidts,
     cookieFilePath: fs.existsSync(cookieFilePath) ? cookieFilePath : undefined,
   });
 
-  await geminiClient.init();
+  try {
+    await geminiClient.init();
+  } catch (initErr) {
+    console.error(`[Template5] ❌ Init GeminiClient thất bại: ${initErr.message}`);
+    throw new Error(`[Template5] Không thể kết nối Gemini API: ${initErr.message}. Vui lòng kiểm tra lại cookie hoặc chạy "node login.js".`);
+  }
 
   let analysis = null;
   let storyboardBase64 = null;

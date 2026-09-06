@@ -3,6 +3,7 @@ const path = require('path');
 
 const { getStoryboardProvider } = require('./storyboard-provider');
 const { sendTelegramMessage, sendVideoToTelegramDirect } = require('./telegram-send');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 const UPLOAD_MEDIA_EXTENSIONS = new Set([
   '.jpg',
@@ -106,10 +107,12 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
     throw new Error('At least one product image is required');
   }
 
-  const runId = options.runId || null;
-  if (runId) {
-    console.log(`[FullFlow] Starting run ${runId} for chat ${chatId} with ${filePayloads.length} image(s)`);
-  }
+  const shopName = options.shopName || getShopNameForChat(chatId, baseDir);
+  return runWithShop(shopName, async () => {
+    const runId = options.runId || null;
+    if (runId) {
+      console.log(`[FullFlow] Starting run ${runId} for chat ${chatId} with ${filePayloads.length} image(s)`);
+    }
 
   try {
     const provider = getStoryboardProvider(baseDir, options);
@@ -180,6 +183,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       cleanupUploadsMedia(baseDir, runId);
     }
   }
+  });
 }
 
 module.exports = {

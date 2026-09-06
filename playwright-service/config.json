@@ -96,7 +96,7 @@
   "autoT4Settings": {
     "hashtags": [],
     "enabled": true,
-    "chatId": "-5593403910",
+    "chatId": "-5031728769",
     "timezone": "Asia/Ho_Chi_Minh",
     "template": "template4",
     "times": [
@@ -243,8 +243,51 @@
     },
     "-5391525231": {
       "label": "Mít À Ơi",
-      "status": "pending_link",
-      "updatedAt": "2026-09-05T09:55:21.462Z"
+      "status": "active",
+      "updatedAt": "2026-09-05T09:55:21.462Z",
+      "tiktokCredentialId": "75935ca6f875f61c",
+      "tiktokCredentialName": "Mít À Ơi (@mit.a.oi)",
+      "linkedAt": "2026-09-05T10:09:16.321Z"
+    },
+    "-5293583806": {
+      "label": "Qu Test",
+      "status": "active",
+      "updatedAt": "2026-09-05T10:04:20.374Z",
+      "tiktokCredentialId": "d28cd72f0f2218d0",
+      "tiktokCredentialName": "Qu Test (@ai.mua.ai.bn.bnh)",
+      "linkedAt": "2026-09-05T10:05:21.050Z"
+    },
+    "-5326491806": {
+      "label": "Lời Phật Dạy",
+      "status": "active",
+      "updatedAt": "2026-09-05T12:47:28.673Z",
+      "tiktokCredentialId": "c3c0638c44685528",
+      "tiktokCredentialName": "Lời Phật Dạy (@loiphatday.70)",
+      "linkedAt": "2026-09-05T12:48:21.733Z"
+    },
+    "-5599617175": {
+      "label": "LadyShop",
+      "status": "active",
+      "updatedAt": "2026-09-05T13:46:50.624Z",
+      "tiktokCredentialId": "47998727722c4e3b",
+      "tiktokCredentialName": "LadyShop (@ladystore2000)",
+      "linkedAt": "2026-09-05T13:48:05.129Z"
+    },
+    "-5592540592": {
+      "label": "ahii",
+      "status": "active",
+      "updatedAt": "2026-09-05T13:52:16.685Z",
+      "tiktokCredentialId": "7f74344f32212c9d",
+      "tiktokCredentialName": "ahii (@ladystore2000)",
+      "linkedAt": "2026-09-05T13:52:58.964Z"
+    },
+    "-5031728769": {
+      "label": "Lady Shop",
+      "status": "active",
+      "updatedAt": "2026-09-05T14:12:54.254Z",
+      "tiktokCredentialId": "eb67b0501ad2a191",
+      "tiktokCredentialName": "Lady Shop (@ladystore2000)",
+      "linkedAt": "2026-09-05T14:13:54.043Z"
     }
   }
 }

@@ -100,13 +100,11 @@ async function waitForEnter(message) {
     throw new Error('Could not find __Secure-1PSID. Gemini/Google login is not available in this profile.');
   }
 
-  setEnvValue(envPath, 'GEMINI_SECURE_1PSID', secure1psid.value);
-  setEnvValue(envPath, 'GEMINI_SECURE_1PSIDTS', secure1psidts ? secure1psidts.value : '');
   setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
 
   const currentImpl = getEnvValue(envPath, 'GEMINI_WEBAPI_IMPL');
   if (!currentImpl) {
-    setEnvValue(envPath, 'GEMINI_WEBAPI_IMPL', process.platform === 'win32' ? 'python' : 'node');
+    setEnvValue(envPath, 'GEMINI_WEBAPI_IMPL', 'node');
   }
 
   // Save ALL cookies to gemini-cookies/cookies.json so gemini-api.js can load them
@@ -116,12 +114,16 @@ async function waitForEnter(message) {
   fs.writeFileSync(cookieFilePath, JSON.stringify(cookies, null, 2), 'utf8');
   console.log(`[GeminiCookies] Saved ${cookies.length} cookies → ${cookieFilePath}`);
 
-  console.log(`[GeminiCookies] Exported Gemini cookies to ${envPath}`);
+  // Sync to labs.google.cookies.json for Flow
+  const labsCookiePath = path.join(baseDir, 'labs.google.cookies.json');
+  fs.writeFileSync(labsCookiePath, JSON.stringify(cookies, null, 2), 'utf8');
+  console.log(`[GeminiCookies] Synced cookies → ${labsCookiePath}`);
+
   console.log(`[GeminiCookies] __Secure-1PSIDTS found: ${secure1psidts ? 'yes' : 'no'}`);
 
   // Clear stale gemini_webapi cookie cache so the next run uses fresh cookies
   clearCookieCache(cookieDir);
-  console.log('[GeminiCookies] ✅ Done. Restart the server to apply new cookies.');
+  console.log('[GeminiCookies] ✅ Done. Cookies saved as Single Source of Truth.');
 
   await context.close();
 })().catch(error => {

@@ -64,30 +64,86 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
   } catch (_) {}
 
   let context = null;
+  let isSharedContext = false;
+  let page = null;
+
   try {
     console.log('🔄 [AutoCookie] Đang tự động làm mới và trích xuất cookie Google/Gemini...');
-    const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-    context = await chromium.launchPersistentContext(userDataDir, {
-      channel: chromeChannel,
-      headless: true,
-      args: [
-        '--disable-blink-features=AutomationControlled',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        ...getExtensionArgs(baseDir),
-      ],
-      timeout: 20000,
-    });
 
-    const page = await context.newPage();
-    // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
+    // 1. Nếu services/browser.js đã có BrowserContext đang mở chrome-data, tái sử dụng luôn để không bị khoá profile
     try {
-      await page.goto('https://gemini.google.com', { waitUntil: 'domcontentloaded', timeout: 12000 });
+      const { getContext } = require('./browser');
+      const existing = getContext();
+      if (existing) {
+        existing.pages(); // Kiểm tra context còn sống không
+        context = existing;
+        isSharedContext = true;
+        console.log('🔄 [AutoCookie] Tái sử dụng BrowserContext đang mở để trích xuất cookie...');
+      }
     } catch (_) {}
+
+    // 2. Nếu chưa có context nào chạy, mới khởi chạy persistent context riêng
+    if (!context) {
+      const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
+      const isHeadless = process.env.HEADLESS === 'true';
+      context = await chromium.launchPersistentContext(userDataDir, {
+        channel: chromeChannel,
+        headless: isHeadless,
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+        ],
+        timeout: 15000,
+      });
+    }
+
+    page = await context.newPage();
+    // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
+    let isLoggedOut = false;
+    try {
+      await page.goto('https://gemini.google.com/app', { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await page.waitForTimeout(2000);
+      const geminiUrl = page.url() || '';
+      if (
+        geminiUrl.includes('accounts.google.com/signin') ||
+        geminiUrl.includes('accounts.google.com/ServiceLogin') ||
+        geminiUrl.includes('accounts.google.com/InteractiveLogin') ||
+        geminiUrl.includes('accounts.google.com/v3/signin')
+      ) {
+        isLoggedOut = true;
+      } else {
+        // Chỉ coi là logged out nếu có nút/link đăng nhập rõ ràng (tránh nhầm SignOutOptions)
+        const signInBtn = await page.$(
+          'a[href*="ServiceLogin"], a[href*="/signin/challenge"], button:has-text("Sign in"), button:has-text("Đăng nhập")'
+        ).catch(() => null);
+        if (signInBtn) isLoggedOut = true;
+      }
+    } catch (_) {}
+
+    if (isLoggedOut) {
+      console.warn(`⚠️ [AutoCookie] Tài khoản Google đang ở trạng thái ĐĂNG XUẤT. Cần chạy "node login.js" để đăng nhập lại!`);
+      if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
+      if (!isSharedContext && context) try { await context.close(); } catch (_) {}
+      return false;
+    }
 
     try {
       await page.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForTimeout(2000);
     } catch (_) {}
+
+    const currentUrl = page.url() || '';
+    if (
+      currentUrl.includes('accounts.google.com/signin') ||
+      currentUrl.includes('accounts.google.com/ServiceLogin') ||
+      currentUrl.includes('accounts.google.com/InteractiveLogin')
+    ) {
+      console.warn(`⚠️ [AutoCookie] Google đang yêu cầu đăng nhập (${currentUrl}). KHÔNG ghi đè cookie cũ!`);
+      if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
+      if (!isSharedContext && context) try { await context.close(); } catch (_) {}
+      return false;
+    }
 
     // Lấy toàn bộ cookies trong context để không bỏ sót các domain .google.com
     const cookies = await context.cookies();
@@ -102,8 +158,6 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
         process.env.GEMINI_SECURE_1PSIDTS = secure1psidts.value;
       }
 
-      setEnvValue(envPath, 'GEMINI_SECURE_1PSID', secure1psid.value);
-      setEnvValue(envPath, 'GEMINI_SECURE_1PSIDTS', secure1psidts ? secure1psidts.value : '');
       setEnvValue(envPath, 'GEMINI_COOKIE_PATH', './gemini-cookies');
 
       fs.mkdirSync(cookieDir, { recursive: true });
@@ -116,16 +170,21 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
 
       clearCookieCache(cookieDir);
       console.log(`🍪 [AutoCookie] ✅ Đã tự động cập nhật ${cookies.length} cookies mới nhất vào gemini-cookies & labs.google.cookies.json!`);
-      await context.close();
+      if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
+      if (!isSharedContext && context) try { await context.close(); } catch (_) {}
       return true;
     } else {
       console.warn('⚠️ [AutoCookie] Không tìm thấy __Secure-1PSID trong profile chrome-data (giữ nguyên cookie cũ từ .env).');
-      await context.close();
+      if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
+      if (!isSharedContext && context) try { await context.close(); } catch (_) {}
       return false;
     }
   } catch (err) {
     console.warn('⚠️ [AutoCookie] Tự động trích xuất cookie gặp sự cố, sử dụng cookie đã lưu:', err.message);
-    if (context) {
+    if (page && !page.isClosed()) {
+      try { await page.close(); } catch (_) {}
+    }
+    if (!isSharedContext && context) {
       try { await context.close(); } catch (_) {}
     }
     return false;

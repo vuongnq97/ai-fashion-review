@@ -18,6 +18,7 @@ const { buildTemplateOptions } = require('./template-options');
 const { downloadProductImages } = require('./product-assets');
 const { mergeVideos } = require('./video-merge');
 const { getConfig } = require('../utils/config-manager');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 const JOB_ROOT = process.env.GENERATION_JOB_ROOT || path.join(os.tmpdir(), 'ai-fashion-review', 'jobs');
 const DEFAULT_TEMPLATE = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3';
@@ -321,11 +322,15 @@ function getVideoPaths(result) {
 }
 
 async function executeJob(job) {
-  const tracker = job.stepTracker || new FlowStepTracker(job.chatId, { title: job.productTitle });
-  job.stepTracker = tracker;
+  const baseDir = job.baseDir || path.resolve(__dirname, '..');
+  const shopName = job.shopName || (job.chatId ? getShopNameForChat(job.chatId, baseDir) : null);
 
-  try {
-    ensureDir(job.jobDir);
+  return runWithShop(shopName, async () => {
+    const tracker = job.stepTracker || new FlowStepTracker(job.chatId, { title: job.productTitle });
+    job.stepTracker = tracker;
+
+    try {
+      ensureDir(job.jobDir);
     setStep(job, 'product_assets_extracted', 'Đang tải ảnh Product description về local...', { status: 'running', progressPercent: 10 });
     await tracker.start(1);
 
@@ -463,8 +468,9 @@ async function executeJob(job) {
       await tracker.fail(null, error.message);
     }
   } finally {
-    activeByChatProduct.delete(activeKey(job.chatId, job.productId));
-  }
+      activeByChatProduct.delete(activeKey(job.chatId, job.productId));
+    }
+  });
 }
 
 function enqueueGenerationJob(input, baseDir = path.resolve(__dirname, '..')) {
@@ -520,8 +526,12 @@ function enqueueGenerationJob(input, baseDir = path.resolve(__dirname, '..')) {
   jobs.set(jobId, job);
   activeByChatProduct.set(key, jobId);
 
+  const shopName = getShopNameForChat(chatId, baseDir);
+  job.shopName = shopName;
+
   flowQueue.enqueue({
     chatId,
+    shopName,
     photos: [],
     baseDir,
     templateOptions: job.templateOptions,

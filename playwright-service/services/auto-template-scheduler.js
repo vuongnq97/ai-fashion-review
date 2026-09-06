@@ -16,6 +16,7 @@ const { generationJobService } = require('./generation-job');
 const { sendTelegramMessage } = require('./telegram-send');
 const { FlowStepTracker } = require('./flow-step-tracker');
 const { maybeRefreshCookies } = require('./gemini-cookie-refresher');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 const tgHttp = axios.create({
   httpsAgent: new https.Agent({ rejectUnauthorized: false }),
@@ -328,39 +329,43 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
     const cfg = normalizeConfig(baseDir);
     if (!cfg.enabled && !forced) return null;
     if (!cfg.chatId) return null;
-    if (cfg.shortlinks.length === 0) {
-      if (forced) await sendTelegramMessage(cfg.chatId,
-        `⚠️ /${commandName} chưa có shortlinks trong config.json → ${configKey}.shortlinks`);
-      return null;
-    }
-    const now = getLocalDateTime(cfg.timezone);
-    const matchedTime = forced ? now.time : cfg.times.find(t => t === now.time);
-    if (!matchedTime) return null;
-    const state = readState(baseDir);
-    const slotKey = `${now.date} ${matchedTime}`;
-    if (!forced && state.lastRunSlots?.[slotKey]) return null;
-    if (isRunningSlot) return null;
 
-    isRunningSlot = true;
-    try {
-      // Export Gemini cookies nếu cần (tối đa 1 lần/45 phút — chỉ scheduler đầu tiên mỗi khung giờ mới export)
-      await maybeRefreshCookies(baseDir);
+    const shopName = getShopNameForChat(cfg.chatId, baseDir);
+    return runWithShop(shopName, async () => {
+      if (cfg.shortlinks.length === 0) {
+        if (forced) await sendTelegramMessage(cfg.chatId,
+          `⚠️ /${commandName} chưa có shortlinks trong config.json → ${configKey}.shortlinks`);
+        return null;
+      }
+      const now = getLocalDateTime(cfg.timezone);
+      const matchedTime = forced ? now.time : cfg.times.find(t => t === now.time);
+      if (!matchedTime) return null;
+      const state = readState(baseDir);
+      const slotKey = `${now.date} ${matchedTime}`;
+      if (!forced && state.lastRunSlots?.[slotKey]) return null;
+      if (isRunningSlot) return null;
 
-      const { shortlink } = pickNextShortlink(baseDir, cfg.shortlinks);
-      const job = await enqueueJob(baseDir, cfg, shortlink, slotKey);
-      const latestState = readState(baseDir);
-      latestState.lastRunSlots = latestState.lastRunSlots || {};
-      latestState.lastRunSlots[slotKey] = { jobId: job.jobId, shortlink, ranAt: new Date().toISOString(), forced };
-      writeState(baseDir, latestState);
-      return job;
-    } catch (error) {
-      console.error(`[${commandName}] Run failed:`, error.message);
-      const cfg2 = normalizeConfig(baseDir);
-      await sendTelegramMessage(cfg2.chatId, `⚠️ /${commandName} lỗi: ${error.message}`);
-      return null;
-    } finally {
-      isRunningSlot = false;
-    }
+      isRunningSlot = true;
+      try {
+        // Export Gemini cookies nếu cần (tối đa 1 lần/45 phút — chỉ scheduler đầu tiên mỗi khung giờ mới export)
+        await maybeRefreshCookies(baseDir);
+
+        const { shortlink } = pickNextShortlink(baseDir, cfg.shortlinks);
+        const job = await enqueueJob(baseDir, cfg, shortlink, slotKey);
+        const latestState = readState(baseDir);
+        latestState.lastRunSlots = latestState.lastRunSlots || {};
+        latestState.lastRunSlots[slotKey] = { jobId: job.jobId, shortlink, ranAt: new Date().toISOString(), forced };
+        writeState(baseDir, latestState);
+        return job;
+      } catch (error) {
+        console.error(`[${commandName}] Run failed:`, error.message);
+        const cfg2 = normalizeConfig(baseDir);
+        await sendTelegramMessage(cfg2.chatId, `⚠️ /${commandName} lỗi: ${error.message}`);
+        return null;
+      } finally {
+        isRunningSlot = false;
+      }
+    });
   }
 
   function startScheduler(baseDir = path.resolve(__dirname, '..')) {
@@ -378,41 +383,44 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
   }
 
   async function handleCommand(botToken, chatId, text, baseDir = path.resolve(__dirname, '..')) {
-    const raw = String(text || '').trim();
-    const cmdRegex = new RegExp(`^\\/${commandName}(?:_([a-z0-9]+))?(?:@\\S+)?`, 'i');
-    const match = raw.match(cmdRegex);
-    let subAction = match && match[1] ? match[1].toLowerCase() : '';
-    let remainder = raw.replace(cmdRegex, '').trim().toLowerCase();
-    if (!subAction && remainder) {
-      subAction = remainder.split(/\s+/)[0];
-    }
+    const shopName = getShopNameForChat(chatId, baseDir);
+    return runWithShop(shopName, async () => {
+      const raw = String(text || '').trim();
+      const cmdRegex = new RegExp(`^\\/${commandName}(?:_([a-z0-9]+))?(?:@\\S+)?`, 'i');
+      const match = raw.match(cmdRegex);
+      let subAction = match && match[1] ? match[1].toLowerCase() : '';
+      let remainder = raw.replace(cmdRegex, '').trim().toLowerCase();
+      if (!subAction && remainder) {
+        subAction = remainder.split(/\s+/)[0];
+      }
 
-    if (subAction === 'off' || subAction === 'stop') {
-      const cfg = disable(baseDir);
-      await sendTelegramMessage(chatId, `⏸️ Đã tắt /${commandName}. Chat ID: <code>${cfg.chatId || chatId}</code>.`, { parse_mode: 'HTML' });
-      return;
-    }
-    if (subAction === 'run' || subAction === 'now') {
-      enableForChat(baseDir, chatId);
-      await sendTelegramMessage(chatId, `▶️ Đã bật /${commandName} và đang chạy thử ngay 1 link kế tiếp...`);
-      await runDue(baseDir, true);
-      return;
-    }
+      if (subAction === 'off' || subAction === 'stop') {
+        const cfg = disable(baseDir);
+        await sendTelegramMessage(chatId, `⏸️ Đã tắt /${commandName}. Chat ID: <code>${cfg.chatId || chatId}</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+      if (subAction === 'run' || subAction === 'now') {
+        enableForChat(baseDir, chatId);
+        await sendTelegramMessage(chatId, `▶️ Đã bật /${commandName} và đang chạy thử ngay 1 link kế tiếp...`);
+        await runDue(baseDir, true);
+        return;
+      }
 
-    const cfg = enableForChat(baseDir, chatId);
-    startScheduler(baseDir);
-    const linksText = cfg.shortlinks.length > 0 ? `${cfg.shortlinks.length} link` : 'chưa có link';
-    await sendTelegramMessage(chatId,
-      `✅ <b>Đã kích hoạt /${commandName} cho chat này</b>\n\n` +
-      `🎬 Template: <b>${cfg.template}</b>\n` +
-      `⏰ Giờ chạy tự động: <code>${cfg.times.join(', ')}</code> (${cfg.timezone})\n` +
-      `🔗 Danh sách sản phẩm: <b>${linksText}</b>\n\n` +
-      `👉 Chạy thử ngay 1 video: /${commandName}_run\n` +
-      `👉 Tắt tự động: /${commandName}_off\n\n` +
-      `💡 Thêm danh sách shortlink vào <code>config.json → ${configKey}.shortlinks</code>.\n` +
-      `👉 Bấm /start để xem toàn bộ danh sách lệnh.`,
-      { parse_mode: 'HTML' }
-    );
+      const cfg = enableForChat(baseDir, chatId);
+      startScheduler(baseDir);
+      const linksText = cfg.shortlinks.length > 0 ? `${cfg.shortlinks.length} link` : 'chưa có link';
+      await sendTelegramMessage(chatId,
+        `✅ <b>Đã kích hoạt /${commandName} cho chat này</b>\n\n` +
+        `🎬 Template: <b>${cfg.template}</b>\n` +
+        `⏰ Giờ chạy tự động: <code>${cfg.times.join(', ')}</code> (${cfg.timezone})\n` +
+        `🔗 Danh sách sản phẩm: <b>${linksText}</b>\n\n` +
+        `👉 Chạy thử ngay 1 video: /${commandName}_run\n` +
+        `👉 Tắt tự động: /${commandName}_off\n\n` +
+        `💡 Thêm danh sách shortlink vào <code>config.json → ${configKey}.shortlinks</code>.\n` +
+        `👉 Bấm /start để xem toàn bộ danh sách lệnh.`,
+        { parse_mode: 'HTML' }
+      );
+    });
   }
 
   const instance = { configKey, commandName, handleCommand, startScheduler, stopScheduler, runDue, normalizeConfig, enableForChat, disable, markLinkUploaded, readState };

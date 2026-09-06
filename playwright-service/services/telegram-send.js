@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { processVideoBase64 } = require('./video-resize');
 
+// Cho phép kết nối an toàn qua proxy / self-signed certs tới Telegram API
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 function telegramTimeoutMs(defaultMs) {
   return parseInt(process.env.TELEGRAM_SEND_TIMEOUT_MS || String(defaultMs), 10);
 }

@@ -15,16 +15,19 @@ let isExporting = false;
  * Export Gemini cookies nếu chưa export trong giờ hiện tại.
  * Ví dụ: export lúc 06:00 → skip 06:10, 06:20 → export lại 08:00
  * @param {string} [baseDir] - thư mục gốc của playwright-service
+ * @param {object} [options]
+ * @param {boolean} [options.force=false] - bỏ qua kiểm tra cùng giờ, ép buộc export ngay
  * @returns {Promise<boolean>} true nếu đã export, false nếu bỏ qua
  */
-async function maybeRefreshCookies(baseDir = path.resolve(__dirname, '..')) {
+async function maybeRefreshCookies(baseDir = path.resolve(__dirname, '..'), options = {}) {
+  const force = Boolean(options && options.force);
   const now = Date.now();
   const currentHour = new Date().getHours();
   const lastExportHour = lastExportedAt > 0 ? new Date(lastExportedAt).getHours() : -1;
   const elapsed = now - lastExportedAt;
 
-  // Skip nếu đã export trong cùng giờ này (và cách đây < 2 tiếng để tránh edge case qua ngày)
-  if (lastExportHour === currentHour && elapsed < 2 * 60 * 60 * 1000) {
+  // Skip nếu đã export trong cùng giờ này (trừ khi force = true)
+  if (!force && lastExportHour === currentHour && elapsed < 2 * 60 * 60 * 1000) {
     const minutesAgo = Math.round(elapsed / 60000);
     console.log(`[CookieRefresher] Bỏ qua export — đã export ${minutesAgo} phút trước (cùng giờ ${currentHour}h).`);
     return false;
@@ -42,6 +45,33 @@ async function maybeRefreshCookies(baseDir = path.resolve(__dirname, '..')) {
   }
 
   return runExport(baseDir);
+}
+
+/**
+ * Buộc làm mới cookie ngay lập tức, bỏ qua kiểm tra thời gian.
+ * Dùng khi bắt đầu luồng storyboard hoặc khi phát hiện phiên bị ngắt.
+ * @param {string} [baseDir]
+ */
+async function forceRefreshCookies(baseDir = path.resolve(__dirname, '..')) {
+  console.log('[CookieRefresher] ⚡ Kích hoạt Force Refresh cookies ngay lập tức...');
+  return maybeRefreshCookies(baseDir, { force: true });
+}
+
+/**
+ * Xử lý khi gặp lỗi xác thực (BardErrorInfo 1100, CookieMismatch, token SNlM0e rỗng).
+ * Tự động trích xuất lại cookie mới nhất từ chrome-data để cứu vãn phiên chạy.
+ * @param {string} [baseDir]
+ * @param {string} [reason]
+ */
+async function refreshCookiesOnAuthError(baseDir = path.resolve(__dirname, '..'), reason = 'Auth error') {
+  console.warn(`[CookieRefresher] 🚨 Phát hiện lỗi xác thực (${reason}) — Đang tự động làm mới cookie từ chrome-data...`);
+  const ok = await forceRefreshCookies(baseDir);
+  if (ok) {
+    console.log('[CookieRefresher] ✅ Tự động khắc phục lỗi auth thành công, đã nạp cookie mới.');
+  } else {
+    console.warn('[CookieRefresher] ⚠️ Không thể tự động lấy cookie hợp lệ từ chrome-data. Tài khoản Google có thể cần đăng nhập lại thủ công bằng "node login.js".');
+  }
+  return ok;
 }
 
 /**
@@ -76,4 +106,9 @@ function markExportedNow() {
   lastExportedAt = Date.now();
 }
 
-module.exports = { maybeRefreshCookies, markExportedNow };
+module.exports = {
+  maybeRefreshCookies,
+  forceRefreshCookies,
+  refreshCookiesOnAuthError,
+  markExportedNow
+};

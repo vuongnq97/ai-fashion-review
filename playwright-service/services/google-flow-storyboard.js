@@ -145,15 +145,13 @@ async function cleanPanelWatermark(baseDir, panelPath) {
 
   // 1. Try cleaning with Gemini API first if configured
   try {
-    const secure1Psid = process.env.GEMINI_SECURE_1PSID;
-    const secure1Psidts = process.env.GEMINI_SECURE_1PSIDTS;
-    const cookieFilePath = path.join(baseDir, 'gemini.cookies.json');
+    const cookieFilePath = process.env.GEMINI_COOKIE_PATH
+      ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
+      : path.join(baseDir, 'gemini-cookies');
 
-    if (secure1Psid) {
+    if (fs.existsSync(cookieFilePath) || process.env.GEMINI_SECURE_1PSID) {
       console.log(`[GoogleFlowStoryboard] Inpainting & removing watermark on ${path.basename(panelPath)} via Gemini API...`);
       const client = new GeminiApiClient({
-        secure1Psid,
-        secure1Psidts,
         cookieFilePath: fs.existsSync(cookieFilePath) ? cookieFilePath : undefined
       });
 
@@ -929,13 +927,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
   const panelsDir = path.join(runDir, 'panels');
   ensureDir(panelsDir);
 
-  const secure1Psid = (process.env.GEMINI_SECURE_1PSID || '').trim();
-  const secure1Psidts = (process.env.GEMINI_SECURE_1PSIDTS || '').trim();
   const cookieFilePath = process.env.GEMINI_COOKIE_PATH
-    ? path.resolve(process.env.GEMINI_COOKIE_PATH)
-    : path.join(baseDir, 'gemini-cookies', 'cookies.json');
+    ? path.resolve(baseDir, process.env.GEMINI_COOKIE_PATH)
+    : path.join(baseDir, 'gemini-cookies');
 
-  const geminiClient = new GeminiApiClient({ secure1Psid, secure1Psidts, cookieFilePath });
+  const geminiClient = new GeminiApiClient({ cookieFilePath: fs.existsSync(cookieFilePath) ? cookieFilePath : undefined });
   await geminiClient.init();
 
   let analysis = {

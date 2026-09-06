@@ -178,6 +178,21 @@ function buildMultipartBody(fileBuffer, filename, mimeType) {
   return { body, contentType: `multipart/form-data; boundary=${boundary}` };
 }
 
+function isAuthenticationError(errorMessage = '') {
+  const msg = String(errorMessage || '').toLowerCase();
+  return (
+    msg.includes('1100') ||
+    msg.includes('cookiemismatch') ||
+    msg.includes('snlm0e') ||
+    msg.includes('unauthenticated') ||
+    msg.includes('session rejected') ||
+    msg.includes('autherror') ||
+    msg.includes('http 401') ||
+    msg.includes('http 403') ||
+    msg.includes('logged out')
+  );
+}
+
 // ─── GeminiApiClient ─────────────────────────────────────────────────────────
 
 class GeminiApiClient {
@@ -187,10 +202,16 @@ class GeminiApiClient {
    * @param {string} [opts.secure1Psidts] - __Secure-1PSIDTS cookie value
    * @param {string} [opts.cookieFilePath] - Path to a JSON cookie file (Netscape/array format)
    */
-  constructor({ secure1Psid, secure1Psidts = '', cookieFilePath = null } = {}) {
-    this.secure1Psid = secure1Psid;
-    this.secure1Psidts = secure1Psidts;
-    this.cookieFilePath = cookieFilePath;
+  constructor({ secure1Psid = '', secure1Psidts = '', cookieFilePath = null } = {}) {
+    const fs = require('fs');
+    const path = require('path');
+    const defaultCookieDir = process.env.GEMINI_COOKIE_PATH
+      ? path.resolve(process.env.GEMINI_COOKIE_PATH)
+      : path.resolve(__dirname, '..', '..', 'gemini-cookies');
+
+    this.cookieFilePath = cookieFilePath || (fs.existsSync(defaultCookieDir) ? defaultCookieDir : null);
+    this.secure1Psid = secure1Psid || process.env.GEMINI_SECURE_1PSID || '';
+    this.secure1Psidts = secure1Psidts || process.env.GEMINI_SECURE_1PSIDTS || '';
 
     // Session state (populated after init())
     this.accessToken = null;   // SNlM0e
@@ -286,12 +307,8 @@ class GeminiApiClient {
 
             const file1Psid = raw.find(c => c.name === '__Secure-1PSID')?.value || '';
             const file1Psidts = raw.find(c => c.name === '__Secure-1PSIDTS')?.value || '';
-            if (this.secure1Psid && file1Psid && this.secure1Psid !== file1Psid) {
-              console.warn('[GeminiAPI] GEMINI_COOKIE_PATH has a different __Secure-1PSID than .env; using cookie file session to avoid mixed Google accounts.');
-            }
-            if (this.secure1Psidts && file1Psidts && this.secure1Psidts !== file1Psidts) {
-              console.warn('[GeminiAPI] GEMINI_COOKIE_PATH has a different __Secure-1PSIDTS than .env; using cookie file session to avoid mixed Google accounts.');
-            }
+            if (file1Psid) this.secure1Psid = file1Psid;
+            if (file1Psidts) this.secure1Psidts = file1Psidts;
             console.warn(`[GeminiAPI] Loaded ${raw.length} cookies from: ${resolvedCookieFile}`);
           }
         }
@@ -388,33 +405,56 @@ class GeminiApiClient {
   async init() {
     if (this._initialized) return;
 
-    const cookies = this._buildCookies();
-    if (!cookies.length) {
-      throw new Error('[GeminiAPI] No cookies provided. Set GEMINI_SECURE_1PSID.');
+    for (let initAttempt = 1; initAttempt <= 2; initAttempt++) {
+      try {
+        const cookies = this._buildCookies();
+        if (!cookies.length) {
+          throw new Error('[GeminiAPI] No cookies found. Please check gemini-cookies/cookies.json or run "node login.js" to authenticate.');
+        }
+
+        await this.close();
+
+        // Launch headless browser — needed for Playwright's APIRequestContext TLS stack
+        const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
+        this._browser = await chromium.launch({
+          channel: chromeChannel,
+          headless: true,
+        });
+        const browserContext = await this._browser.newContext({
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          ignoreHTTPSErrors: true,
+        });
+        await browserContext.addCookies(cookies);
+
+        this._apiContext = browserContext.request;
+        this._browserCtx = browserContext;
+
+        // Get SNlM0e and session metadata
+        await this._fetchAccessToken();
+
+        // Warmup RPC calls (mirrors Python _init_rpc)
+        await this._sendBardActivity();
+
+        this._initialized = true;
+        return;
+      } catch (err) {
+        const isAuthErr = isAuthenticationError(err.message);
+        if (isAuthErr && initAttempt < 2) {
+          console.warn(`[GeminiAPI] Init failed with auth error (${err.message}). Auto-refreshing cookies from chrome-data...`);
+          try {
+            const { refreshCookiesOnAuthError } = require('../gemini-cookie-refresher');
+            const ok = await refreshCookiesOnAuthError(undefined, err.message);
+            if (ok) {
+              continue;
+            }
+          } catch (refErr) {
+            console.warn(`[GeminiAPI] Auto-cookie refresh failed during init: ${refErr.message}`);
+          }
+        }
+        await this.close();
+        throw err;
+      }
     }
-
-    // Launch headless browser — needed for Playwright's APIRequestContext TLS stack
-    const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-    this._browser = await chromium.launch({
-      channel: chromeChannel,
-      headless: true,
-    });
-    const browserContext = await this._browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      ignoreHTTPSErrors: true,
-    });
-    await browserContext.addCookies(cookies);
-
-    this._apiContext = browserContext.request;
-    this._browserCtx = browserContext;
-
-    // Get SNlM0e and session metadata
-    await this._fetchAccessToken();
-
-    // Warmup RPC calls (mirrors Python _init_rpc)
-    await this._sendBardActivity();
-
-    this._initialized = true;
   }
 
   async close() {
@@ -493,10 +533,10 @@ class GeminiApiClient {
     this.language = match(/"TuX5cc":\s*"(.*?)"/) || 'en';
     this.pushId = match(/"qKIAYe":\s*"(.*?)"/) || 'feeds/mcudyrk2a4khkz';
 
-    if (!this.accessToken && !this.buildLabel && !this.sessionId) {
+    if (!this.accessToken) {
       throw new Error(
-        '[GeminiAPI] Could not extract session tokens from Gemini page. ' +
-        'Cookies may be expired — please re-export __Secure-1PSID and __Secure-1PSIDTS.'
+        '[GeminiAPI] Could not extract session token (SNlM0e) from Gemini page. ' +
+        'Google account is logged out or cookies expired (CookieMismatch) — please run "node login.js" to re-login.'
       );
     }
   }
@@ -513,6 +553,9 @@ class GeminiApiClient {
    * @returns {Promise<string>} URL identifier e.g. "/contrib_service/ttl_1d/..."
    */
   async uploadFile(fileBuffer, filename, mimeType) {
+    if (!this._initialized || !this._apiContext) {
+      throw new Error('[GeminiAPI] Client chưa được khởi tạo (apiContext is null). Call init() first.');
+    }
     const { body, contentType } = buildMultipartBody(fileBuffer, filename, mimeType);
 
     let lastError = null;
@@ -539,6 +582,23 @@ class GeminiApiClient {
       } catch (err) {
         lastError = err;
         console.warn(`[GeminiAPI] Upload attempt ${attempt}/3 failed (${filename}): ${err.message}`);
+
+        if (isAuthenticationError(err.message) && attempt < 3) {
+          console.warn(`[GeminiAPI] 🚨 Auth error detected during upload (${filename}). Auto-refreshing cookies...`);
+          try {
+            const { refreshCookiesOnAuthError } = require('../gemini-cookie-refresher');
+            const refreshed = await refreshCookiesOnAuthError(undefined, err.message);
+            if (refreshed) {
+              console.log('[GeminiAPI] 🔄 Re-initializing Gemini client for upload retry...');
+              await this.close();
+              await this.init();
+              continue;
+            }
+          } catch (refErr) {
+            console.warn(`[GeminiAPI] Auto-cookie refresh failed during upload: ${refErr.message}`);
+          }
+        }
+
         if (attempt < 3) {
           await new Promise(r => setTimeout(r, 2000 * attempt));
         }
@@ -602,6 +662,24 @@ class GeminiApiClient {
       } catch (err) {
         lastError = err;
         const msg = err.message || '';
+
+        // Check for Auth error: auto-refresh cookies & re-init
+        if (isAuthenticationError(msg) && attempt < MAX_RETRIES) {
+          console.warn(`[GeminiAPI] 🚨 Auth error detected on attempt ${attempt}/${MAX_RETRIES} (${msg.split('\n')[0]}). Auto-refreshing cookies...`);
+          try {
+            const { refreshCookiesOnAuthError } = require('../gemini-cookie-refresher');
+            const refreshed = await refreshCookiesOnAuthError(undefined, msg);
+            if (refreshed) {
+              console.log('[GeminiAPI] 🔄 Re-initializing Gemini client with fresh cookies...');
+              await this.close();
+              await this.init();
+              continue;
+            }
+          } catch (refErr) {
+            console.warn(`[GeminiAPI] Auto-cookie refresh failed: ${refErr.message}`);
+          }
+        }
+
         // Retry on temporary Gemini errors (1076, 1013)
         // Do NOT retry 'EmptyText' — that's a real image-only response being misidentified
         const isRetryable = msg.includes('error code') ||
@@ -736,11 +814,13 @@ class GeminiApiClient {
 
     const rawText = await response.text();
 
-    // Detect API error codes in response (e.g. 1076 = temporary error)
-    // Mirrors Python ErrorCode handling in _generate()
-    const errorCodeMatch = rawText.match(/"BardErrorInfo"[^\]]*\[(\d+)\]/);
+    // Detect API error codes in response (e.g. 1076 = temporary error, 1100 = unauthenticated/session rejected)
+    const errorCodeMatch = rawText.match(/BardErrorInfo"[^\]]*\[(\d+)\]/);
     if (errorCodeMatch) {
       const errCode = parseInt(errorCodeMatch[1], 10);
+      if (errCode === 1100) {
+        throw new Error('[GeminiAPI] Gemini API error 1100: Session rejected or unauthenticated. Google account logged out — please run "node login.js".');
+      }
       throw new Error(`[GeminiAPI] Gemini API error code ${errCode} (temporary error, will retry)`);
     }
 
@@ -805,6 +885,9 @@ class GeminiApiClient {
     if (!expectImages && !result.text && result.images.length === 0) {
       console.error('[GeminiAPI] ⚠️  Text-only request returned empty. Raw snippet:');
       console.error(rawText.slice(0, 1000));
+      if (rawText.includes('BardErrorInfo') || rawText.includes('1100')) {
+        throw new Error('[GeminiAPI] BardErrorInfo 1100: Session rejected or unauthenticated (AuthError)');
+      }
       throw new Error('[GeminiAPI] Empty response received (temporary error, will retry)');
     }
 

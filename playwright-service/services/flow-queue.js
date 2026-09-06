@@ -14,7 +14,9 @@
  *   - Telegram status messages keep the user informed of queue position.
  */
 
+const path = require('path');
 const { sendTelegramMessage } = require('./telegram-send');
+const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 let jobCounter = 0;
 
@@ -38,22 +40,25 @@ class FlowQueue {
    *
    * @param {object}   job
    * @param {string}   job.chatId
-   * @param {Buffer[]} job.photos          - Array of photo payloads
-   * @param {string}   job.baseDir
-   * @param {object}   [job.templateOptions]
-   * @param {Function} job.execute         - async (runId) => result
-   * @param {string}   [job.label]         - Human-friendly label for messages
-   * @returns {Promise<any>} resolves/rejects when the job finishes
+   * @param {Array}    [job.photos]
+   * @param {string}   [job.label]
+   * @param {string}   [job.shopName]
+   * @param {string}   [job.baseDir]
+   * @param {Function} job.execute - async function(runId) => any
+   * @returns {Promise<any>}
    */
   enqueue(job) {
     jobCounter++;
     const runId = `run-${Date.now()}-${jobCounter}`;
+    const baseDir = job.baseDir || path.resolve(__dirname, '..');
+    const shopName = job.shopName || (job.chatId ? getShopNameForChat(job.chatId, baseDir) : null);
 
     return new Promise((resolve, reject) => {
       /** @type {QueueJob} */
       const queueJob = {
         runId,
         chatId: job.chatId,
+        shopName,
         label: job.label || `Album ${job.photos?.length || '?'} ảnh`,
         execute: job.execute,
         enqueuedAt: Date.now(),
@@ -66,16 +71,18 @@ class FlowQueue {
       const position = this.pending.length;
       const runningCount = this.running.size;
 
-      if (runningCount >= this.maxConcurrent) {
-        // There are jobs ahead — notify user about queue position
-        console.log(`[FlowQueue] Enqueued ${runId} at position #${position} (${runningCount} running)`);
-        sendTelegramMessage(
-          job.chatId,
-          `📋 Đã xếp hàng (vị trí #${position}). Đang chờ ${runningCount} luồng trước hoàn tất...`
-        ).catch(() => {});
-      } else {
-        console.log(`[FlowQueue] Enqueued ${runId} — slot available, will start immediately`);
-      }
+      runWithShop(shopName, () => {
+        if (runningCount >= this.maxConcurrent) {
+          // There are jobs ahead — notify user about queue position
+          console.log(`[FlowQueue] Enqueued ${runId} at position #${position} (${runningCount} running)`);
+          sendTelegramMessage(
+            job.chatId,
+            `📋 Đã xếp hàng (vị trí #${position}). Đang chờ ${runningCount} luồng trước hoàn tất...`
+          ).catch(() => {});
+        } else {
+          console.log(`[FlowQueue] Enqueued ${runId} — slot available, will start immediately`);
+        }
+      });
 
       // Kick the processor (non-blocking)
       this._processNext();
@@ -94,23 +101,25 @@ class FlowQueue {
       const waitedSec = Math.round((Date.now() - job.enqueuedAt) / 1000);
       const waitMsg = waitedSec > 2 ? ` (chờ ${waitedSec}s)` : '';
 
-      console.log(`[FlowQueue] ▶️  Starting ${job.runId} — ${job.label}${waitMsg}`);
+      runWithShop(job.shopName, () => {
+        console.log(`[FlowQueue] ▶️  Starting ${job.runId} — ${job.label}${waitMsg}`);
 
-      // Run the job
-      job.execute(job.runId)
-        .then(result => {
-          console.log(`[FlowQueue] ✅ Completed ${job.runId}`);
-          job.resolve(result);
-        })
-        .catch(err => {
-          console.error(`[FlowQueue] ❌ Failed ${job.runId}: ${err.message}`);
-          job.reject(err);
-        })
-        .finally(() => {
-          this.running.delete(job.runId);
-          // Process next job in queue
-          this._processNext();
-        });
+        // Run the job
+        job.execute(job.runId)
+          .then(result => {
+            console.log(`[FlowQueue] ✅ Completed ${job.runId}`);
+            job.resolve(result);
+          })
+          .catch(err => {
+            console.error(`[FlowQueue] ❌ Failed ${job.runId}: ${err.message}`);
+            job.reject(err);
+          })
+          .finally(() => {
+            this.running.delete(job.runId);
+            // Process next job in queue
+            this._processNext();
+          });
+      });
     }
   }
 

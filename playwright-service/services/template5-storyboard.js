@@ -295,13 +295,13 @@ function parseJsonObject(text) {
   // Tầng 1
   try {
     return JSON.parse(cleaned);
-  } catch (_) {}
+  } catch (_) { }
 
   // Tầng 2
   try {
     const sanitized = cleanRawJson(cleaned);
     return JSON.parse(sanitized);
-  } catch (_) {}
+  } catch (_) { }
 
   // Tầng 3: Thử slice substring { ... }
   try {
@@ -311,7 +311,7 @@ function parseJsonObject(text) {
       const sliced = cleanRawJson(cleaned.slice(start, end + 1));
       return JSON.parse(sliced);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Tầng 4: Trích xuất bằng Regex thông minh để không bao giờ bị mất dữ liệu
   const extracted = extractFieldsByRegex(text);
@@ -1077,6 +1077,75 @@ function combineTwoSceneScripts(voFirst, voSecond, maxTotalWords = 42) {
 /**
  * Tách Master Storyboard (16:9 gồm 4 cảnh ngang) thành 2 hình ảnh 2 cảnh:
  * - Hình 1: Cảnh 1 (0..25%) và Cảnh 2 (25%..50%)
+/**
+ * Tạo ảnh collage tổng hợp từ tất cả ảnh sản phẩm đầu vào thành 1 ảnh lưới input.png
+ * Dùng làm ảnh tham chiếu xác thực ngoại quan, chất liệu và chi tiết thực tế của sản phẩm.
+ *
+ * @param {Array<{buffer?: Buffer, base64?: string, path?: string, mimeType?: string}>} filePayloads
+ * @returns {Buffer|null}
+ */
+function createInputCollageImage(filePayloads) {
+  if (!filePayloads || filePayloads.length === 0) return null;
+  const ffmpegPath = require('ffmpeg-static');
+  const tmpId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  const tmpDir = os.tmpdir();
+  const outPath = path.join(tmpDir, `input-collage-${tmpId}.png`);
+  const inputPaths = [];
+
+  try {
+    const validPayloads = filePayloads.slice(0, 4);
+    for (let i = 0; i < validPayloads.length; i++) {
+      const f = validPayloads[i];
+      const ext = (f.mimeType && f.mimeType.includes('png')) ? '.png' : '.jpg';
+      const inPath = path.join(tmpDir, `in-${tmpId}-${i}${ext}`);
+      const buf = Buffer.isBuffer(f.buffer)
+        ? f.buffer
+        : (f.base64 ? Buffer.from(f.base64, 'base64') : (f.path && fs.existsSync(f.path) ? fs.readFileSync(f.path) : null));
+      if (buf) {
+        fs.writeFileSync(inPath, buf);
+        inputPaths.push(inPath);
+      }
+    }
+
+    if (inputPaths.length === 0) return null;
+
+    if (inputPaths.length === 1) {
+      const filter = '[0:v]scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2:white[out]';
+      execSync(`"${ffmpegPath}" -y -i "${inputPaths[0]}" -filter_complex "${filter}" -map "[out]" -q:v 2 -update 1 "${outPath}"`, { timeout: 15000, stdio: 'pipe' });
+    } else if (inputPaths.length === 2) {
+      const filter = '[0:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img0];[1:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img1];[img0][img1]hstack[out]';
+      const inputs = inputPaths.map(p => `-i "${p}"`).join(' ');
+      execSync(`"${ffmpegPath}" -y ${inputs} -filter_complex "${filter}" -map "[out]" -q:v 2 -update 1 "${outPath}"`, { timeout: 15000, stdio: 'pipe' });
+    } else if (inputPaths.length === 3) {
+      const filter = '[0:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img0];[1:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img1];[2:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img2];[img0][img1][img2]hstack=inputs=3[out]';
+      const inputs = inputPaths.map(p => `-i "${p}"`).join(' ');
+      execSync(`"${ffmpegPath}" -y ${inputs} -filter_complex "${filter}" -map "[out]" -q:v 2 -update 1 "${outPath}"`, { timeout: 15000, stdio: 'pipe' });
+    } else {
+      const filter = '[0:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img0];[1:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img1];[2:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img2];[3:v]scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:white[img3];[img0][img1]hstack[top];[img2][img3]hstack[bottom];[top][bottom]vstack[out]';
+      const inputs = inputPaths.map(p => `-i "${p}"`).join(' ');
+      execSync(`"${ffmpegPath}" -y ${inputs} -filter_complex "${filter}" -map "[out]" -q:v 2 -update 1 "${outPath}"`, { timeout: 15000, stdio: 'pipe' });
+    }
+
+    if (fs.existsSync(outPath)) {
+      const buf = fs.readFileSync(outPath);
+      console.log(`[Template5] ✅ Created input collage image (${(buf.length / 1024).toFixed(0)} KB) from ${inputPaths.length} input reference photos`);
+      return buf;
+    }
+    return null;
+  } catch (err) {
+    console.warn(`[Template5] ⚠️ Failed to create input collage: ${err.message}. Falling back to first input photo.`);
+    const first = filePayloads[0];
+    return Buffer.isBuffer(first?.buffer) ? first.buffer : (first?.base64 ? Buffer.from(first.base64, 'base64') : (first?.path && fs.existsSync(first.path) ? fs.readFileSync(first.path) : null));
+  } finally {
+    [...inputPaths, outPath].forEach(p => {
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
+    });
+  }
+}
+
+/**
+ * Cắt Master Storyboard (16:9 gồm 4 cảnh ngang) thành 2 ảnh ghép ngang
+ * - Hình 1: Cảnh 1 (0..25%) và Cảnh 2 (25%..50%)
  * - Hình 2: Cảnh 3 (50%..75%) và Cảnh 4 (75%..100%)
  * Mỗi cảnh được cắt riêng và thêm đầy đủ 4 viền trắng (trên, dưới, trái, phải).
  * Sau đó ghép ngang (hstack) và thêm viền ngoài để đảm bảo giữa 2 cảnh và quanh mỗi cảnh
@@ -1112,7 +1181,7 @@ function sliceStoryboardIntoTwoImages(storyboardBuffer, options = {}) {
     return [buf1, buf2];
   } finally {
     [inputPath, out1Path, out2Path].forEach(p => {
-      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {}
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
     });
   }
 }
@@ -1135,8 +1204,14 @@ function sliceStoryboardIntoFourPanels(storyboardBuffer) {
   const inputPath = path.join(tmpDir, `sb-in-4p-${tmpId}.png`);
   const outPaths = [1, 2, 3, 4].map(i => path.join(tmpDir, `sb-panel${i}-4p-${tmpId}.png`));
 
+  const buf = Buffer.isBuffer(storyboardBuffer)
+    ? storyboardBuffer
+    : (typeof storyboardBuffer === 'string' && fs.existsSync(storyboardBuffer)
+      ? fs.readFileSync(storyboardBuffer)
+      : Buffer.from(storyboardBuffer, 'base64'));
+
   try {
-    fs.writeFileSync(inputPath, storyboardBuffer);
+    fs.writeFileSync(inputPath, buf);
 
     const filterCrops = [
       '[0:v]crop=iw/4:ih:0:0,scale=1080:1920:flags=lanczos[out1]',
@@ -1154,7 +1229,80 @@ function sliceStoryboardIntoFourPanels(storyboardBuffer) {
     return buffers;
   } finally {
     [inputPath, ...outPaths].forEach(p => {
-      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {}
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
+    });
+  }
+}
+
+/**
+ * Xóa logo / watermark ở góc phải dưới của Panel 4 thông qua Gemini API.
+ * Để đảm bảo chất lượng hình ảnh 100% không đổi, sau khi Gemini làm sạch,
+ * ta trích xuất phần góc phải dưới đã làm sạch và vá đè lên Panel 4 gốc bằng FFmpeg.
+ *
+ * @param {object} geminiClient - Client Gemini API đã khởi tạo
+ * @param {Buffer} panel4Buffer - Buffer ảnh Panel 4 (1080x1920)
+ * @returns {Promise<Buffer>} Buffer ảnh Panel 4 đã xóa sạch logo
+ */
+async function cleanPanel4LogoViaGemini(geminiClient, panel4Buffer) {
+  if (!geminiClient || !panel4Buffer || !Buffer.isBuffer(panel4Buffer)) {
+    return panel4Buffer;
+  }
+
+  const ffmpegPath = require('ffmpeg-static');
+  const tmpId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  const tmpDir = os.tmpdir();
+  const origPath = path.join(tmpDir, `p4-orig-${tmpId}.png`);
+  const geminiCleanPath = path.join(tmpDir, `p4-gemini-${tmpId}.png`);
+  const patchedPath = path.join(tmpDir, `p4-patched-${tmpId}.png`);
+
+  try {
+    fs.writeFileSync(origPath, panel4Buffer);
+    console.log('[Template5] 🧹 Step 3b: Removing Google Flow logo from bottom-right corner of Panel 4 via Gemini API...');
+
+    const uploadedUrl = await geminiClient.uploadFile(panel4Buffer, 'panel-4.png', 'image/png');
+    if (!uploadedUrl) {
+      console.warn('[Template5] ⚠️ Could not upload Panel 4 to Gemini, keeping original');
+      return panel4Buffer;
+    }
+
+    const cleanPrompt = 'Hãy xóa bỏ hoàn toàn logo, watermark, biểu tượng hoặc chữ mờ ở góc dưới cùng bên phải của bức ảnh này. GIỮ NGUYÊN 100% TOÀN BỘ HÌNH ẢNH GỐC: giữ nguyên người mẫu, sản phẩm, bố cục, màu sắc, chi tiết, phông nền và ánh sáng, chỉ làm sạch góc dưới cùng bên phải sao cho liền mạch và tự nhiên nhất với bề mặt xung quanh.';
+    const res = await geminiClient.generateContent({
+      prompt: cleanPrompt,
+      fileData: [{ url: uploadedUrl, filename: 'panel-4.png', mimeType: 'image/png' }],
+      temporary: true,
+      expectImages: true,
+    });
+
+    if (!res.images || res.images.length === 0) {
+      console.warn('[Template5] ⚠️ Gemini did not return cleaned image, keeping original Panel 4');
+      return panel4Buffer;
+    }
+
+    const cleanedBuf = await geminiClient.downloadImage(res.images[0].url);
+    if (!cleanedBuf || cleanedBuf.length < 1000) {
+      return panel4Buffer;
+    }
+
+    fs.writeFileSync(geminiCleanPath, cleanedBuf);
+
+    // Ghép vá góc dưới bên phải (rộng 280px, cao 220px) từ ảnh Gemini sạch đè lên góc dưới phải của Panel 4 gốc
+    // Giữ nguyên 100% toàn bộ phần còn lại của ảnh Google Flow gốc!
+    const patchCmd = `"${ffmpegPath}" -y -i "${origPath}" -i "${geminiCleanPath}" -filter_complex "[1:v]scale=1080:1920:flags=lanczos,crop=280:220:1080-280:1920-220[patch];[0:v][patch]overlay=main_w-280:main_h-220[out]" -map "[out]" -q:v 2 "${patchedPath}"`;
+    execSync(patchCmd, { timeout: 15000, stdio: 'pipe' });
+
+    if (fs.existsSync(patchedPath)) {
+      const finalBuf = fs.readFileSync(patchedPath);
+      console.log(`[Template5] ✅ Panel 4 logo cleaned successfully (${(finalBuf.length / 1024).toFixed(0)} KB)!`);
+      return finalBuf;
+    }
+
+    return cleanedBuf;
+  } catch (err) {
+    console.warn(`[Template5] ⚠️ Failed to clean Panel 4 logo via Gemini: ${err.message}. Using original Panel 4.`);
+    return panel4Buffer;
+  } finally {
+    [origPath, geminiCleanPath, patchedPath].forEach(p => {
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { }
     });
   }
 }
@@ -1231,9 +1379,11 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
     template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
     template === 'template5_2' || template === 'template5.2' || template === 'template52'
   );
+  const customInstruction = options.customInstruction ? ` YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${options.customInstruction}.` : '';
 
   const realismCues = 'Cảnh quay tự nhiên 100% như quay bằng camera điện thoại iPhone 15 Pro, ánh sáng ban ngày tự nhiên từ cửa sổ, đổ bóng tiếp xúc chân thực, bề mặt sản phẩm lì có vân chất liệu, không hiệu ứng bokeh giả, không ánh sáng studio nhân tạo, không nhựa bóng kiểu AI, không hiệu ứng ảo CGI.';
   const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này (video content strictly rendered inside the white frame), tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt (seamless continuous content, no internal dividers, no vertical split lines).';
+  const refRule = 'THAM CHIẾU HÌNH ẢNH VÀ ĐỘ CHÍNH XÁC SẢN PHẨM: Toàn bộ video phải đối chiếu và tham chiếu chặt chẽ với hình ảnh Master Storyboard và hình ảnh Input sản phẩm thực tế đã cung cấp để đảm bảo tính đúng đắn, nhất quán 100% về ngoại quan, kiểu dáng, cấu tạo, chất liệu, màu sắc và chi tiết sản phẩm.';
 
   const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
   const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
@@ -1264,8 +1414,8 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
     const video2Script = combineTwoSceneScripts(vo3, vo4, 42);
 
     return [
-      `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 1 ở nửa bên trái và Cảnh 2 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 1 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 2 (nửa bên phải hình ảnh), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}, phong cách TikTok review cuốn hút, tốc độ đọc NHANH liên tục dồn dập không ngừng nghỉ để truyền tải trọn vẹn thông tin. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${video1Script}". ${realismCues}`,
-      `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 3 ở nửa bên trái và Cảnh 4 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 3 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 4 (nửa bên phải hình ảnh), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}, phong cách TikTok review cuốn hút, tốc độ đọc NHANH liên tục dồn dập không ngừng nghỉ để truyền tải trọn vẹn thông tin. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${video2Script}". ${realismCues}`
+      `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 1: Cảnh 1, Panel 2: Cảnh 2, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 1 (Cảnh 1: Hook), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 2 (Cảnh 2: Solution), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}, phong cách TikTok review cuốn hút, tốc độ đọc NHANH liên tục dồn dập không ngừng nghỉ để truyền tải trọn vẹn thông tin. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${video1Script}". ${realismCues}`,
+      `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 3: Cảnh 3, Panel 4: Cảnh 4, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 3 (Cảnh 3: Proof), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 4 (Cảnh 4: Closing), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. Giọng đọc review: ${voiceDesc}, phong cách TikTok review cuốn hút, tốc độ đọc NHANH liên tục dồn dập không ngừng nghỉ để truyền tải trọn vẹn thông tin. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${video2Script}". ${realismCues}`
     ];
   }
 
@@ -1289,15 +1439,15 @@ function getTemplate5VideoPrompts(analysisData, options = {}) {
     const t4 = s4 ? `"${h4}" (${s4})` : `"${h4}"`;
 
     return [
-      `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 1 ở nửa bên trái và Cảnh 2 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 1 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, hiển thị chính xác dòng chữ của Cảnh 1: ${t1}, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 2 (nửa bên phải hình ảnh), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2, chuyển sang hiển thị chính xác dòng chữ của Cảnh 2: ${t2}${vfx2} ${desc2}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 1, 4 giây sau (4s-8s) chuyển sang hiển thị chính xác chữ Cảnh 2 đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm bất kỳ chữ rác, tiêu đề rác hoặc icon hoạt hình nào khác. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-      `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 3 ở nửa bên trái và Cảnh 4 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 3 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, hiển thị chính xác dòng chữ của Cảnh 3: ${t3}, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 4 (nửa bên phải hình ảnh), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4, chuyển sang hiển thị chính xác dòng chữ của Cảnh 4: ${t4}${vfx4} ${desc4}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 3, 4 giây sau (4s-8s) chuyển sang hiển thị chính xác chữ Cảnh 4 đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm bất kỳ chữ rác, tiêu đề rác hoặc icon hoạt hình nào khác. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
+      `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 1: Cảnh 1, Panel 2: Cảnh 2, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 1 (Cảnh 1: Hook), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, hiển thị chính xác dòng chữ của Cảnh 1: ${t1}, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 2 (Cảnh 2: Solution), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2, chuyển sang hiển thị chính xác dòng chữ của Cảnh 2: ${t2}${vfx2} ${desc2}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 1, 4 giây sau (4s-8s) chuyển sang hiển thị chính xác chữ Cảnh 2 đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm bất kỳ chữ rác, tiêu đề rác hoặc icon hoạt hình nào khác. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+      `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 3: Cảnh 3, Panel 4: Cảnh 4, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 3 (Cảnh 3: Proof), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, hiển thị chính xác dòng chữ của Cảnh 3: ${t3}, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 4 (Cảnh 4: Closing), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4, chuyển sang hiển thị chính xác dòng chữ của Cảnh 4: ${t4}${vfx4} ${desc4}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 3, 4 giây sau (4s-8s) chuyển sang hiển thị chính xác chữ Cảnh 4 đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm bất kỳ chữ rác, tiêu đề rác hoặc icon hoạt hình nào khác. ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
     ];
   }
 
   // Template 5.1: Không chữ (No Text) - Không voice (Silent)
   return [
-    `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 1 ở nửa bên trái và Cảnh 2 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 1 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 2 (nửa bên phải hình ảnh), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
-    `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp (gồm Cảnh 3 ở nửa bên trái và Cảnh 4 ở nửa bên phải). ${borderRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 0s-4s bắt đầu chính xác từ Cảnh 3 (nửa bên trái hình ảnh), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang Cảnh 4 (nửa bên phải hình ảnh), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
+    `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 1: Cảnh 1, Panel 2: Cảnh 2, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 1 (Cảnh 1: Hook), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 2 (Cảnh 2: Solution), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`,
+    `Tạo video review ${prodName} faceless dài đúng 8 giây từ 4 hình ảnh đã cung cấp (gồm Panel 3: Cảnh 3, Panel 4: Cảnh 4, Master Storyboard toàn bộ 4 cảnh, và hình ảnh Input sản phẩm thực tế). ${borderRule}${customInstruction} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 3 (Cảnh 3: Proof), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 4 (Cảnh 4: Closing), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). ${realismCues} Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`
   ];
 }
 
@@ -1380,12 +1530,20 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
 
   fs.writeFileSync(path.join(runDir, 'prompts.md'), mdContent, 'utf8');
 
+  const inputCollageBuf = options.inputCollageBuf || null;
+  const inputCollagePath = path.join(runDir, 'input.png');
+  if (inputCollageBuf) {
+    fs.writeFileSync(inputCollagePath, inputCollageBuf);
+    fs.writeFileSync(path.join(inputsDir, 'input.png'), inputCollageBuf);
+  }
+
   return {
     root: runDir,
     inputsDir,
     panelsDir,
     videosDir: path.join(runDir, 'videos'),
     storyboardPath,
+    inputCollagePath: fs.existsSync(inputCollagePath) ? inputCollagePath : null,
     promptsPath: path.join(runDir, 'prompts.md')
   };
 }
@@ -1395,6 +1553,11 @@ function archiveStoryboardReview(baseDir, filePayloads, prompt, storyboardBase64
  */
 async function generateStoryboard(baseDir, filePayloads, options = {}) {
   const template = options.template || (options.noText ? (options.hasVoice ? 'template5_2' : 'template5_1') : 'template5');
+  const { isV2Enabled } = require('./storyboard-v2/config');
+  if (isV2Enabled({ ...options, template })) {
+    const { generateStoryboardV2 } = require('./storyboard-v2/orchestrator');
+    return generateStoryboardV2(baseDir || path.resolve(__dirname, '..'), filePayloads, { ...options, template, pipelineVersion: 'v2' });
+  }
   const isTemplate5_3 = !!(
     template === 'template5_3' || template === 'template5.3' || template === 'template53'
   );
@@ -1440,6 +1603,10 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
 
   let analysis = null;
   let storyboardBase64 = null;
+  let storyboardBuf = null;
+  let inputCollageBuf = null;
+  let panelBuffers = [];
+  let videoPrompts = [];
   let masterPrompt = '';
   const panels = [];
 
@@ -1454,39 +1621,62 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       await options.stepTracker.setStep(3, 'running');
     }
 
-    // 2. Sinh Master Storyboard qua Gemini API (Không dùng ảnh ref tĩnh)
-    console.log(`[Template5] Step 2: Generating Master 4-Panel Storyboard (${isNoText ? 'No Text' : 'With Text'}) via Gemini API...`);
+    // 2. Sinh Master Storyboard qua Google Flow (16:9, model nano-banana-2)
+    console.log(`[Template5] Step 2: Generating Master 4-Panel Storyboard (${isNoText ? 'No Text' : 'With Text'}) via Google Flow...`);
     masterPrompt = buildTemplate5MasterPrompt(analysis, promptOptions);
 
-    let storyboardBuf = null;
+    const { createFlowPage, closeFlowPage } = require('./browser');
+    const { prepareGeneration, executeGeneration } = require('./image');
+
+    const validPayloads = filePayloads.map((fp, i) => {
+      const buf = Buffer.isBuffer(fp.buffer) ? fp.buffer : (fp.path && fs.existsSync(fp.path) ? fs.readFileSync(fp.path) : (fp.base64 ? Buffer.from(fp.base64, 'base64') : null));
+      return {
+        ...fp,
+        name: fp.name || `product_${i + 1}.png`,
+        buffer: buf
+      };
+    }).filter(fp => fp.buffer);
+
     let lastMasterErr = null;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
+      let flowPage = null;
       try {
-        const masterRes = await geminiClient.generateContent({
-          prompt: masterPrompt,
-          fileData: uploadedFiles,
-          temporary: true,
-          expectImages: true,
-        });
-
-        if (!masterRes.images || masterRes.images.length === 0) {
-          throw new Error('Gemini API did not return any Master Storyboard image for Template 5');
+        if (attempt > 1) {
+          console.log(`[Template5] 🔄 Retrying Master Storyboard generation on Google Flow (Attempt ${attempt}/3)...`);
+          await new Promise(r => setTimeout(r, 4000));
         }
-
-        storyboardBuf = await geminiClient.downloadImage(masterRes.images[0].url);
-        storyboardBase64 = storyboardBuf.toString('base64');
-        console.log('[Template5] ✅ Master Storyboard created successfully!');
-        break;
+        flowPage = await createFlowPage(baseDir);
+        const prepared = await prepareGeneration(
+          flowPage,
+          masterPrompt,
+          validPayloads,
+          {
+            imageModel: 'nano-banana-2',
+            aspectRatio: '16:9',
+            outputCount: 1,
+          },
+          baseDir
+        );
+        const genResult = await executeGeneration(prepared);
+        if (genResult && genResult.base64) {
+          storyboardBase64 = genResult.base64;
+          storyboardBuf = Buffer.from(genResult.base64, 'base64');
+          console.log('[Template5] ✅ Master Storyboard created successfully via Google Flow!');
+          break;
+        }
       } catch (err) {
         lastMasterErr = err;
-        console.warn(`[Template5] Master Storyboard Attempt ${attempt}/3 failed: ${err.message}. Retrying in 4s...`);
-        await new Promise(r => setTimeout(r, 4000));
+        console.warn(`[Template5] Master Storyboard Attempt ${attempt}/3 failed on Google Flow: ${err.message}`);
+      } finally {
+        if (flowPage) {
+          try { await closeFlowPage(flowPage); } catch (_) { }
+        }
       }
     }
 
     if (!storyboardBuf) {
-      throw new Error(`Failed to generate Master Storyboard: ${lastMasterErr?.message || 'Unknown error'}`);
+      throw new Error(`Failed to generate Master Storyboard on Google Flow: ${lastMasterErr?.message || 'Unknown error'}`);
     }
 
     const targetChatId = options.chatId || options.telegramChatId || null;
@@ -1500,22 +1690,22 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       ).catch(err => console.error('[Template5] sendPhoto error:', err.message));
     }
 
-    // 3. Tách Master Storyboard
-    let videoPrompts;
-    let panelBuffers;
-    let expectedPanelCount;
+    // 3. Tách Master Storyboard & Tạo ảnh Input Collage
+    inputCollageBuf = createInputCollageImage(filePayloads);
+    let expectedPanelCount = 4;
 
     if (isTemplate5_3) {
       console.log(`[Template5_3] Step 3: Slicing Master Storyboard into 4 individual 9:16 panel images (Scenes 1, 2, 3, 4) full viền (borderless)...`);
       videoPrompts = getTemplate5_3VideoPrompts(analysis, promptOptions);
-      panelBuffers = sliceStoryboardIntoFourPanels(storyboardBuf);
-      expectedPanelCount = 4;
     } else {
-      console.log(`[Template5] Step 3: Slicing Master Storyboard into 2 panel images (Image 1 = Scenes 1+2, Image 2 = Scenes 3+4) full viền (borderless)...`);
+      console.log(`[Template5] Step 3: Slicing Master Storyboard into 4 individual 9:16 panel images (Scenes 1, 2, 3, 4) for 2 multi-image videos...`);
       videoPrompts = getTemplate5VideoPrompts(analysis, promptOptions);
-      const [panel1Buf, panel2Buf] = sliceStoryboardIntoTwoImages(storyboardBuf);
-      panelBuffers = [panel1Buf, panel2Buf];
-      expectedPanelCount = 2;
+    }
+    panelBuffers = sliceStoryboardIntoFourPanels(storyboardBuf);
+
+    // 3b. Xóa logo Google Flow ở góc phải dưới của Panel 4 (Cảnh cuối cùng) qua Gemini API
+    if (panelBuffers[3]) {
+      panelBuffers[3] = await cleanPanel4LogoViaGemini(geminiClient, panelBuffers[3]);
     }
 
     let livePanelMsgId = null;
@@ -1528,13 +1718,13 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         buffer: pBuf,
         mimeType: 'image/png',
         hasWhiteBorder: !isTemplate5_3,
-        prompt: videoPrompts[i - 1],
+        prompt: isTemplate5_3 ? videoPrompts[i - 1] : (i <= 2 ? videoPrompts[0] : videoPrompts[1]),
       });
 
       if (targetChatId && pBuf && !options.stepTracker) {
         try {
           livePanelMsgId = await sendOrUpdateLivePanel(targetChatId, livePanelMsgId, pBuf, i, expectedPanelCount);
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -1543,21 +1733,24 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       await options.stepTracker.setStep(4, 'running');
     }
   } finally {
-    try { await geminiClient.close(); } catch (_) {}
+    try { await geminiClient.close(); } catch (_) { }
   }
 
-  const progress = typeof options.onProgress === 'function' ? options.onProgress : async () => {};
+  const progress = typeof options.onProgress === 'function' ? options.onProgress : async () => { };
   await progress({
     currentStep: 'panels_generated',
     stepOrder: 4,
     progressPercent: 60,
     message: isTemplate5_3
       ? 'Đã tách xong 4 hình panel (mỗi hình 1 cảnh 4s). Đang tiến hành tạo video...'
-      : 'Đã tách xong 2 hình panel (mỗi hình 2 cảnh). Đang tiến hành tạo video...',
+      : 'Đã tách xong 4 hình panel (mỗi hình 1 cảnh). Đang tiến hành tạo video...',
   });
 
   // 4. Archive kết quả
-  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis, promptOptions);
+  const reviewArchive = archiveStoryboardReview(baseDir, filePayloads, masterPrompt, storyboardBase64, panels, analysis, {
+    ...promptOptions,
+    inputCollageBuf
+  });
 
   // 5. Sinh Video trên Google Flow
   let videos = [];
@@ -1575,22 +1768,52 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         aspectRatio: '9:16',
         videoModelKey: options.videoModelKey || '4s',
         includeVideoBase64: !!options.includeVideoBase64,
-        // Template 5_3 does NOT need cropPercent: 0.12 (Veo logo is far from center, crop like Template 6)
       });
     } else {
-      console.log('[Template5] Step 5: Generating 2 Abra i2v 8-second videos on Google Flow...');
+      console.log('[Template5] Step 5: Generating 2 Abra r2v 8-second multi-image videos on Google Flow...');
       if (options.stepTracker) await options.stepTracker.setStep(4, 'running');
       await progress({
         currentStep: 'generating_videos',
         stepOrder: 5,
         progressPercent: 75,
-        message: 'Đang tạo 2 video bằng Abra i2v...',
+        message: 'Đang tạo 2 video bằng Abra r2v (4 ảnh tham chiếu)...',
       });
-      videos = await generateVideosFromPanelsDirect(baseDir, panels, {
+
+      const videoJobs = [
+        {
+          panelIndex: 1,
+          index: 1,
+          prompt: videoPrompts[0],
+          imagePath: panels[0].imagePath,
+          referenceImages: [
+            { name: 'panel-1.png', buffer: panelBuffers[0] },
+            { name: 'panel-2.png', buffer: panelBuffers[1] },
+            { name: 'storyboard.png', buffer: storyboardBuf },
+            { name: 'input.png', buffer: inputCollageBuf }
+          ].filter(img => img.buffer),
+          videoModelKey: options.videoModelKey || 'abra_r2v_8s'
+        },
+        {
+          panelIndex: 2,
+          index: 2,
+          prompt: videoPrompts[1],
+          imagePath: panels[2].imagePath,
+          referenceImages: [
+            { name: 'panel-3.png', buffer: panelBuffers[2] },
+            { name: 'panel-4.png', buffer: panelBuffers[3] },
+            { name: 'storyboard.png', buffer: storyboardBuf },
+            { name: 'input.png', buffer: inputCollageBuf }
+          ].filter(img => img.buffer),
+          videoModelKey: options.videoModelKey || 'abra_r2v_8s'
+        }
+      ];
+
+      videos = await generateVideosFromPanelsDirect(baseDir, videoJobs, {
         aspectRatio: '9:16',
-        videoModelKey: options.videoModelKey || 'abra_i2v_8s',
+        videoModelKey: options.videoModelKey || 'abra_r2v_8s',
         includeVideoBase64: !!options.includeVideoBase64,
         cropPercent: 0.12,
+        multiImageMode: true,
       });
     }
     console.log(`[${isTemplate5_3 ? 'Template5_3' : 'Template5'}] Video result: ${videos.filter(v => !v.error).length}/${videos.length} completed`);
@@ -1627,6 +1850,11 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       mimeType: 'image/png',
       sourcePath: reviewArchive?.storyboardPath || null,
     },
+    inputCollage: {
+      imageBase64: inputCollageBuf ? inputCollageBuf.toString('base64') : null,
+      mimeType: 'image/png',
+      sourcePath: reviewArchive?.inputCollagePath || null,
+    },
     reviewArchive,
     analysis: {
       productName: analysis?.productName || (isTemplate5_3 ? 'Template 5.3 Product Review' : 'Template 5 Product Review'),
@@ -1649,6 +1877,8 @@ module.exports = {
   getTemplate5_3VideoPrompts,
   sliceStoryboardIntoTwoImages,
   sliceStoryboardIntoFourPanels,
+  createInputCollageImage,
+  cleanPanel4LogoViaGemini,
   clampScriptWords,
   combineTwoSceneScripts,
   normalizePanelOverlays,

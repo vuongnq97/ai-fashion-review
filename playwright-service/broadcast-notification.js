@@ -146,6 +146,36 @@ Hướng dẫn sử dụng broadcast-notification.js:
 }
 
 /**
+ * Tự động đóng các thẻ HTML chưa đóng (ví dụ <b> thiếu </b>) để tránh lỗi Telegram 400
+ */
+function autoCloseHtmlTags(html) {
+  if (!html) return '';
+  const openTags = [];
+  const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*?)?(\/?)>/g;
+  let match;
+  while ((match = tagRegex.exec(html)) !== null) {
+    const isClosing = match[0].startsWith('</');
+    const isSelfClosing = match[2] === '/' || match[0].endsWith('/>');
+    const tagName = match[1].toLowerCase();
+    if (isSelfClosing) continue;
+    if (isClosing) {
+      const lastIndex = openTags.lastIndexOf(tagName);
+      if (lastIndex !== -1) {
+        openTags.splice(lastIndex, 1);
+      }
+    } else {
+      openTags.push(tagName);
+    }
+  }
+  let fixed = html;
+  while (openTags.length > 0) {
+    const tag = openTags.pop();
+    fixed += `</${tag}>`;
+  }
+  return fixed;
+}
+
+/**
  * Hàm sleep nhẹ giữa các lần gửi để tránh chạm Rate Limit của Telegram (429 Too Many Requests)
  */
 function sleep(ms) {
@@ -156,7 +186,9 @@ function sleep(ms) {
  * Thực thi gửi thông báo
  */
 async function run() {
-  const { isDryRun, message } = parseArgs();
+  const parsed = parseArgs();
+  const isDryRun = parsed.isDryRun;
+  const message = autoCloseHtmlTags(parsed.message);
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   if (!botToken) {

@@ -117,7 +117,7 @@ function extractJsonFromResponse(text) {
   try {
     const parsed = JSON.parse(content.trim());
     return Array.isArray(parsed) ? parsed : [parsed];
-  } catch (_) {}
+  } catch (_) { }
 
   return [];
 }
@@ -459,8 +459,8 @@ class GeminiApiClient {
 
   async close() {
     this._initialized = false;
-    try { if (this._browserCtx) await this._browserCtx.close(); } catch (_) {}
-    try { if (this._browser) await this._browser.close(); } catch (_) {}
+    try { if (this._browserCtx) await this._browserCtx.close(); } catch (_) { }
+    try { if (this._browser) await this._browser.close(); } catch (_) { }
     this._apiContext = null;
     this._browser = null;
     this._browserCtx = null;
@@ -498,7 +498,7 @@ class GeminiApiClient {
           await page.goto(ENDPOINT_INIT, { waitUntil: 'domcontentloaded', timeout: 30000 });
           html = await page.content();
         } finally {
-          await page.close().catch(() => {});
+          await page.close().catch(() => { });
         }
       } catch (pageErr) {
         console.warn(`[GeminiAPI] Page navigation attempt failed (${pageErr.message}) — falling back to apiContext.get...`);
@@ -683,15 +683,15 @@ class GeminiApiClient {
         // Retry on temporary Gemini errors (1076, 1013)
         // Do NOT retry 'EmptyText' — that's a real image-only response being misidentified
         const isRetryable = msg.includes('error code') ||
-                            msg.includes('temporary error') ||
-                            msg.includes('Empty response') ||
-                            msg.toLowerCase().includes('timeout');
+          msg.includes('temporary error') ||
+          msg.includes('Empty response') ||
+          msg.toLowerCase().includes('timeout');
         if (isRetryable && attempt < MAX_RETRIES) {
           // Exponential backoff with jitter: 8s, 12s, 16s, 20s...
           const baseDelay = 8000;
           const jitter = Math.floor(Math.random() * 2000);
           const delay = Math.min(baseDelay * attempt + jitter, 60000);
-          console.error(`[GeminiAPI] Temporary error (attempt ${attempt}/${MAX_RETRIES}): ${msg.split('\n')[0]}. Retrying in ${Math.round(delay/1000)}s...`);
+          console.error(`[GeminiAPI] Temporary error (attempt ${attempt}/${MAX_RETRIES}): ${msg.split('\n')[0]}. Retrying in ${Math.round(delay / 1000)}s...`);
           await new Promise(r => setTimeout(r, delay));
 
           // Every 3 attempts, refresh session tokens (SNlM0e / cfb2h / FdrFJe may have expired)

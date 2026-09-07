@@ -51,7 +51,24 @@ async function sendTelegramMessage(chatId, text, options = {}) {
       signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
     });
     if (!response.ok) {
-      console.error(`[Telegram] sendMessage HTTP ${response.status}: ${await response.text()}`);
+      const errText = await response.text();
+      console.error(`[Telegram] sendMessage HTTP ${response.status}: ${errText}`);
+      if (response.status === 400 && errText.includes("can't parse entities") && options.parse_mode) {
+        console.warn(`[Telegram] Retrying sendMessage without parse_mode (plain text fallback)...`);
+        const fallbackRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+          }),
+          signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
+        });
+        if (fallbackRes.ok) {
+          const fallbackJson = await fallbackRes.json();
+          return fallbackJson?.result?.message_id || true;
+        }
+      }
       return false;
     }
     const json = await response.json();

@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { getExtensionArgs } = require('../utils/extension-loader');
 const { getConfig } = require('../utils/config-manager');
+const { getWindowLaunchConfig, applyWindowBounds } = require('../utils/window-config');
 
 const config = getConfig(path.resolve(__dirname, '..'));
 
@@ -174,16 +175,29 @@ async function getSharedContext(baseDir) {
     } catch (_) { }
 
     const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-    globalContext = await chromium.launchPersistentContext(userDataDir, {
+    const winConfig = getWindowLaunchConfig();
+
+    const launchOptions = {
       channel: chromeChannel,
       headless: isHeadless,
       ignoreHTTPSErrors: true,
       args: [
         '--disable-blink-features=AutomationControlled',
+        ...winConfig.windowArgs,
         ...getExtensionArgs(baseDir),
       ],
       acceptDownloads: true
-    });
+    };
+
+    if (winConfig.viewport) {
+      launchOptions.viewport = winConfig.viewport;
+    }
+
+    globalContext = await chromium.launchPersistentContext(userDataDir, launchOptions);
+
+    if (!isHeadless) {
+      await applyWindowBounds(globalContext, winConfig);
+    }
 
     const targetCookieFile = fs.existsSync(cookieFile)
       ? cookieFile

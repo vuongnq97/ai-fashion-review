@@ -199,21 +199,53 @@ function buildCaption(job, result) {
 
 function getExpectedPanelIndices(job) {
   const result = job?.result || {};
+  const tmpl = String(job?.template || job?.options?.template || result?.template || '').toLowerCase().trim();
+
+  // 1. Nếu template đã xác định cụ thể, ưu tiên xác định số video theo chuẩn của template đó:
+  if (tmpl) {
+    if (tmpl.includes('dailyvlog')) {
+      return [1, 2, 3, 4, 5];
+    }
+    if (tmpl.includes('5_3') || tmpl.includes('5.3') || tmpl.includes('53')) {
+      return [1, 2, 3, 4];
+    }
+    // Template 5, 5_1, 5_2 (và các alias t5, t51, t52) có 4 ảnh panel nhưng LUÔN LUÔN tạo 2 video 8s (Cảnh 1+2 & Cảnh 3+4)
+    if (
+      tmpl === 'template5' || tmpl === 'template5_1' || tmpl === 'template5_2' ||
+      tmpl === 't5' || tmpl === 't51' || tmpl === 't52' || tmpl === 't5_1' || tmpl === 't5_2' ||
+      tmpl === 'template51' || tmpl === 'template52' ||
+      (tmpl.includes('template5') && !tmpl.includes('5_3') && !tmpl.includes('5.3'))
+    ) {
+      return [1, 2];
+    }
+    if (job?.templateOptions?.panelCount && Number.isInteger(job.templateOptions.panelCount) && job.templateOptions.panelCount > 0) {
+      return Array.from({ length: job.templateOptions.panelCount }, (_, i) => i + 1);
+    }
+    const { buildTemplateOptions } = require('./template-options');
+    const opts = buildTemplateOptions(tmpl);
+    if (opts && opts.panelCount && Number.isInteger(opts.panelCount) && opts.panelCount > 0) {
+      return Array.from({ length: opts.panelCount }, (_, i) => i + 1);
+    }
+  }
+
+  // 2. Nếu trong result.videos đã có danh sách video cụ thể:
+  if (Array.isArray(result.videos) && result.videos.length > 0) {
+    const vIndices = result.videos.map(v => Number(v.panelIndex || v.index)).filter(n => Number.isInteger(n) && n > 0);
+    if (vIndices.length > 0) {
+      return [...new Set(vIndices)].sort((a, b) => a - b);
+    }
+  }
+
+  // 3. Dự phòng theo result.panels hoặc job.panels nếu không rõ template
   let expectedPanels = [];
   if (Array.isArray(result.panels) && result.panels.length > 0) {
     expectedPanels = result.panels.map(p => Number(p.index || p.panelIndex)).filter(n => Number.isInteger(n) && n > 0);
   } else if (Array.isArray(job?.panels) && job.panels.length > 0) {
     expectedPanels = job.panels.map(p => Number(p.index || p.panelIndex)).filter(n => Number.isInteger(n) && n > 0);
   }
+
   if (expectedPanels.length === 0) {
-    const tmpl = String(job?.template || '').toLowerCase();
-    let count = 2;
-    if (tmpl.includes('dailyvlog')) {
-      count = 5;
-    } else if (tmpl.includes('5_3') || tmpl.includes('5.3') || tmpl.includes('53')) {
-      count = 4;
-    }
-    expectedPanels = Array.from({ length: count }, (_, i) => i + 1);
+    expectedPanels = [1, 2];
   }
   return [...new Set(expectedPanels)].sort((a, b) => a - b);
 }

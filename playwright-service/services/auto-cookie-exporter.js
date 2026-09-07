@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { getExtensionArgs } = require('../utils/extension-loader');
+const { getWindowLaunchConfig, applyWindowBounds } = require('../utils/window-config');
 
 function clearCookieCache(cookieDir) {
   if (!fs.existsSync(cookieDir)) return;
@@ -85,17 +85,34 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
     // 2. Nếu chưa có context nào chạy, mới khởi chạy persistent context riêng
     if (!context) {
       const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-      const isHeadless = process.env.HEADLESS === 'true';
-      context = await chromium.launchPersistentContext(userDataDir, {
+      // Mặc định chạy ngầm (headless) khi tự động export cookie để không làm phiền người dùng.
+      // Nếu muốn hiển thị cửa sổ để quan sát, đặt AUTO_COOKIE_HEADLESS=false trong .env
+      const isHeadless = process.env.AUTO_COOKIE_HEADLESS !== undefined
+        ? (process.env.AUTO_COOKIE_HEADLESS === 'true')
+        : true;
+
+      const winConfig = getWindowLaunchConfig();
+      const launchOptions = {
         channel: chromeChannel,
         headless: isHeadless,
         args: [
           '--disable-blink-features=AutomationControlled',
           '--no-sandbox',
           '--disable-setuid-sandbox',
+          ...winConfig.windowArgs,
         ],
         timeout: 15000,
-      });
+      };
+
+      if (winConfig.viewport) {
+        launchOptions.viewport = winConfig.viewport;
+      }
+
+      context = await chromium.launchPersistentContext(userDataDir, launchOptions);
+
+      if (!isHeadless) {
+        await applyWindowBounds(context, winConfig);
+      }
     }
 
     page = await context.newPage();

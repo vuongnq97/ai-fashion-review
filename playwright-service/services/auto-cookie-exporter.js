@@ -1,7 +1,8 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { getWindowLaunchConfig, applyWindowBounds } = require('../utils/window-config');
+const { getExtensionArgs } = require('../utils/extension-loader');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('../utils/window-config');
 
 function clearCookieCache(cookieDir) {
   if (!fs.existsSync(cookieDir)) return;
@@ -85,37 +86,34 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
     // 2. Nếu chưa có context nào chạy, mới khởi chạy persistent context riêng
     if (!context) {
       const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-      // Mặc định chạy ngầm (headless) khi tự động export cookie để không làm phiền người dùng.
-      // Nếu muốn hiển thị cửa sổ để quan sát, đặt AUTO_COOKIE_HEADLESS=false trong .env
       const isHeadless = process.env.AUTO_COOKIE_HEADLESS !== undefined
-        ? (process.env.AUTO_COOKIE_HEADLESS === 'true')
-        : true;
+        ? process.env.AUTO_COOKIE_HEADLESS === 'true'
+        : (process.env.HEADLESS === 'true');
 
-      const winConfig = getWindowLaunchConfig();
-      const launchOptions = {
+      const winConfig = getWindowLaunchConfig(baseDir);
+      ensureProfileWindowPlacement(userDataDir, winConfig);
+
+      context = await chromium.launchPersistentContext(userDataDir, {
         channel: chromeChannel,
         headless: isHeadless,
+        viewport: winConfig.viewport,
         args: [
           '--disable-blink-features=AutomationControlled',
           '--no-sandbox',
           '--disable-setuid-sandbox',
           ...winConfig.windowArgs,
+          ...getExtensionArgs(baseDir),
         ],
         timeout: 15000,
-      };
-
-      if (winConfig.viewport) {
-        launchOptions.viewport = winConfig.viewport;
-      }
-
-      context = await chromium.launchPersistentContext(userDataDir, launchOptions);
+      });
 
       if (!isHeadless) {
         await applyWindowBounds(context, winConfig);
       }
     }
 
-    page = await context.newPage();
+    const existingPages = context.pages();
+    page = existingPages.length > 0 ? existingPages[0] : await context.newPage();
     // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
     let isLoggedOut = false;
     try {

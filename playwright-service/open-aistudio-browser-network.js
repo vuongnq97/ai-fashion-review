@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('./utils/window-config');
 
 const userDataDir = path.join(__dirname, 'chrome-data');
 const outDir = path.join(__dirname, 'debug-network');
@@ -43,6 +44,8 @@ function append(file, entry) {
   fs.mkdirSync(outDir, { recursive: true });
   const logFile = path.join(outDir, `network-${Date.now()}.jsonl`);
 
+  const winConfig = getWindowLaunchConfig(__dirname);
+  ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
     viewport: null,

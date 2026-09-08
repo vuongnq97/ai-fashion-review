@@ -626,8 +626,30 @@ async function pollFlowVideoStatusStandalone({ context, mediaName, wiz, options 
       if (!parsedInner) continue;
 
       const items = parsedInner[2] || [];
-      const item = items.find(it => it[0] === mediaName) || items[0];
-      if (!item) continue;
+      const extractUuid = (val) => {
+        if (!val || typeof val !== 'string') return null;
+        const m = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        return m ? m[0].toLowerCase() : null;
+      };
+
+      const targetUuid = extractUuid(mediaName);
+      const item = items.find(it => {
+        if (!it) return false;
+        const itemId = it[0];
+        if (itemId === mediaName) return true;
+        if (typeof itemId === 'string' && typeof mediaName === 'string') {
+          if (itemId.includes(mediaName) || mediaName.includes(itemId)) return true;
+        }
+        if (targetUuid && extractUuid(itemId) === targetUuid) return true;
+        return false;
+      });
+
+      if (!item) {
+        if ((i + 1) % 6 === 0) {
+          console.log(`[VideoGen] Waiting for media ${mediaName} in Flow jwpduf items (${items.length} items present)...`);
+        }
+        continue;
+      }
 
       const meta = item[5] || [];
       const statusArr = Array.isArray(meta[8]) ? meta[8] : meta.find(x => Array.isArray(x) && typeof x[0] === 'number');
@@ -635,10 +657,11 @@ async function pollFlowVideoStatusStandalone({ context, mediaName, wiz, options 
 
       if (statusCode === 3) {
         console.log(`[VideoGen] ✅ Flow video completed via jwpduf after ${(i + 1) * 5}s!`);
-        const videoUrl = await fetchFlowVideoUrlViaAs29s(context, mediaName, wiz);
+        const resolvedMediaName = (typeof item[0] === 'string' && item[0].length > 0) ? item[0] : mediaName;
+        const videoUrl = await fetchFlowVideoUrlViaAs29s(context, resolvedMediaName, wiz);
         console.log(`[VideoGen] Resolved Flow video URL: ${videoUrl.substring(0, 80)}...`);
         return {
-          name: mediaName,
+          name: resolvedMediaName,
           videoUrl,
           fifeUrl: videoUrl,
           mediaMetadata: {
@@ -1027,7 +1050,11 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
   console.log('[VideoGen] Step 1: Getting Bearer token...');
   const bearerToken = await ensureBearerToken(page);
 
-  const isMulti = Boolean(config.multiImageMode || (filePayloads && filePayloads.length > 1) || (config.videoModelKey && config.videoModelKey.includes('r2v')));
+  const isMulti = Boolean(
+    config.multiImageMode ||
+    (filePayloads && filePayloads.length > 1) ||
+    (config.videoModelKey && (config.videoModelKey.includes('r2v') || config.videoModelKey.includes('abra')))
+  );
   const MAX_RETRIES = 3;
   let mediaName = null;
 

@@ -1768,6 +1768,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         aspectRatio: '9:16',
         videoModelKey: options.videoModelKey || '4s',
         includeVideoBase64: !!options.includeVideoBase64,
+        runId: options.runId || (reviewArchive?.root ? path.basename(reviewArchive.root) : null),
       });
     } else {
       console.log('[Template5] Step 5: Generating 2 Abra r2v 8-second multi-image videos on Google Flow...');
@@ -1814,6 +1815,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
         includeVideoBase64: !!options.includeVideoBase64,
         cropPercent: 0.12,
         multiImageMode: true,
+        runId: options.runId || (reviewArchive?.root ? path.basename(reviewArchive.root) : null),
       });
     }
     console.log(`[${isTemplate5_3 ? 'Template5_3' : 'Template5'}] Video result: ${videos.filter(v => !v.error).length}/${videos.length} completed`);

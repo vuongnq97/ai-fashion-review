@@ -255,18 +255,14 @@ function getOrderedVideoPathsForJob(job) {
   const result = job.result || {};
   const expectedPanels = getExpectedPanelIndices(job);
 
+  // Chỉ quét các thư mục thuộc CHÍNH JOB ĐÓ (cách ly hoàn toàn giữa các luồng đa luồng)
   const searchDirs = [
     result.reviewArchive?.videosDir,
     result.reviewArchive?.root ? path.join(result.reviewArchive.root, 'videos') : null,
     job.jobDir ? path.join(job.jobDir, 'videos') : null,
+    job.jobId ? path.join(job.baseDir || path.resolve(__dirname, '..'), 'uploads', 'aistudio-videos', job.jobId) : null,
+    result.runId ? path.join(job.baseDir || path.resolve(__dirname, '..'), 'uploads', 'aistudio-videos', result.runId) : null,
   ].filter(Boolean);
-
-  try {
-    const { lastRunByChat } = require('./telegram-bot');
-    const runInfo = lastRunByChat.get(String(job.chatId));
-    if (runInfo?.videosDir) searchDirs.push(runInfo.videosDir);
-    if (runInfo?.runDir) searchDirs.push(path.join(runInfo.runDir, 'videos'));
-  } catch (_) { }
 
   const orderedVideos = [];
   const missingPanels = [];
@@ -285,7 +281,7 @@ function getOrderedVideoPathsForJob(job) {
       validPath = inMem.videoPath;
     }
 
-    // 2. Quét tìm file panel-${pIdx}.mp4 trên thư mục của run / archive
+    // 2. Quét tìm file panel-${pIdx}.mp4 hoặc panel-${pIdx}-video-*.mp4 trong thư mục riêng của job này
     if (!validPath) {
       for (const dir of searchDirs) {
         if (!fs.existsSync(dir)) continue;
@@ -294,20 +290,15 @@ function getOrderedVideoPathsForJob(job) {
           validPath = candidate;
           break;
         }
-      }
-    }
-
-    // 3. Quét tìm file gần nhất trong uploads/aistudio-videos/
-    if (!validPath) {
-      const uploadVideosDir = path.join(job.baseDir || path.resolve(__dirname, '..'), 'uploads', 'aistudio-videos');
-      if (fs.existsSync(uploadVideosDir)) {
+        // Tìm file panel-${pIdx}-video-*.mp4 trong thư mục riêng của job này
         try {
-          const files = fs.readdirSync(uploadVideosDir)
+          const files = fs.readdirSync(dir)
             .filter(f => f.startsWith(`panel-${pIdx}-video-`) && f.endsWith('.mp4'))
-            .map(f => ({ file: f, path: path.join(uploadVideosDir, f), mtime: fs.statSync(path.join(uploadVideosDir, f)).mtimeMs }))
+            .map(f => ({ file: f, path: path.join(dir, f), mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
             .sort((a, b) => b.mtime - a.mtime);
           if (files.length > 0 && fs.statSync(files[0].path).size > 1000) {
             validPath = files[0].path;
+            break;
           }
         } catch (_) { }
       }

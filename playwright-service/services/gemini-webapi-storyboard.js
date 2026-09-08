@@ -350,6 +350,13 @@ function archiveStoryboardReview(baseDir, filePayloads, request, bridgeResult, p
 
 
 function buildFilePayloadFromPanel(panel) {
+  if (panel.buffer && Buffer.isBuffer(panel.buffer)) {
+    return {
+      name: panel.imagePath ? path.basename(panel.imagePath) : `panel-${panel.index || 1}.png`,
+      mimeType: panel.mimeType || 'image/png',
+      buffer: panel.buffer,
+    };
+  }
   if (!panel.imagePath || !fs.existsSync(panel.imagePath)) return null;
   const ext = path.extname(panel.imagePath).toLowerCase();
   return {
@@ -361,7 +368,7 @@ function buildFilePayloadFromPanel(panel) {
 
 async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
   const jobs = panels
-    .filter(panel => panel.prompt && panel.imagePath)
+    .filter(panel => panel.prompt && (panel.imagePath || panel.buffer))
     .map(panel => ({ panel, filePayload: buildFilePayloadFromPanel(panel) }))
     .filter(job => job.filePayload);
 
@@ -371,7 +378,8 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
   }
 
   const page = await createFlowPage(baseDir);
-  const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos');
+  const runTag = options.runId || options.jobId || `run-${Date.now()}`;
+  const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos', runTag);
   ensureDir(videoDir);
 
   const MAX_VIDEO_ATTEMPTS = 3;
@@ -389,15 +397,25 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
       console.log(`[GeminiWebAPI->Flow] Preparing video for panel ${panel.index}/${jobs.length} (model: ${resolvedModelKey || 'default'})...`);
     }
 
+    const isMultiMode = options.multiImageMode !== undefined ? options.multiImageMode : true;
+    const filePayloadsToSend = (panel.referenceImages && Array.isArray(panel.referenceImages) && panel.referenceImages.length > 0)
+      ? panel.referenceImages.map((img, idx) => ({
+          name: img.name || `ref-${idx + 1}.png`,
+          mimeType: img.mimeType || 'image/png',
+          buffer: Buffer.isBuffer(img.buffer) ? img.buffer : (img.path && fs.existsSync(img.path) ? fs.readFileSync(img.path) : null),
+        })).filter(f => f.buffer)
+      : [filePayload];
+
     const prepared = await prepareVideoGeneration(
       page,
       panel.prompt,
       null,
-      [filePayload],
+      filePayloadsToSend.length > 0 ? filePayloadsToSend : [filePayload],
       {
-        imageSelection: [`name:${filePayload.name}`],
+        imageSelection: filePayloadsToSend.map(f => `name:${f.name}`),
         aspectRatio: options.aspectRatio || '9:16',
         videoModelKey: resolvedModelKey,
+        multiImageMode: isMultiMode,
         preserveBorder: options.preserveBorder !== undefined ? options.preserveBorder : false,
         cropPercent: typeof options.cropPercent === 'number' ? options.cropPercent : undefined,
       },

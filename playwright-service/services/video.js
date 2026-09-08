@@ -26,6 +26,10 @@ const RAW_VIDEO_MODEL_ALIASES = {
   'abra_i2v_4s': 'abra_i2v_4s',
   'abra-t2v-8s': 'abra_t2v_8s_360p',
   'abra_t2v_8s_360p': 'abra_t2v_8s_360p',
+  'abra_r2v_8s': 'abra_r2v_8s',
+  'abra-r2v-8s': 'abra_r2v_8s',
+  'r2v_8s': 'abra_r2v_8s',
+  'r2v-8s': 'abra_r2v_8s',
   // Veo models
   'default': 'veo_3_1_i2v_lite_low_priority',
   'quality': 'veo_3_1_i2v_lite_low_priority',
@@ -288,9 +292,386 @@ async function pollVideoStatus(page, context, mediaName) {
 
 // ═══════════════════════════════════════════════════════════════
 // Poll for video completion (standalone — no browser page needed)
-// Uses cached bearerToken + context.request.fetch
+function parseBatchExecuteResponse(rawText, rpcId) {
+  const cleaned = rawText.replace(/^\)\]\}'\s*/, '').trim();
+  const lines = cleaned.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || /^\d+$/.test(trimmed)) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (Array.isArray(item)) {
+            if (item[1] === rpcId && typeof item[2] === 'string') {
+              return JSON.parse(item[2]);
+            }
+            for (const sub of item) {
+              if (Array.isArray(sub) && sub[1] === rpcId && typeof sub[2] === 'string') {
+                return JSON.parse(sub[2]);
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+function findMediaNameInBatchResult(obj, inputIds = []) {
+  if (!obj) return null;
+  const inputSet = new Set((inputIds || []).map(id => String(id).toLowerCase().trim()));
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // 1. Direct extraction from standard Google Flow MZZa6b response:
+  // Note: In Google Flow MZZa6b response:
+  // - obj[3] contains array of generated video objects: [[videoMediaId, projectId, sceneId, ...]]
+  // - obj[2][0][3][4] is also the videoMediaId!
+  // - Warning: obj[2][0][0] is the scene/edit session ID, NOT the video media ID!
+  if (Array.isArray(obj)) {
+    if (obj[3]?.[0]?.[0] && typeof obj[3][0][0] === 'string' && uuidRegex.test(obj[3][0][0])) {
+      return obj[3][0][0];
+    }
+    if (obj[2]?.[0]?.[3]?.[4] && typeof obj[2][0][3][4] === 'string' && uuidRegex.test(obj[2][0][3][4])) {
+      return obj[2][0][3][4];
+    }
+    if (obj[1]?.[0]?.[3]?.[4] && typeof obj[1][0][3][4] === 'string' && uuidRegex.test(obj[1][0][3][4])) {
+      return obj[1][0][3][4];
+    }
+  }
+
+  // 2. Priority 1: full path matching projects/.../media/...
+  const pathRegex = /projects\/[a-f0-9-]+\/locations\/[a-z0-9-]+\/media\/[a-f0-9-]+/i;
+  let foundPath = null;
+  function searchPath(curr) {
+    if (!curr || foundPath) return;
+    if (typeof curr === 'string') {
+      const match = curr.match(pathRegex);
+      if (match) {
+        foundPath = match[0];
+        return;
+      }
+    } else if (Array.isArray(curr)) {
+      for (const elem of curr) searchPath(elem);
+    } else if (typeof curr === 'object') {
+      for (const key of Object.keys(curr)) searchPath(curr[key]);
+    }
+  }
+  searchPath(obj);
+  if (foundPath) return foundPath;
+
+  // 3. Priority 2: any UUID that is NOT one of our input image IDs
+  let foundUuid = null;
+  function searchUuid(curr) {
+    if (!curr || foundUuid) return;
+    if (typeof curr === 'string') {
+      const val = curr.trim();
+      if (uuidRegex.test(val) && !inputSet.has(val.toLowerCase())) {
+        foundUuid = val;
+        return;
+      }
+    } else if (Array.isArray(curr)) {
+      for (const elem of curr) searchUuid(elem);
+    } else if (typeof curr === 'object') {
+      for (const key of Object.keys(curr)) searchUuid(curr[key]);
+    }
+  }
+  searchUuid(obj);
+  return foundUuid;
+}
+
+async function startMultiImageVideoGeneration(page, context, {
+  prompt,
+  imageMediaIds = [],
+  aspectRatio = '9:16',
+  videoModelKey = 'abra_r2v_8s'
+}) {
+  const bearerToken = await ensureBearerToken(page);
+  const recaptchaToken = await getRecaptchaToken(page, 'VIDEO_GENERATION');
+  console.log(`[VideoGen-Multi] reCAPTCHA token: ${recaptchaToken.substring(0, 30)}... (${recaptchaToken.length} chars)`);
+
+  const wiz = await page.evaluate(() => {
+    const w = window.WIZ_global_data || {};
+    return {
+      at: w.SNlM0e || '',
+      fsid: w.FdrFJe || '',
+      bl: w.cfb2h || 'boq_labs-ai-sandbox-frontend_20260903.13_p1'
+    };
+  });
+
+  const clientGuid1 = crypto.randomUUID().toUpperCase();
+  const clientGuid2 = crypto.randomUUID().toUpperCase();
+  const clientGuid3 = crypto.randomUUID().toUpperCase();
+
+  const modelKey = videoModelKey || 'abra_r2v_8s';
+  const innerPayload = [
+    [
+      [
+        [
+          null,
+          null,
+          [
+            [
+              [
+                prompt
+              ]
+            ]
+          ]
+        ],
+        imageMediaIds.map(id => [null, id]),
+        modelKey,
+        1,
+        null,
+        [
+          null,
+          null,
+          null,
+          null,
+          clientGuid1,
+          clientGuid2
+        ]
+      ]
+    ],
+    [
+      null,
+      22,
+      null,
+      null,
+      null,
+      PROJECT_ID,
+      null,
+      null,
+      null,
+      null,
+      [
+        recaptchaToken,
+        1
+      ]
+    ],
+    [
+      clientGuid3,
+      2
+    ]
+  ];
+
+  const reqId = Math.floor(Math.random() * 900000) + 100000;
+  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=MZZa6b&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz.bl)}&f.sid=${encodeURIComponent(wiz.fsid)}&hl=vi&_reqid=${reqId}&rt=c`;
+
+  const fReq = JSON.stringify([[["MZZa6b", JSON.stringify(innerPayload), null, "generic"]]]);
+  const bodyParams = new URLSearchParams();
+  bodyParams.set('f.req', fReq);
+  if (wiz.at) {
+    bodyParams.set('at', wiz.at);
+  }
+  const bodyString = bodyParams.toString();
+
+  console.log(`[VideoGen-Multi] Sending MZZa6b batchexecute with ${imageMediaIds.length} reference images (model: ${modelKey})...`);
+  console.log(`[VideoGen-Multi]   prompt: "${prompt.substring(0, 80)}..."`);
+  console.log(`[VideoGen-Multi]   imageMediaIds: ${imageMediaIds.join(', ')}`);
+
+  const maxRetries = 3;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`[VideoGen-Multi] 🔄 Retrying MZZa6b batchexecute (Attempt ${attempt}/${maxRetries})...`);
+      }
+
+      const responseText = await page.evaluate(async ({ url, body }) => {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'x-same-domain': '1',
+          },
+          body: body
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(`HTTP ${resp.status}: ${t.substring(0, 300)}`);
+        }
+        return await resp.text();
+      }, { url: rpcUrl, body: bodyString });
+
+      const parsed = parseBatchExecuteResponse(responseText, 'MZZa6b');
+      if (!parsed) {
+        throw new Error(`Could not parse MZZa6b response: ${responseText.substring(0, 500)}`);
+      }
+
+      const mediaName = findMediaNameInBatchResult(parsed, imageMediaIds);
+      if (!mediaName) {
+        console.warn('[VideoGen-Multi] Could not find media name in parsed MZZa6b result:', JSON.stringify(parsed).substring(0, 500));
+        throw new Error('No media name returned in MZZa6b response');
+      }
+
+      console.log(`[VideoGen-Multi] ✅ Video generation started via MZZa6b! Media: ${mediaName}`);
+      return { media: [{ name: mediaName }], wiz };
+    } catch (err) {
+      console.warn(`[VideoGen-Multi] ⚠️ Attempt ${attempt} failed: ${err.message}`);
+      lastError = err;
+      if (attempt < maxRetries) {
+        await page.waitForTimeout(3000);
+      }
+    }
+  }
+
+  throw new Error(`[VideoGen-Multi] Failed to start video generation via MZZa6b: ${lastError?.message || 'Unknown error'}`);
+}
+
+async function fetchFlowVideoUrlViaAs29s(context, mediaName, wiz) {
+  const reqId = Math.floor(Math.random() * 900000) + 100000;
+  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=as29s&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
+
+  const innerPayload = [mediaName];
+  const fReq = JSON.stringify([[["as29s", JSON.stringify(innerPayload), null, "generic"]]]);
+  const bodyParams = new URLSearchParams();
+  bodyParams.set('f.req', fReq);
+  if (wiz?.at) bodyParams.set('at', wiz.at);
+
+  const resp = await context.request.fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      'origin': 'https://flow.google.com',
+      'referer': 'https://flow.google.com/',
+      'x-same-domain': '1'
+    },
+    data: bodyParams.toString(),
+    timeout: 30000
+  });
+
+  if (resp.status() !== 200) {
+    throw new Error(`as29s returned HTTP ${resp.status()}`);
+  }
+
+  const text = await resp.text();
+  let videoUrl = null;
+
+  // 1. First try parsing the batchexecute JSON cleanly
+  const parsedInner = parseBatchExecuteResponse(text, 'as29s');
+  if (parsedInner) {
+    function findUrl(curr) {
+      if (!curr || videoUrl) return;
+      if (typeof curr === 'string' && curr.includes('flow-content.google/video/')) {
+        videoUrl = curr;
+        return;
+      }
+      if (Array.isArray(curr)) {
+        for (const el of curr) findUrl(el);
+      } else if (typeof curr === 'object') {
+        for (const k of Object.keys(curr)) findUrl(curr[k]);
+      }
+    }
+    findUrl(parsedInner);
+  }
+
+  // 2. Fallback to regex extraction without stopping at backslashes
+  if (!videoUrl) {
+    const match = text.match(/https:(?:\\\/|\/)+flow-content\.google\/video\/[^"\s]+/i);
+    if (match) {
+      let raw = match[0];
+      raw = raw.replace(/\\\/|\//g, '/');
+      raw = raw.replace(/\\u003d/g, '=').replace(/\\u0026/g, '&');
+      raw = raw.replace(/[\\]+$/g, '');
+      videoUrl = raw;
+    }
+  }
+
+  if (!videoUrl) {
+    throw new Error(`Could not extract video URL from as29s response: ${text.substring(0, 400)}`);
+  }
+
+  return videoUrl;
+}
+
+async function pollFlowVideoStatusStandalone({ context, mediaName, wiz, options = {} }) {
+  console.log(`[VideoGen] 🌊 Polling Flow video status via jwpduf RPC for: ${mediaName}...`);
+  const maxPolls = options.maxPolls || 120;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  for (let i = 0; i < maxPolls; i++) {
+    await delay(5000);
+
+    const reqId = Math.floor(Math.random() * 900000) + 100000;
+    const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=jwpduf&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
+
+    const innerPayload = [null, null, [[mediaName]]];
+    const fReq = JSON.stringify([[["jwpduf", JSON.stringify(innerPayload), null, "generic"]]]);
+    const bodyParams = new URLSearchParams();
+    bodyParams.set('f.req', fReq);
+    if (wiz?.at) bodyParams.set('at', wiz.at);
+
+    try {
+      const resp = await context.request.fetch(rpcUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'origin': 'https://flow.google.com',
+          'referer': 'https://flow.google.com/',
+          'x-same-domain': '1'
+        },
+        data: bodyParams.toString(),
+        timeout: 30000
+      });
+
+      if (resp.status() !== 200) {
+        console.log(`[VideoGen] Flow jwpduf status check HTTP ${resp.status()}, retrying...`);
+        continue;
+      }
+
+      const respText = await resp.text();
+      const parsedInner = parseBatchExecuteResponse(respText, 'jwpduf');
+      if (!parsedInner) continue;
+
+      const items = parsedInner[2] || [];
+      const item = items.find(it => it[0] === mediaName) || items[0];
+      if (!item) continue;
+
+      const meta = item[5] || [];
+      const statusArr = Array.isArray(meta[8]) ? meta[8] : meta.find(x => Array.isArray(x) && typeof x[0] === 'number');
+      const statusCode = statusArr ? statusArr[0] : null;
+
+      if (statusCode === 3) {
+        console.log(`[VideoGen] ✅ Flow video completed via jwpduf after ${(i + 1) * 5}s!`);
+        const videoUrl = await fetchFlowVideoUrlViaAs29s(context, mediaName, wiz);
+        console.log(`[VideoGen] Resolved Flow video URL: ${videoUrl.substring(0, 80)}...`);
+        return {
+          name: mediaName,
+          videoUrl,
+          fifeUrl: videoUrl,
+          mediaMetadata: {
+            mediaStatus: {
+              mediaGenerationStatus: 'MEDIA_GENERATION_STATUS_SUCCESSFUL'
+            }
+          }
+        };
+      }
+
+      if (statusCode === 4 || statusCode === 5) {
+        const errorMsg = statusArr?.[1]?.[1] || statusArr?.[2]?.[0] || `code: ${statusCode}`;
+        throw new Error(`[VideoGen] ❌ Flow video generation failed on server (${errorMsg})`);
+      }
+
+      if ((i + 1) % 6 === 0) {
+        console.log(`[VideoGen] Still generating (Flow jwpduf)... ${(i + 1) * 5}s elapsed (statusCode: ${statusCode || 'pending'}).`);
+      }
+    } catch (e) {
+      if (e.message.includes('failed on server')) throw e;
+      console.log(`[VideoGen] Flow poll error: ${e.message}, retrying...`);
+    }
+  }
+
+  throw new Error('[VideoGen] ❌ Timeout after 10 minutes (Flow jwpduf).');
+}
+
+// Uses cached bearerToken + context.request.fetch, with Flow RPC support
 // ═══════════════════════════════════════════════════════════════
 async function pollVideoStatusStandalone(context, bearerToken, mediaName, options = {}) {
+  if (options.isFlowRpc) {
+    return await pollFlowVideoStatusStandalone({ context, mediaName, wiz: options.wiz, options });
+  }
   console.log(`[VideoGen] Polling video status (standalone) for: ${mediaName}...`);
 
   const statusUrl = 'https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus';
@@ -359,6 +740,11 @@ async function pollVideoStatusStandalone(context, bearerToken, mediaName, option
         return videoUrl && !findFifeUrl(media) ? result : media;
       }
       if (genStatus === 'MEDIA_GENERATION_STATUS_FAILED') {
+        const failureStr = JSON.stringify(media.mediaMetadata?.mediaStatus || {});
+        if (failureStr.includes('Media not found.') && options.wiz) {
+          console.log(`[VideoGen] 🔄 aisandbox returned "Media not found." — switching to Flow jwpduf RPC for: ${mediaName}...`);
+          return await pollFlowVideoStatusStandalone({ context, mediaName, wiz: options.wiz, options });
+        }
         console.log(`${debugPrefix} Failed status snapshot: ${summarizeVideoStatusResponse(result, media)}`);
         throw new Error(`[VideoGen] ❌ Video generation failed on server`);
       }
@@ -641,65 +1027,112 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
   console.log('[VideoGen] Step 1: Getting Bearer token...');
   const bearerToken = await ensureBearerToken(page);
 
-  // Resolve start image UUID
-  let startImageMediaId = null;
-  if (filePayloads && filePayloads.length > 0) {
-    console.log(`[VideoGen] Step 2: Direct uploading start image: ${filePayloads[0].name}...`);
-    startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer);
-    console.log(`[VideoGen] ✅ Direct upload success: ${startImageMediaId}`);
-  } else {
-    const selections = imageSelection;
-    if (selections && selections.length > 0) {
-      const sel = selections[0];
-      console.log(`[VideoGen] Resolving start image: "${sel}"...`);
-      if (sel.startsWith('name:')) {
-        startImageMediaId = await findImageUUID(page, sel.split('name:')[1], 'video');
-      } else if (sel.startsWith('uuid:')) {
-        startImageMediaId = sel.split('uuid:')[1];
-      }
-    }
-  }
-  if (!startImageMediaId) throw new Error('[VideoGen] Could not resolve start image UUID');
-
-  // Start video generation API (with retry)
+  const isMulti = Boolean(config.multiImageMode || (filePayloads && filePayloads.length > 1) || (config.videoModelKey && config.videoModelKey.includes('r2v')));
   const MAX_RETRIES = 3;
   let mediaName = null;
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES}...`);
-      const apiResult = await startVideoGeneration(page, context, {
-        prompt, startImageMediaId,
-        aspectRatio: config.aspectRatio || '9:16',
-        videoModelKey: config.videoModelKey || null
-      });
-      mediaName = apiResult.media?.[0]?.name;
-      if (!mediaName) throw new Error('[VideoGen] No media name in API response');
-      console.log(`[VideoGen] ✅ Started! Media: ${mediaName}`);
-      break;
-    } catch (err) {
-      console.log(`[VideoGen] ❌ Attempt ${attempt} failed: ${err.message}`);
-      if (attempt >= MAX_RETRIES) throw err;
-      await page.waitForTimeout(5000);
+  if (isMulti) {
+    console.log(`[VideoGen-Multi] Preparing multi-image video generation with ${filePayloads.length} images...`);
+    const imageMediaIds = [];
+    for (let i = 0; i < filePayloads.length; i++) {
+      const f = filePayloads[i];
+      if (f.mediaId) {
+        imageMediaIds.push(f.mediaId);
+        console.log(`[VideoGen-Multi] Using provided mediaId [${i + 1}/${filePayloads.length}]: ${f.mediaId} (${f.name || 'image'})`);
+      } else if (f.buffer) {
+        console.log(`[VideoGen-Multi] Uploading reference image [${i + 1}/${filePayloads.length}]: ${f.name || ('image-' + i)}...`);
+        const mid = await uploadImageDirect(context, bearerToken, f.buffer);
+        imageMediaIds.push(mid);
+        console.log(`[VideoGen-Multi] ✅ Uploaded [${i + 1}/${filePayloads.length}]: ${mid}`);
+      }
     }
+
+    if (imageMediaIds.length === 0) {
+      throw new Error('[VideoGen-Multi] No valid reference image IDs could be resolved or uploaded');
+    }
+
+    let wiz = null;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`[VideoGen-Multi] Start attempt ${attempt}/${MAX_RETRIES}...`);
+        const apiResult = await startMultiImageVideoGeneration(page, context, {
+          prompt,
+          imageMediaIds,
+          aspectRatio: config.aspectRatio || '9:16',
+          videoModelKey: config.videoModelKey || 'abra_r2v_8s'
+        });
+        mediaName = apiResult.media?.[0]?.name;
+        wiz = apiResult.wiz;
+        if (!mediaName) throw new Error('[VideoGen-Multi] No media name in MZZa6b response');
+        console.log(`[VideoGen-Multi] ✅ Started! Media: ${mediaName}`);
+        break;
+      } catch (err) {
+        console.log(`[VideoGen-Multi] ❌ Attempt ${attempt} failed: ${err.message}`);
+        if (attempt >= MAX_RETRIES) throw err;
+        await page.waitForTimeout(5000);
+      }
+    }
+
+    console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
+    return { context, bearerToken, mediaName, prompt, extendPrompt, config, wiz, isFlowRpc: true };
+  } else {
+    // Single image mode (legacy)
+    let startImageMediaId = null;
+    if (filePayloads && filePayloads.length > 0) {
+      console.log(`[VideoGen] Step 2: Direct uploading start image: ${filePayloads[0].name}...`);
+      startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer);
+      console.log(`[VideoGen] ✅ Direct upload success: ${startImageMediaId}`);
+    } else {
+      const selections = imageSelection;
+      if (selections && selections.length > 0) {
+        const sel = selections[0];
+        console.log(`[VideoGen] Resolving start image: "${sel}"...`);
+        if (sel.startsWith('name:')) {
+          startImageMediaId = await findImageUUID(page, sel.split('name:')[1], 'video');
+        } else if (sel.startsWith('uuid:')) {
+          startImageMediaId = sel.split('uuid:')[1];
+        }
+      }
+    }
+    if (!startImageMediaId) throw new Error('[VideoGen] Could not resolve start image UUID');
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES}...`);
+        const apiResult = await startVideoGeneration(page, context, {
+          prompt, startImageMediaId,
+          aspectRatio: config.aspectRatio || '9:16',
+          videoModelKey: config.videoModelKey || null
+        });
+        mediaName = apiResult.media?.[0]?.name;
+        if (!mediaName) throw new Error('[VideoGen] No media name in API response');
+        console.log(`[VideoGen] ✅ Started! Media: ${mediaName}`);
+        break;
+      } catch (err) {
+        console.log(`[VideoGen] ❌ Attempt ${attempt} failed: ${err.message}`);
+        if (attempt >= MAX_RETRIES) throw err;
+        await page.waitForTimeout(5000);
+      }
+    }
+
+    console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
+    return { context, bearerToken, mediaName, prompt, extendPrompt, config, isFlowRpc: false };
   }
-
-  console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
-
-  return { context, bearerToken, mediaName, prompt, extendPrompt, config };
 }
 
 // ═══════════════════════════════════════════════════════════════
 // PHASE 2: Poll + Fetch (NO browser page needed, parallel OK)
 // ═══════════════════════════════════════════════════════════════
-async function executeVideoGeneration({ context, bearerToken, mediaName, config }) {
+async function executeVideoGeneration({ context, bearerToken, mediaName, config, wiz, isFlowRpc }) {
   // Poll for completion (standalone — no page needed)
   const completedMedia = await pollVideoStatusStandalone(context, bearerToken, mediaName, {
     requireVideoUrl: false,
+    isFlowRpc,
+    wiz,
   });
 
   // Extract video URL
-  const fifeUrl = findFifeUrl(completedMedia) || await resolveFlowMediaUrl(context, mediaName);
+  const fifeUrl = completedMedia.videoUrl || findFifeUrl(completedMedia) || await resolveFlowMediaUrl(context, mediaName);
   if (!fifeUrl) {
     console.log('[VideoGen] ⚠️ completedMedia:', JSON.stringify(completedMedia).substring(0, 1000));
     throw new Error('[VideoGen] Could not resolve final video URL');
@@ -708,9 +1141,21 @@ async function executeVideoGeneration({ context, bearerToken, mediaName, config 
   // Fetch video as base64
   console.log(`[VideoGen] Fetching video from ${fifeUrl.substring(0, 60)}...`);
   const vidResponse = await context.request.fetch(fifeUrl);
+  if (vidResponse.status() !== 200) {
+    const errBody = await vidResponse.text().catch(() => '');
+    throw new Error(`[VideoGen] CDN download returned HTTP ${vidResponse.status()}: ${errBody.substring(0, 300)}`);
+  }
+
   const vidBuffer = await vidResponse.body();
+  if (vidBuffer.length < 1000) {
+    const textPreview = vidBuffer.toString('utf8');
+    if (textPreview.includes('<Error>') || textPreview.includes('AccessDenied')) {
+      throw new Error(`[VideoGen] CDN returned AccessDenied error instead of video: ${textPreview.substring(0, 300)}`);
+    }
+  }
+
   let resultBase64 = vidBuffer.toString('base64');
-  console.log(`[VideoGen] ✅ Video fetched (base64 length: ${resultBase64.length}).`);
+  console.log(`[VideoGen] ✅ Video fetched (base64 length: ${resultBase64.length}, raw bytes: ${vidBuffer.length}).`);
 
   // Post-process (crop borders + scale)
   if (config.preserveBorder || config.skipPostProcess || config.cropPercent === 0) {
@@ -743,6 +1188,10 @@ module.exports = {
   prepareVideoGeneration,
   executeVideoGeneration,
   pollVideoStatusStandalone,
+  pollFlowVideoStatusStandalone,
+  startMultiImageVideoGeneration,
+  RAW_VIDEO_MODEL_ALIASES,
+  VIDEO_MODEL_MAP,
   findFifeUrl,
   resolveFlowMediaUrl,
   normalizeVideoModelKey

@@ -66,16 +66,22 @@ async function waitForEnter(message) {
   console.log('[GeminiCookies] This is the same profile used by the automation service.');
 
   const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
+  const winConfig = getWindowLaunchConfig(baseDir);
+  ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
     channel: chromeChannel,
     headless: false,
+    viewport: null,
     args: [
       '--disable-blink-features=AutomationControlled',
+      ...winConfig.windowArgs,
       ...getExtensionArgs(baseDir),
     ],
   });
 
-  const page = await context.newPage();
+  const pages = context.pages();
+  const page = pages.length > 0 ? pages[0] : await context.newPage();
+  await applyWindowBounds(context, winConfig, page);
   await page.goto('https://gemini.google.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
   console.log('');

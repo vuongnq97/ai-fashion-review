@@ -16,7 +16,13 @@
     "flowProjectUrl": "https://flow.google.com/project/8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
     "flowProjectId": "8ac10c4a-44b5-4d55-b470-10ab24db4c1c",
     "recaptchaSiteKey": "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
-    "chromeExtensionId": "jmobnhoghinjlmjogafjadohcmdebbej"
+    "chromeExtensionId": "jmobnhoghinjlmjogafjadohcmdebbej",
+    "browserWindow": {
+      "miniWindow": true,
+      "position": "bottom-left",
+      "width": 360,
+      "height": 260
+    }
   },
   "dailyVlogSettings": {
     "panelCount": 5,

@@ -1,11 +1,14 @@
 const path = require('path');
 const { chromium } = require('playwright');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('./utils/window-config');
 
 const userDataDir = path.join(__dirname, 'chrome-data');
 const url = process.argv[2] ||
   'https://ai.studio/apps/67340c71-44d0-4210-a324-33525f7e1ecb?fullscreenApplet=true';
 
 (async () => {
+  const winConfig = getWindowLaunchConfig(__dirname);
+  ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
     viewport: null,

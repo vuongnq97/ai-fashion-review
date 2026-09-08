@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { EXTENSION_ID, getExtensionArgs } = require('./utils/extension-loader');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('./utils/window-config');
 const { startTrustedSubmitWatchdog } = require('./utils/flow-submit-watchdog');
 const { startTrustedAssetWatchdog } = require('./utils/flow-asset-watchdog');
 const { adoptBrowserPage, PROJECT_URL } = require('./services/browser');
@@ -173,6 +174,8 @@ async function waitForDownloads(downloadedVideos, pendingDownloads, expectedCoun
   console.log(`[DebugFlowExt] Output dir: ${outputDir}`);
   console.log('[DebugFlowExt] Mode: extension download only. No Flow API polling.');
 
+  const winConfig = getWindowLaunchConfig(__dirname);
+  ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
     acceptDownloads: true,

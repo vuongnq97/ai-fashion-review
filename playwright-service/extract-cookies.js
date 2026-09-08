@@ -7,6 +7,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { getExtensionArgs } = require('./utils/extension-loader');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('./utils/window-config');
 
 const BASE_DIR = __dirname;
 const USER_DATA_DIR = path.join(BASE_DIR, 'chrome-data');
@@ -18,13 +19,18 @@ async function main() {
   console.log('🔍 Opening browser to extract cookies...');
   console.log('⏳ Please login to Google if needed. The script will wait 30s then extract cookies.');
   
+  const winConfig = getWindowLaunchConfig(BASE_DIR);
+  ensureProfileWindowPlacement(USER_DATA_DIR, winConfig);
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false,
+    viewport: null,
     args: [
       '--disable-blink-features=AutomationControlled',
+      ...winConfig.windowArgs,
       ...getExtensionArgs(BASE_DIR),
     ],
   });
+  await applyWindowBounds(context, winConfig);
 
   const pages = context.pages();
   let page = pages.find(p => p.url().includes('labs.google'));

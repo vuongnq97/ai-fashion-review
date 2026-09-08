@@ -2,8 +2,8 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 const { getExtensionArgs } = require('../utils/extension-loader');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('../utils/window-config');
 const { getConfig } = require('../utils/config-manager');
-const { getWindowLaunchConfig, applyWindowBounds } = require('../utils/window-config');
 
 const config = getConfig(path.resolve(__dirname, '..'));
 
@@ -175,12 +175,14 @@ async function getSharedContext(baseDir) {
     } catch (_) { }
 
     const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
-    const winConfig = getWindowLaunchConfig();
+    const winConfig = getWindowLaunchConfig(baseDir);
+    ensureProfileWindowPlacement(userDataDir, winConfig);
 
     const launchOptions = {
       channel: chromeChannel,
       headless: isHeadless,
       ignoreHTTPSErrors: true,
+      viewport: null,
       args: [
         '--disable-blink-features=AutomationControlled',
         ...winConfig.windowArgs,
@@ -188,10 +190,6 @@ async function getSharedContext(baseDir) {
       ],
       acceptDownloads: true
     };
-
-    if (winConfig.viewport) {
-      launchOptions.viewport = winConfig.viewport;
-    }
 
     globalContext = await chromium.launchPersistentContext(userDataDir, launchOptions);
 
@@ -222,18 +220,23 @@ async function getBrowserPage(baseDir) {
   const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
 
   if (!globalPage || globalPage.isClosed()) {
-    console.log('[Browser] Creating new page...');
+    console.log('[Browser] Getting or creating page...');
     try {
-      globalPage = await context.newPage();
+      const existingPages = context.pages();
+      globalPage = existingPages.length > 0 ? existingPages[0] : await context.newPage();
     } catch (e) {
-      console.log('[Browser] newPage() failed, reloading context...');
+      console.log('[Browser] Page acquisition failed, reloading context...');
       try { await context.close(); } catch (_) { }
       globalContext = null;
 
       const newContext = await getSharedContext(baseDir);
-      globalPage = await newContext.newPage();
+      const newPages = newContext.pages();
+      globalPage = newPages.length > 0 ? newPages[0] : await newContext.newPage();
     }
     setupTokenInterceptor(globalPage);
+    if (!isHeadless) {
+      await applyWindowBounds(context, winConfig, globalPage);
+    }
     await globalPage.goto(PROJECT_URL);
     await globalPage.waitForTimeout(6000);
     await handleAuthRedirect(globalPage, context);
@@ -258,7 +261,12 @@ async function getBrowserPage(baseDir) {
  */
 async function createFlowPage(baseDir) {
   const context = await getSharedContext(baseDir);
+  const winConfig = getWindowLaunchConfig(baseDir);
+  const isHeadless = process.env.HEADLESS === 'true';
   const page = await context.newPage();
+  if (!isHeadless) {
+    await applyWindowBounds(context, winConfig, page);
+  }
   setupTokenInterceptor(page);
   await page.goto(PROJECT_URL);
   await page.waitForTimeout(6000);

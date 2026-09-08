@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { getWindowLaunchConfig, applyWindowBounds, ensureProfileWindowPlacement } = require('./utils/window-config');
 
 (async () => {
   const userDataDir = path.join(__dirname, 'chrome-data');
@@ -10,12 +11,17 @@ const readline = require('readline');
   console.log('🚀 Đang mở browser để update cookies...');
   console.log('📂 Profile: chrome-data');
 
+  const winConfig = getWindowLaunchConfig(__dirname);
+  ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
-    args: ['--disable-blink-features=AutomationControlled']
+    viewport: null,
+    args: ['--disable-blink-features=AutomationControlled', ...winConfig.windowArgs]
   });
 
-  const page = await context.newPage();
+  const pages = context.pages();
+  const page = pages.length > 0 ? pages[0] : await context.newPage();
+  await applyWindowBounds(context, winConfig, page);
   await page.goto('https://labs.google/fx/tools/image-fx');
 
   console.log('');

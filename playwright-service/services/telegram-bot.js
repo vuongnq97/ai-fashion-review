@@ -14,6 +14,10 @@ const { runStoryboardFullFlow } = require('./storyboard-fullflow');
 const { sendVideoToTelegramDirect, editTelegramMessage } = require('./telegram-send');
 const { FlowStepTracker } = require('./flow-step-tracker');
 const { handleDailyVlogCommand, handleDailyVlogPhoto, isWaitingForDailyVlogPhoto } = require('./dailyvlog-flow');
+const {
+  handleTqCommand, handleTqPhoto, handleTqPrompt, handleTqDurationCallback,
+  handleTqCancel, isInTqFlow, isWaitingTqPhoto, isWaitingTqPrompt,
+} = require('./tq-flow');
 const { flowQueue } = require('./flow-queue');
 const { generationJobService } = require('./generation-job');
 const { extractProductAssetsFromHtml } = require('./product-assets');
@@ -44,7 +48,8 @@ const RESERVED_COMMANDS = new Set([
   'template6', 't1', 't2', 't3', 't4', 't5', 't6',
   't51', 't52', 't53', 't5_1', 't5_2', 't5_3',
   'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4',
-  'again', 'redo'
+  'again', 'redo',
+  'tq', 'cancel',
 ]);
 
 function classifyTelegramCommand(text = '') {
@@ -665,6 +670,21 @@ async function handleCallbackQuery(botToken, callbackQuery) {
   const data = String(callbackQuery.data || '').trim();
   const baseDir = path.resolve(__dirname, '..');
 
+  // ── /tq duration picker callback ─────────────────────────────────────────
+  if (data.startsWith('tq_duration:')) {
+    const { sendVideoToTelegramDirect } = require('./telegram-send');
+    await handleTqDurationCallback(
+      botToken,
+      callbackQuery,
+      answerCallbackQuery,
+      sendTelegramMessage,
+      sendVideoToTelegramDirect,
+      baseDir,
+      flowQueue
+    );
+    return;
+  }
+
   // Quét mã QR TikTok
   if (data.startsWith('qr_login')) {
     await answerCallbackQuery(botToken, queryId, '⏳ Đang khởi tạo mã QR...');
@@ -782,6 +802,29 @@ async function handleUpdate(botToken, update) {
   // ── 1. Handle commands ────────────────────────────────────────────────────
   if (message.text) {
     const text = message.text.trim();
+
+    // ── /tq — Quick video from image + prompt ──────────────────────────────
+    if (/^\/tq(?:@\w+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received /tq command from chat ${chatId}`);
+      await handleTqCommand(botToken, chatId, sendTelegramMessage);
+      return;
+    }
+
+    // ── /cancel — huỷ phiên /tq nếu đang chờ ─────────────────────────────
+    if (/^\/cancel(?:@\w+)?(?:\s|$)/i.test(text)) {
+      const cancelled = await handleTqCancel(botToken, chatId, sendTelegramMessage);
+      if (!cancelled) {
+        await sendTelegramMessage(botToken, chatId,
+          '❌ Không có phiên nào đang chạy để huỷ.');
+      }
+      return;
+    }
+
+    // ── Nếu đang chờ prompt của /tq, route vào tq-flow ──────────────────
+    if (isWaitingTqPrompt(chatId) && !text.startsWith('/')) {
+      await handleTqPrompt(botToken, chatId, text, sendTelegramMessage);
+      return;
+    }
 
     // ── 0. Kiểm tra nếu tin nhắn là mã OTP cho phiên TikTok đang yêu cầu xác minh 2FA ──
     const otpMatch = text.match(/^(?:\/otp\s+)?(\d{6})$/);
@@ -1147,6 +1190,8 @@ async function handleUpdate(botToken, update) {
         '👋 <b>Xin chào!</b> Hãy gửi link TikTok Shop (vd: <code>https://vt.tiktok.com/...</code>) qua đây, bot sẽ tự động phân tích sản phẩm và tạo video review cho bạn.\n\n' +
         '📌 <b>LỆNH HỆ THỐNG:</b>\n' +
         '• /start — Bắt đầu / Xem lại hướng dẫn & danh sách tất cả các lệnh\n\n' +
+        '🎬 <b>TẠO VIDEO NHANH TỪ ẢNH:</b>\n' +
+        '• /tq — Tạo video từ ảnh + prompt bạn tự nhập (chọn 4s / 6s / 8s / 10s)\n\n' +
         '🤖 <b>CÁC LỆNH TỰ ĐỘNG CHẠY THEO LỊCH (AUTO SCHEDULE):</b>\n' +
         '• <b>Template 3:</b> /auto_t3 (Bật) | /auto_t3_run (Chạy ngay) | /auto_t3_off (Tắt)\n' +
         '• <b>Template 4:</b> /auto_t4 (Bật) | /auto_t4_run (Chạy ngay) | /auto_t4_off (Tắt)\n' +
@@ -1300,6 +1345,19 @@ async function handleUpdate(botToken, update) {
       return; // Photo handled by dailyvlog flow
     }
 
+    // ── 2b. /tq photo: route to tq-flow handler if waiting ───────────────────
+    if (isWaitingTqPhoto(chatId)) {
+      downloadTelegramFile(botToken, fileId)
+        .then(buffer => {
+          const photoName = `tq_${Date.now()}_${photo.file_id.slice(-6)}.png`;
+          handleTqPhoto(botToken, chatId, buffer, photoName, sendTelegramMessage);
+        })
+        .catch(err => {
+          console.error(`[Telegram Bot] Error downloading /tq photo ${fileId}:`, err.message);
+        });
+      return;
+    }
+
     // All templates now use TikTok Shop shortlink as input
     await sendTelegramMessage(
       botToken,
@@ -1437,6 +1495,8 @@ function buildTelegramCommands() {
   return [
     { command: 'start', description: '🚀 Bắt đầu / Xem toàn bộ hướng dẫn & lệnh' },
     { command: 'help', description: '❓ Hướng dẫn sử dụng & danh sách lệnh' },
+    { command: 'tq', description: '🎬 Tạo video từ ảnh + prompt (chọn 4s/6s/8s/10s)' },
+    { command: 'cancel', description: '❌ Huỷ phiên /tq đang chờ' },
     { command: 'register', description: '📝 Đăng ký Shop' },
     { command: 'auto_t3', description: '🤖 Bật auto Template 3 theo lịch' },
     { command: 'auto_t3_run', description: '▶️ Chạy thử ngay 1 video Template 3' },

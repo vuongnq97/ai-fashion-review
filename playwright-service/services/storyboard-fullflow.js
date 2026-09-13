@@ -147,9 +147,18 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
     });
 
     const videos = Array.isArray(result.videos) ? result.videos : [];
-    if (videos.length === 0) {
+    const template = String(options.template || options.storyboardTemplate || result.template || '').toLowerCase();
+    const isAtomicShot = template === 'template10' || template === 'template_10';
+    const isInteractiveStoryboard = template === 'template_pro' || template === 'templatepro' || template === 'tpro' || !!result.isInteractiveStoryboard;
+
+    if (videos.length === 0 && !isAtomicShot && !isInteractiveStoryboard) {
       throw new Error('No videos returned from storyboard/video generation.');
     }
+    if (videos.length === 0 && isAtomicShot) {
+      console.warn('[FullFlow] Template10: video generation returned 0 videos. Panels are ready — use /remake to retry video.');
+      await sendTelegramMessage(chatId, '⚠️ Video chưa tạo được lần này (Veo timeout). Storyboard và panels đã xong.\n👉 Dùng /remake 1, /remake 2 để tạo lại từng video 8s.');
+    }
+
     const productInfo = buildProductTelegramText(result.analysis);
 
     let sentCount = 0;

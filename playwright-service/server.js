@@ -27,29 +27,39 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-// ─── Dọn dẹp các thư mục tạm khi khởi động server ───────────────────────────
+// ─── Dọn dẹp các thư mục tạm khi khởi động server (> 24 giờ) ─────────────────
 const storyboardRunsDir = path.join(__dirname, 'storyboard-review-runs');
 if (fs.existsSync(storyboardRunsDir)) {
   try {
-    fs.rmSync(storyboardRunsDir, { recursive: true, force: true });
-    console.log('🧹 [Startup] Đã xóa dọn sạch thư mục storyboard-review-runs cũ.');
+    const now = Date.now();
+    const maxAge = 24 * 60 * 60 * 1000; // 24h
+    const entries = fs.readdirSync(storyboardRunsDir);
+    let cleaned = 0;
+    for (const entry of entries) {
+      const entryPath = path.join(storyboardRunsDir, entry);
+      try {
+        const stat = fs.statSync(entryPath);
+        if (now - stat.mtimeMs > maxAge) {
+          fs.rmSync(entryPath, { recursive: true, force: true });
+          cleaned++;
+        }
+      } catch (_) {}
+    }
+    if (cleaned > 0) {
+      console.log(`🧹 [Startup] Đã dọn dẹp ${cleaned} thư mục storyboard-review-runs cũ (> 24h).`);
+    }
   } catch (err) {
-    console.warn('⚠️ [Startup] Không thể xóa storyboard-review-runs:', err.message);
+    console.warn('⚠️ [Startup] Không thể dọn dẹp storyboard-review-runs:', err.message);
   }
+} else {
+  fs.mkdirSync(storyboardRunsDir, { recursive: true });
 }
-fs.mkdirSync(storyboardRunsDir, { recursive: true });
 
-// Ensure clean uploads dir exists
+// Ensure uploads dir exists (clean only stale temp uploads > 24h)
 const uploadsDir = path.join(__dirname, 'uploads');
-if (fs.existsSync(uploadsDir)) {
-  try {
-    fs.rmSync(uploadsDir, { recursive: true, force: true });
-    console.log('🧹 [Startup] Đã xóa dọn sạch thư mục uploads tạm cũ.');
-  } catch (err) {
-    console.warn('⚠️ [Startup] Không thể xóa uploads:', err.message);
-  }
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
-fs.mkdirSync(uploadsDir, { recursive: true });
 
 app.use('/api', apiRoutes);
 

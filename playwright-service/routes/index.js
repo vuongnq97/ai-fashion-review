@@ -297,9 +297,18 @@ router.get('/jobs/:jobId/assets/videos/:index.mp4', (req, res) => {
   res.status(404).send('Video not ready');
 });
 
-router.get('/jobs/:jobId/final-video', (req, res) => {
-  const job = getJob(req.params.jobId);
+router.get('/jobs/:jobId/final-video', async (req, res) => {
+  let job = getJob(req.params.jobId);
   if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+  if (!job.finalVideoPath || !fs.existsSync(job.finalVideoPath)) {
+    try {
+      console.log(`[Routes] Final video missing for ${job.jobId}, auto preparing upload...`);
+      await prepareUploadJob(job.jobId);
+      job = getJob(req.params.jobId);
+    } catch (e) {
+      console.warn(`[Routes] Could not auto-prepare final video:`, e.message);
+    }
+  }
   if (!job.finalVideoPath || !fs.existsSync(job.finalVideoPath)) {
     return res.status(404).json({ success: false, error: 'Final video not found' });
   }
@@ -888,7 +897,7 @@ router.get('/export-cookies', async (req, res) => {
             return res.status(400).json({ success: false, error: 'No browser context running. Start a generation first.' });
         }
 
-        const allCookies = await context.cookies(['https://labs.google']);
+        const allCookies = await context.cookies();
         const relevantCookies = allCookies.map(c => {
             const cookie = {
                 name: c.name,

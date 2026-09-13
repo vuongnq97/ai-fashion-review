@@ -393,11 +393,13 @@ async function executeJob(job) {
       sendPanelVideos: true,
       sendSummary: false,
       stepTracker: tracker,
+      isAuto: !!job.isAuto,
       productContext: {
         productId: job.productId,
         productUrl: job.productUrl,
         productTitle: job.productTitle,
         productDescription: job.productDescription,
+        shortlink: job.shortlink,
       },
       onProgress: (event) => {
         if (!event || !event.currentStep) return;
@@ -432,6 +434,41 @@ async function executeJob(job) {
         });
       }
     } catch (_) { }
+
+    const isInteractive = job.template === 'template_pro' || job.template === 'tpro' || !!job.templateOptions?.interactiveStoryboard || !!result?.isInteractiveStoryboard;
+    if (isInteractive) {
+      const effectiveRunId = result?.runId || (result?.reviewArchive?.root ? path.basename(result.reviewArchive.root).split('-flow-').pop() : null) || job.jobId;
+      job.proRunId = effectiveRunId;
+
+      if (job.isAuto) {
+        console.log(`[Job ${job.jobId}] 🤖 Auto mode enabled: skipping user review, proceeding directly to video generation and TikTok upload (runId: ${effectiveRunId})!`);
+        const { finalizeProStoryboardAndGenerateVideos } = require('./template-pro-storyboard');
+        const { lastRunByChat, handleUploadDirectCommand } = require('./telegram-bot');
+
+        await finalizeProStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+          stepTracker: tracker,
+          lastRunByChat,
+          isAuto: true,
+        });
+
+        console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tpro-${effectiveRunId}...`);
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        await handleUploadDirectCommand(botToken, job.chatId, `tpro-${effectiveRunId}`);
+
+        latestCompletedByChat.set(String(job.chatId), `tpro-${effectiveRunId}`);
+        job.status = 'completed';
+        setStep(job, 'completed', 'Auto generation and upload completed.', { status: 'completed', progressPercent: 100 });
+        return { success: true, jobId: job.jobId, status: 'completed' };
+      }
+
+      console.log(`[Job ${job.jobId}] 🎨 Interactive Storyboard ready. Waiting for user review/remake/OK.`);
+      job.status = 'awaiting_review';
+      setStep(job, 'storyboard_reviewed', 'Storyboard đã gửi về Telegram. Đang chờ người dùng duyệt hoặc Remake.', {
+        progressPercent: 60,
+        status: 'awaiting_review',
+      });
+      return { success: true, jobId: job.jobId, status: 'awaiting_review', isInteractiveStoryboard: true };
+    }
 
     const { orderedVideoPaths, missingPanels, completedPanels, expectedPanels } = getOrderedVideoPathsForJob(job);
     if (completedPanels.length === 0) {
@@ -532,6 +569,8 @@ function enqueueGenerationJob(input, baseDir = path.resolve(__dirname, '..')) {
     jobDir,
     status: 'queued',
     stepTracker: input.stepTracker || null,
+    isAuto: !!input.isAuto,
+    autoUpload: !!input.autoUpload,
     currentStep: 'queued',
     stepOrder: STEPS.queued,
     progressPercent: 0,
@@ -609,13 +648,169 @@ function publicJob(job) {
   };
 }
 
+function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
+  try {
+    const sessionFile = path.join(runDir, 'session.json');
+    if (!fs.existsSync(sessionFile)) return null;
+
+    const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+    const videosDir = path.join(runDir, 'videos');
+    if (!fs.existsSync(videosDir)) return null;
+
+    const videoFiles = fs.readdirSync(videosDir)
+      .filter(f => f.endsWith('.mp4'))
+      .filter(f => {
+        try {
+          return fs.statSync(path.join(videosDir, f)).size > 1000;
+        } catch (_) {
+          return false;
+        }
+      })
+      .sort();
+
+    if (videoFiles.length === 0) return null;
+
+    const runId = session.runId || path.basename(runDir).split('-').pop();
+    const jobId = `tpro-${runId}`;
+    const panelsDir = path.join(runDir, 'panels');
+    const panelFiles = fs.existsSync(panelsDir)
+      ? fs.readdirSync(panelsDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg')).sort()
+      : [];
+
+    const videos = videoFiles.map((vf, idx) => ({
+      panelIndex: idx + 1,
+      videoPath: path.join(videosDir, vf),
+    }));
+
+    const finalVideoPath = path.join(runDir, 'final', 'final-video.mp4');
+    const hasFinalVideo = fs.existsSync(finalVideoPath) && fs.statSync(finalVideoPath).size > 1000;
+
+    const restoredJob = {
+      jobId,
+      chatId: String(session.chatId || ''),
+      template: session.template || 'template_pro',
+      hasVoice: true,
+      jobDir: runDir,
+      baseDir,
+      status: 'completed',
+      productId: session.productId || session.analysis?.productId || '',
+      productTitle: session.productTitle || session.analysis?.productName || 'Sản phẩm review',
+      productUrl: session.productUrl || '',
+      shortlink: session.shortlink || '',
+      cartAnchorText: session.cartAnchorText || session.analysis?.cartAnchorText || '',
+      panels: videos.map((_, i) => ({ index: i + 1, status: 'completed' })),
+      finalVideoPath: hasFinalVideo ? finalVideoPath : undefined,
+      finalVideoSize: hasFinalVideo ? fs.statSync(finalVideoPath).size : undefined,
+      result: {
+        runId,
+        reviewArchive: {
+          root: runDir,
+          panelsDir,
+          videosDir,
+          storyboardPath: session.storyboardPath || path.join(runDir, 'storyboard.png'),
+          promptsPath: session.promptsMdPath || path.join(runDir, 'prompts.md'),
+        },
+        panels: panelFiles.map((pf, i) => ({ index: i + 1, imagePath: path.join(panelsDir, pf) })),
+        videos,
+        analysis: session.analysis || {},
+      },
+      analysis: session.analysis || {},
+      caption: session.productTitle || session.analysis?.productName || '',
+      hashtags: session.analysis?.hashtags || [],
+      createdAt: session.createdAt || new Date().toISOString(),
+      updatedAt: session.updatedAt || new Date().toISOString(),
+    };
+
+    jobs.set(jobId, restoredJob);
+    if (session.chatId) {
+      latestCompletedByChat.set(String(session.chatId), jobId);
+    }
+    return restoredJob;
+  } catch (err) {
+    console.warn(`[GenerationJob] Error restoring job from runDir ${runDir}:`, err.message);
+    return null;
+  }
+}
+
+function findLatestCompletedJobOnDisk(chatId, baseDir = path.resolve(__dirname, '..')) {
+  try {
+    const reviewRunsDir = path.join(baseDir, 'storyboard-review-runs');
+    if (!fs.existsSync(reviewRunsDir)) return null;
+
+    const entries = fs.readdirSync(reviewRunsDir)
+      .map(name => {
+        const fullPath = path.join(reviewRunsDir, name);
+        try {
+          const stat = fs.statSync(fullPath);
+          return stat.isDirectory() ? { name, fullPath, mtimeMs: stat.mtimeMs } : null;
+        } catch (_) {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+    for (const entry of entries) {
+      const sessionFile = path.join(entry.fullPath, 'session.json');
+      if (!fs.existsSync(sessionFile)) continue;
+      try {
+        const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+        if (chatId && String(session.chatId) !== String(chatId)) continue;
+      } catch (_) {
+        continue;
+      }
+
+      const job = restoreJobFromRunDir(entry.fullPath, baseDir);
+      if (job) return job;
+    }
+  } catch (err) {
+    console.warn('[GenerationJob] Error scanning disk for latest completed job:', err.message);
+  }
+  return null;
+}
+
+function findJobOnDiskById(jobId, baseDir = path.resolve(__dirname, '..')) {
+  try {
+    const reviewRunsDir = path.join(baseDir, 'storyboard-review-runs');
+    if (!fs.existsSync(reviewRunsDir)) return null;
+    const cleanId = String(jobId).replace(/^tpro-/, '');
+
+    const entries = fs.readdirSync(reviewRunsDir);
+    for (const name of entries) {
+      if (name.includes(cleanId) || name.includes(jobId)) {
+        const fullPath = path.join(reviewRunsDir, name);
+        const job = restoreJobFromRunDir(fullPath, baseDir);
+        if (job) return job;
+      }
+    }
+  } catch (err) {
+    console.warn(`[GenerationJob] Error finding job ${jobId} on disk:`, err.message);
+  }
+  return null;
+}
+
 function getJob(jobId) {
-  return jobs.get(String(jobId || ''));
+  if (!jobId) return null;
+  const idStr = String(jobId);
+  if (jobs.has(idStr)) return jobs.get(idStr);
+  return findJobOnDiskById(idStr);
 }
 
 function getLatestCompletedJobForChat(chatId) {
   const jobId = latestCompletedByChat.get(String(chatId || ''));
-  return jobId ? jobs.get(jobId) : null;
+  if (jobId && jobs.has(jobId)) {
+    return jobs.get(jobId);
+  }
+  return findLatestCompletedJobOnDisk(chatId);
+}
+
+function registerExternalCompletedJob(chatId, jobData) {
+  if (!jobData || !jobData.jobId) return null;
+  jobs.set(String(jobData.jobId), jobData);
+  if (chatId) {
+    latestCompletedByChat.set(String(chatId), String(jobData.jobId));
+  }
+  return jobData;
 }
 
 function getJobResult(jobId) {
@@ -660,6 +855,12 @@ async function prepareUploadJob(jobId) {
     throw new Error('Job result is missing');
   }
 
+  // Nếu final video đã tồn tại và hợp lệ thì tái sử dụng ngay lập tức
+  if (job.finalVideoPath && fs.existsSync(job.finalVideoPath) && fs.statSync(job.finalVideoPath).size > 1000) {
+    console.log(`[GenerationJob] 🎬 Final video already exists at ${job.finalVideoPath}. Reusing.`);
+    return getJobResult(job.jobId);
+  }
+
   const { orderedVideoPaths, missingPanels, expectedPanels } = getOrderedVideoPathsForJob(job);
   if (missingPanels.length > 0) {
     throw new Error(`Chưa có đủ video cho tất cả các cảnh (Thiếu Cảnh ${missingPanels.join(', ')} / ${expectedPanels.length}). Vui lòng gõ /remake_${missingPanels[0]} để tạo lại cảnh này trước khi /upload!`);
@@ -671,11 +872,13 @@ async function prepareUploadJob(jobId) {
   const videoPaths = orderedVideoPaths;
   console.log(`[GenerationJob] 🎬 Merging ${videoPaths.length} videos in strict order: ${videoPaths.map((p, i) => `Cảnh ${i + 1} (${path.basename(p)})`).join(' -> ')}`);
 
-  // Check if template has voice-over script (e.g. template5_2, template5_3, hasVoice)
+  // Check if template has voice-over script (e.g. template5_2, template5_3, template10, template_pro, hasVoice)
   const tmpl = String(job.template || '').toLowerCase();
   const isVoiceTemplate = !!(
     tmpl.includes('template5_2') || tmpl.includes('template5.2') || tmpl.includes('template52') ||
     tmpl.includes('template5_3') || tmpl.includes('template5.3') || tmpl.includes('template53') ||
+    tmpl.includes('template10') || tmpl.includes('t10') ||
+    tmpl.includes('pro') || tmpl.includes('template_pro') || tmpl.includes('tpro') ||
     job.hasVoice === true ||
     job.options?.hasVoice === true
   );
@@ -807,26 +1010,48 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
     .filter(n => Number.isInteger(n) && n > 0);
   if (numbers.length === 0) throw new Error('Valid panel indices are required');
 
+  const isTemplatePro = job.template === 'template_pro' || job.template === 'templatepro' || job.template === 'tpro';
+  const effectiveNumbers = isTemplatePro
+    ? numbers.map(n => (n === 3 || n === 4 ? 2 : n))
+    : numbers;
+
   const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard');
   const baseDir = job.baseDir || path.resolve(__dirname, '..');
   const result = job.result || {};
   const panels = result.panels || [];
-  const targetPanels = panels.filter(p => numbers.includes(p.index));
+  const targetPanels = panels.filter(p => effectiveNumbers.includes(p.index));
 
-  if (targetPanels.length === 0) {
+  if (targetPanels.length === 0 && !isTemplatePro) {
     throw new Error(`Panels ${numbers.join(', ')} not found in job`);
   }
 
-  setStep(job, 'generating_videos', `Đang tạo lại ${targetPanels.length} video cảnh ${numbers.join(', ')}...`, { status: 'running' });
+  const targetCount = isTemplatePro ? [...new Set(effectiveNumbers)].length : targetPanels.length;
+  setStep(job, 'generating_videos', `Đang tạo lại ${targetCount} video cảnh ${numbers.join(', ')}...`, { status: 'running' });
 
-  if (customInstruction) {
+  let videoJobsToRun = targetPanels;
+  let genOptions = {
+    aspectRatio: '9:16',
+    includeVideoBase64: true,
+  };
+
+  if (isTemplatePro) {
+    const { buildTemplateProRemakeVideoJobs } = require('./template-pro-storyboard');
+    const runDir = job.result?.reviewArchive?.root || job.jobDir;
+    videoJobsToRun = buildTemplateProRemakeVideoJobs(runDir, numbers, customInstruction, job.analysis || job.result?.analysis);
+    genOptions = {
+      aspectRatio: '9:16',
+      videoModelKey: 'abra_r2v_8s',
+      includeVideoBase64: true,
+      cropPercent: 0,
+      preserveBorder: true,
+      multiImageMode: true,
+      runId: path.basename(runDir),
+    };
+  } else if (customInstruction) {
     targetPanels.forEach(p => { p.customInstruction = customInstruction; });
   }
 
-  const newVideos = await generateVideosFromPanelsDirect(baseDir, targetPanels, {
-    aspectRatio: '9:16',
-    includeVideoBase64: true,
-  });
+  const newVideos = await generateVideosFromPanelsDirect(baseDir, videoJobsToRun, genOptions);
 
   for (const v of newVideos) {
     if (v.error) {
@@ -910,6 +1135,7 @@ const generationJobService = {
   getJobResult,
   getLatestCompletedJob: getLatestCompletedJobForChat,
   getLatestCompletedJobForChat,
+  registerExternalCompletedJob,
   publicJob,
   markUpload,
   prepareUploadJob,
@@ -926,6 +1152,7 @@ const generationJobService = {
 module.exports = {
   ...generationJobService,
   generationJobService,
+  registerExternalCompletedJob,
   getOrderedVideoPathsForJob,
   getExpectedPanelIndices,
 };

@@ -43,16 +43,27 @@ const { sendTelegramMessage } = require('./services/telegram-send');
 // Hỗ trợ định dạng HTML của Telegram: <b>in đậm</b>, <i>in nghiêng</i>, <code>code</code>
 // =============================================================================
 const DEFAULT_MESSAGE = `
-📢 <b>THÔNG BÁO: HOÀN TẤT BẢO TRÌ HỆ THỐNG</b>
+🚀 <b>RA MẮT TÍNH NĂNG MỚI: TEMPLATE PRO (/tpro)</b>
 
 Kính gửi các Shop, 👋
 
-Hệ thống Bot vừa hoàn tất quá trình bảo trì và nâng cấp kỹ thuật:
-✅ Đã khởi động lại toàn bộ dịch vụ và tối ưu hiệu năng.
-✅ Tất cả tính năng tạo video AI, gắn link giỏ hàng và đăng bài TikTok Shop đã hoạt động ổn định trở lại.
+Hệ thống Bot vừa chính thức cập nhật <b>Template Pro (<code>/tpro</code>)</b> với hàng loạt nâng cấp đột phá nhằm nâng cao tối đa chất lượng video review TikTok Shop:
 
-Mọi người có thể tiếp tục gửi link sản phẩm để tạo video như thường lệ nhé!
-Cảm ơn các Shop đã đồng hành và kiên nhẫn chờ đợi. Chúc các Shop nổ thật nhiều đơn! 🚀🛒
+🎨 <b>1. Xem trước & Tương tác Remake Storyboard:</b>
+• Xem trước bảng Storyboard 4 cảnh kèm ảnh sản phẩm gốc để đối chiếu so sánh trực quan.
+• Tự do bấm nút <b>Remake từng cảnh</b> (Cảnh 1, 2, 3, 4) hoặc <b>Remake All</b> cho đến khi ưng ý nhất mới bấm <b>OK - Chốt Storyboard</b> để tạo video.
+
+🔍 <b>2. Cơ chế Auto QA kiểm định Storyboard & Video:</b>
+• Tự động kiểm định chất lượng.
+• <i>⚠️ Lưu ý: Thời gian tạo video có thể lâu hơn một chút do hệ thống thực hiện kiểm định và tự động tinh chỉnh chất lượng kỹ lưỡng.</i>
+
+⚡ <b>3. Ghi nhớ Template thông minh:</b>
+• <b>Không cần gửi lại lệnh template mỗi lần gen!</b> Bạn chỉ cần chọn template mong muốn (như <code>/tpro</code>) một lần đầu tiên.
+• Các lần tiếp theo, bạn chỉ cần gửi thẳng link sản phẩm TikTok Shop là Bot sẽ tự động tạo video theo template bạn đã chọn.
+
+👉 <b>Cách trải nghiệm ngay:</b> Gõ <code>/tpro</code> trong chat Bot và gửi link TikTok Shop để bắt đầu tạo video review đỉnh cao nhé!
+
+Cảm ơn các Shop đã luôn đồng hành. Chúc các Shop bùng nổ doanh số và nổ thật nhiều đơn hàng! 🚀🛒
 `.trim();
 
 /**

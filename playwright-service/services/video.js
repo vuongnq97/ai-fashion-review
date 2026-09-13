@@ -30,6 +30,10 @@ const RAW_VIDEO_MODEL_ALIASES = {
   'abra-r2v-8s': 'abra_r2v_8s',
   'r2v_8s': 'abra_r2v_8s',
   'r2v-8s': 'abra_r2v_8s',
+  'abra_r2v_4s': 'abra_r2v_4s',
+  'abra-r2v-4s': 'abra_r2v_4s',
+  'r2v_4s': 'abra_r2v_4s',
+  'r2v-4s': 'abra_r2v_4s',
   // Veo models
   'default': 'veo_3_1_i2v_lite_low_priority',
   'quality': 'veo_3_1_i2v_lite_low_priority',
@@ -385,7 +389,8 @@ async function startMultiImageVideoGeneration(page, context, {
   prompt,
   imageMediaIds = [],
   aspectRatio = '9:16',
-  videoModelKey = 'abra_r2v_8s'
+  videoModelKey = 'abra_r2v_8s',
+  voiceId = null
 }) {
   const bearerToken = await ensureBearerToken(page);
   const recaptchaToken = await getRecaptchaToken(page, 'VIDEO_GENERATION');
@@ -405,33 +410,41 @@ async function startMultiImageVideoGeneration(page, context, {
   const clientGuid3 = crypto.randomUUID().toUpperCase();
 
   const modelKey = videoModelKey || 'abra_r2v_8s';
-  const innerPayload = [
+  const requestItem = [
     [
+      null,
+      null,
       [
         [
-          null,
-          null,
           [
-            [
-              [
-                prompt
-              ]
-            ]
+            prompt
           ]
-        ],
-        imageMediaIds.map(id => [null, id]),
-        modelKey,
-        1,
-        null,
-        [
-          null,
-          null,
-          null,
-          null,
-          clientGuid1,
-          clientGuid2
         ]
       ]
+    ],
+    imageMediaIds.map(id => [null, id]),
+    modelKey,
+    1,
+    null,
+    [
+      null,
+      null,
+      null,
+      null,
+      clientGuid1,
+      clientGuid2
+    ]
+  ];
+
+  if (voiceId) {
+    requestItem.push(null);
+    requestItem.push([[String(voiceId)]]);
+    console.log(`[VideoGen-Multi]   audio/voice ID attached: "${voiceId}"`);
+  }
+
+  const innerPayload = [
+    [
+      requestItem
     ],
     [
       null,
@@ -1068,7 +1081,7 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
         console.log(`[VideoGen-Multi] Using provided mediaId [${i + 1}/${filePayloads.length}]: ${f.mediaId} (${f.name || 'image'})`);
       } else if (f.buffer) {
         console.log(`[VideoGen-Multi] Uploading reference image [${i + 1}/${filePayloads.length}]: ${f.name || ('image-' + i)}...`);
-        const mid = await uploadImageDirect(context, bearerToken, f.buffer);
+        const mid = await uploadImageDirect(context, bearerToken, f.buffer, page, baseDir);
         imageMediaIds.push(mid);
         console.log(`[VideoGen-Multi] ✅ Uploaded [${i + 1}/${filePayloads.length}]: ${mid}`);
       }
@@ -1086,7 +1099,8 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
           prompt,
           imageMediaIds,
           aspectRatio: config.aspectRatio || '9:16',
-          videoModelKey: config.videoModelKey || 'abra_r2v_8s'
+          videoModelKey: config.videoModelKey || 'abra_r2v_8s',
+          voiceId: config.voiceId !== undefined ? config.voiceId : (config.hasVoice ? 'laomedeia' : null)
         });
         mediaName = apiResult.media?.[0]?.name;
         wiz = apiResult.wiz;
@@ -1107,7 +1121,7 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
     let startImageMediaId = null;
     if (filePayloads && filePayloads.length > 0) {
       console.log(`[VideoGen] Step 2: Direct uploading start image: ${filePayloads[0].name}...`);
-      startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer);
+      startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer, page, baseDir);
       console.log(`[VideoGen] ✅ Direct upload success: ${startImageMediaId}`);
     } else {
       const selections = imageSelection;

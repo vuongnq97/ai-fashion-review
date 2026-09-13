@@ -12,6 +12,10 @@ function normalizeTemplateName(name) {
   if (s === 't5_2' || s === 't5.2' || s === 't52' || s === 'template5_2' || s === 'template5.2' || s === 'template52') return 'template5_2';
   if (s === 't5_3' || s === 't5.3' || s === 't53' || s === 'template5_3' || s === 'template5.3' || s === 'template53') return 'template5_3';
   if (s === 't6' || s === 'template6' || s === 'template_6') return 'template6';
+  // Template 10 — QUALITY_LOCKED Atomic Shot (EVIDENCE-FIRST + MASTER NARRATION)
+  if (s === 't10' || s === 'template10' || s === 'template_10') return 'template10';
+  // Template Pro — Interactive Storyboard Remake Workflow
+  if (s === 'tpro' || s === 'template_pro' || s === 'templatepro') return 'template_pro';
   return s;
 }
 
@@ -86,6 +90,33 @@ function buildTemplateOptions(rawTemplate) {
       template: 'template6',
       panelCount: 2,
       noText: true,
+    };
+  }
+  // Template 10 — REV4 FINAL: VEO_NATIVE_FAST (2 videos × 8s, evidence-first, native Veo voice)
+  if (template === 'template10' || template === 'template_10') {
+    return {
+      template: 'template10',
+      panelCount: 2,               // 2 videos x 8s (covering 4 panels)
+      noText: true,
+      hasVoice: true,              // Veo native voice in each 8s video
+      videoModelKey: 'abra_i2v_8s', // Same model as template5_2
+      cropPercent: 0.12,           // Same white border crop as template5_2
+      qualityMode: 'VEO_NATIVE_FAST_2x8s',
+      voiceMode: 'VEO_NATIVE_FAST',
+    };
+  }
+
+  // Template Pro — Interactive Storyboard Remake Workflow (inherited from Template 5.2)
+  if (template === 'template_pro' || template === 'templatepro' || template === 'tpro') {
+    return {
+      template: 'template_pro',
+      panelCount: 2,
+      noText: true,
+      hasVoice: true,
+      videoModelKey: 'abra_i2v_8s',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
     };
   }
   return {};

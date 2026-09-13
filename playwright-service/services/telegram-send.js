@@ -35,19 +35,35 @@ function toBuffer(data) {
   return null;
 }
 
+function formatReplyMarkup(replyMarkup) {
+  if (!replyMarkup) return undefined;
+  if (typeof replyMarkup === 'string') {
+    try {
+      return JSON.parse(replyMarkup);
+    } catch (_) {
+      return replyMarkup;
+    }
+  }
+  return replyMarkup;
+}
+
 async function sendTelegramMessage(chatId, text, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
 
   try {
+    const payload = {
+      chat_id: chatId,
+      text,
+      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+    };
+    if (options.reply_markup) {
+      payload.reply_markup = formatReplyMarkup(options.reply_markup);
+    }
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
     });
     if (!response.ok) {
@@ -55,13 +71,17 @@ async function sendTelegramMessage(chatId, text, options = {}) {
       console.error(`[Telegram] sendMessage HTTP ${response.status}: ${errText}`);
       if (response.status === 400 && errText.includes("can't parse entities") && options.parse_mode) {
         console.warn(`[Telegram] Retrying sendMessage without parse_mode (plain text fallback)...`);
+        const fallbackPayload = {
+          chat_id: chatId,
+          text,
+        };
+        if (options.reply_markup) {
+          fallbackPayload.reply_markup = formatReplyMarkup(options.reply_markup);
+        }
         const fallbackRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text,
-          }),
+          body: JSON.stringify(fallbackPayload),
           signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
         });
         if (fallbackRes.ok) {
@@ -84,15 +104,19 @@ async function editTelegramMessage(chatId, messageId, text, options = {}) {
   if (!botToken || !messageId) return false;
 
   try {
+    const payload = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+    };
+    if (options.reply_markup) {
+      payload.reply_markup = formatReplyMarkup(options.reply_markup);
+    }
     const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(telegramTimeoutMs(15000)),
     });
     if (!response.ok) {
@@ -126,45 +150,85 @@ async function deleteTelegramMessage(chatId, messageId) {
   }
 }
 
+function optimizeImageForTelegram(buf) {
+  if (!buf || buf.length <= 1024 * 1024) {
+    return { buffer: buf, mime: 'image/png', filename: 'image.png' };
+  }
+  try {
+    const ffmpegPath = require('ffmpeg-static');
+    const os = require('os');
+    const crypto = require('crypto');
+    const { execSync } = require('child_process');
+    const tmpId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const inTmp = path.join(os.tmpdir(), `raw-tg-${tmpId}.dat`);
+    const outTmp = path.join(os.tmpdir(), `opt-tg-${tmpId}.jpg`);
+    fs.writeFileSync(inTmp, buf);
+    execSync(`"${ffmpegPath}" -y -i "${inTmp}" -q:v 2 -update 1 "${outTmp}"`, { timeout: 10000, stdio: 'pipe' });
+    if (fs.existsSync(outTmp)) {
+      const optBuf = fs.readFileSync(outTmp);
+      try { fs.unlinkSync(inTmp); fs.unlinkSync(outTmp); } catch (_) {}
+      if (optBuf && optBuf.length > 0) {
+        console.log(`[Telegram] 📦 Compressed large photo: ${(buf.length / 1024 / 1024).toFixed(2)} MB -> ${(optBuf.length / 1024).toFixed(1)} KB`);
+        return { buffer: optBuf, mime: 'image/jpeg', filename: 'image.jpg' };
+      }
+    }
+  } catch (err) {
+    console.warn(`[Telegram] optimizeImageForTelegram warning: ${err.message}`);
+  }
+  return { buffer: buf, mime: 'image/png', filename: 'image.png' };
+}
+
 async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', options = {}) {
   const botToken = getBotToken();
   if (!botToken) return null;
 
-  const buf = toBuffer(imageBufferOrBase64);
-  if (!buf) return null;
+  const rawBuf = toBuffer(imageBufferOrBase64);
+  if (!rawBuf) return null;
 
-  try {
-    const formData = new FormData();
-    formData.append('chat_id', chatId);
-    const blob = new Blob([buf], { type: 'image/png' });
-    formData.append('photo', blob, 'image.png');
-    if (caption) formData.append('caption', caption);
-    if (options.parse_mode) formData.append('parse_mode', options.parse_mode);
-    if (options.reply_markup) {
-      formData.append(
-        'reply_markup',
-        typeof options.reply_markup === 'string'
-          ? options.reply_markup
-          : JSON.stringify(options.reply_markup)
-      );
+  const { buffer: buf, mime, filename } = optimizeImageForTelegram(rawBuf);
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+      const blob = new Blob([buf], { type: mime });
+      formData.append('photo', blob, filename);
+      if (caption) formData.append('caption', caption);
+      if (options.parse_mode) formData.append('parse_mode', options.parse_mode);
+      if (options.reply_markup) {
+        formData.append(
+          'reply_markup',
+          typeof options.reply_markup === 'string'
+            ? options.reply_markup
+            : JSON.stringify(options.reply_markup)
+        );
+      }
+
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(telegramTimeoutMs(90000)),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[Telegram] sendPhoto failed (attempt ${attempt}/2): ${errText}`);
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        return null;
+      }
+      const json = await response.json();
+      return json?.result?.message_id || null;
+    } catch (err) {
+      console.error(`[Telegram] sendPhoto error (attempt ${attempt}/2):`, err.message);
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
-
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-      method: 'POST',
-      body: formData,
-      signal: AbortSignal.timeout(telegramTimeoutMs(30000)),
-    });
-
-    if (!response.ok) {
-      console.error(`[Telegram] sendPhoto failed: ${await response.text()}`);
-      return null;
-    }
-    const json = await response.json();
-    return json?.result?.message_id || null;
-  } catch (err) {
-    console.error(`[Telegram] sendPhoto error:`, err.message);
-    return null;
   }
+  return null;
 }
 
 async function sendMediaGroupToTelegram(chatId, images = [], caption = '') {
@@ -316,7 +380,7 @@ async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelN
   }
 }
 
-async function sendMergedVideoToTelegram(chatId, videoPathOrBase64, caption) {
+async function sendMergedVideoToTelegram(chatId, videoPathOrBase64, caption, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
 
@@ -343,6 +407,12 @@ async function sendMergedVideoToTelegram(chatId, videoPathOrBase64, caption) {
     formData.append('height', '1920');
     formData.append('supports_streaming', 'true');
     formData.append('caption', caption || '🎬 Video 9:16 hoàn chỉnh đã ghép xong.');
+    if (options && options.parse_mode) {
+      formData.append('parse_mode', options.parse_mode);
+    }
+    if (options && options.reply_markup) {
+      formData.append('reply_markup', typeof options.reply_markup === 'string' ? options.reply_markup : JSON.stringify(options.reply_markup));
+    }
 
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
       method: 'POST',
@@ -362,11 +432,68 @@ async function sendMergedVideoToTelegram(chatId, videoPathOrBase64, caption) {
   }
 }
 
+/**
+ * Edit photo of an existing message (replaces image in-place via editMessageMedia)
+ */
+async function editPhotoInTelegram(chatId, messageId, imageBufferOrBase64, caption = '', options = {}) {
+  const botToken = getBotToken();
+  if (!botToken || !chatId || !messageId) return false;
+
+  const rawBuf = toBuffer(imageBufferOrBase64);
+  if (!rawBuf) return false;
+
+  const { buffer: buf, mime, filename } = optimizeImageForTelegram(rawBuf);
+
+  try {
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('message_id', messageId);
+
+    const blob = new Blob([buf], { type: mime });
+    formData.append('photo_file', blob, filename);
+
+    const mediaObj = {
+      type: 'photo',
+      media: 'attach://photo_file',
+      ...(caption ? { caption } : {}),
+      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+    };
+    formData.append('media', JSON.stringify(mediaObj));
+
+    if (options.reply_markup) {
+      formData.append(
+        'reply_markup',
+        typeof options.reply_markup === 'string'
+          ? options.reply_markup
+          : JSON.stringify(options.reply_markup)
+      );
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageMedia`, {
+      method: 'POST',
+      body: formData,
+      signal: AbortSignal.timeout(telegramTimeoutMs(90000)),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn(`[Telegram] editMessageMedia failed (${response.status}): ${errText}`);
+      return false;
+    }
+    console.log(`[Telegram] 🔄 Successfully replaced photo in message ${messageId}`);
+    return true;
+  } catch (err) {
+    console.error(`[Telegram] editPhotoInTelegram error:`, err.message);
+    return false;
+  }
+}
+
 module.exports = {
   sendTelegramMessage,
   editTelegramMessage,
   deleteTelegramMessage,
   sendPhotoToTelegram,
+  editPhotoInTelegram,
   sendMediaGroupToTelegram,
   sendOrUpdateLivePanel,
   sendVideoToTelegramDirect,

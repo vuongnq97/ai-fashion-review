@@ -68,6 +68,10 @@ playwright-service/*.png
 playwright-service/*.mov
 playwright-service/*.mp4
 playwright-service/*.webm
+playwright-service/*.mp3
+playwright-service/*.wav
+playwright-service/*.m4a
+playwright-service/*.pcm
 playwright-service/screen_recording.mov
 playwright-service/Screen Recording*.mov
 playwright-service/test.mp4
@@ -79,6 +83,10 @@ playwright-service/test.mp4
 *.mov
 *.mp4
 *.webm
+*.mp3
+*.wav
+*.m4a
+*.pcm
 ngrok
 
 # Local scratch files / dumps

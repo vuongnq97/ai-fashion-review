@@ -131,9 +131,105 @@
       "shortlink": "https://vt.tiktok.com/ZS9BWrGFUBD9c-MAOip",
       "ranAt": "2026-09-05T23:00:16.649Z",
       "forced": false
+    },
+    "2026-09-08 12:00": {
+      "jobId": "tg_-5593429194_1730406597153950029_1788843621922",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrs9xr7Jv-zFBVL",
+      "ranAt": "2026-09-08T05:00:21.928Z",
+      "forced": false
+    },
+    "2026-09-08 15:00": {
+      "jobId": "tg_-5593429194_1732386202041746937_1788854422098",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrn1FDEMc-Tp3Df",
+      "ranAt": "2026-09-08T08:00:22.106Z",
+      "forced": false
+    },
+    "2026-09-09 06:00": {
+      "jobId": "tg_-5593429194_1731973727571184549_1788908415393",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrcEkjt3a-sd2mq",
+      "ranAt": "2026-09-08T23:00:15.401Z",
+      "forced": false
+    },
+    "2026-09-09 12:00": {
+      "jobId": "tg_-5593429194_1729569753325537296_1788930012565",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrcd2u7Sq-dP46H",
+      "ranAt": "2026-09-09T05:00:12.572Z",
+      "forced": false
+    },
+    "2026-09-09 15:00": {
+      "jobId": "tg_-5593429194_1734523533494028180_1788940817760",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrwCUkRcC-mWNk7",
+      "ranAt": "2026-09-09T08:00:17.768Z",
+      "forced": false
+    },
+    "2026-09-10 12:00": {
+      "jobId": "tg_-5593429194_1729564475417004414_1789016427615",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrThtpquE-FUogU",
+      "ranAt": "2026-09-10T05:00:27.624Z",
+      "forced": false
+    },
+    "2026-09-10 15:00": {
+      "jobId": "tg_-5593429194_1729598359134636679_1789027229242",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrEbEGEbj-T259w",
+      "ranAt": "2026-09-10T08:00:29.249Z",
+      "forced": false
+    },
+    "2026-09-11 12:00": {
+      "jobId": "tg_-5593429194_1731107822680837027_1789102810325",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhJvA9Qvq-K3Mv1",
+      "ranAt": "2026-09-11T05:00:10.333Z",
+      "forced": false
+    },
+    "2026-09-11 15:00": {
+      "jobId": "tg_-5593429194_1733765571594257610_1789113609186",
+      "shortlink": "https://vt.tiktok.com/ZS9BWrosjn7oR-dEv29",
+      "ranAt": "2026-09-11T08:00:09.194Z",
+      "forced": false
+    },
+    "2026-09-12 12:00": {
+      "jobId": "tg_-5593429194_1731790204604090046_1789189210404",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhdJaVcCL-evX8K",
+      "ranAt": "2026-09-12T05:00:10.415Z",
+      "forced": false
+    },
+    "2026-09-12 15:00": {
+      "jobId": "tg_-5593429194_1729679756559813527_1789200040283",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhLr3uTS1-p0EhI",
+      "ranAt": "2026-09-12T08:00:40.292Z",
+      "forced": false
+    },
+    "2026-09-12 18:00": {
+      "jobId": "tg_-5593429194_1732974994215175192_1789210810729",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhRXD9TTY-1mfYu",
+      "ranAt": "2026-09-12T11:00:10.735Z",
+      "forced": false
+    },
+    "2026-09-13 08:00": {
+      "jobId": "tg_-5593429194_1731040623892466636_1789261221175",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhLLaSa5c-DV4Nf",
+      "ranAt": "2026-09-13T01:00:21.185Z",
+      "forced": false
+    },
+    "2026-09-13 12:00": {
+      "jobId": "tg_-5593429194_1729591953251666656_1789275638679",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhLKfkqYQ-KaQwc",
+      "ranAt": "2026-09-13T05:00:38.688Z",
+      "forced": false
+    },
+    "2026-09-13 15:00": {
+      "jobId": "tg_-5593429194_1731383824730850925_1789286437855",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhjGUa9y5-BRYMJ",
+      "ranAt": "2026-09-13T08:00:37.862Z",
+      "forced": false
+    },
+    "2026-09-13 18:00": {
+      "jobId": "tg_-5593429194_1732666889929524931_1789297235123",
+      "shortlink": "https://vt.tiktok.com/ZS9BWhj8rJeEW-oF4WE",
+      "ranAt": "2026-09-13T11:00:35.131Z",
+      "forced": false
     }
   },
-  "nextLinkIndex": 18,
+  "nextLinkIndex": 36,
   "usedLinks": {
     "https://vt.tiktok.com/ZS9BWrVkxycaJ-PhFp1": {
       "uploadedAt": "2026-09-04T17:36:37.740Z"
@@ -143,6 +239,18 @@
     },
     "https://vt.tiktok.com/ZS9BWrGFUBD9c-MAOip": {
       "uploadedAt": "2026-09-05T23:16:08.759Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrs9xr7Jv-zFBVL": {
+      "uploadedAt": "2026-09-08T05:33:05.996Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrcd2u7Sq-dP46H": {
+      "uploadedAt": "2026-09-09T05:06:31.502Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrThtpquE-FUogU": {
+      "uploadedAt": "2026-09-10T05:18:50.869Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrEbEGEbj-T259w": {
+      "uploadedAt": "2026-09-10T08:50:08.924Z"
     }
   },
   "assetCache": {
@@ -893,6 +1001,978 @@
       ],
       "productUrl": "https://shop.tiktok.com/vn/pdp/1730546253422693209?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936666532300551%22%2C%22sc%22%3A%22telegram%22%7D&checksum=70a9d63925fbac89e62fffe4132b8e2e72372f88294800990a3b4f139b54c15c&encode_params=MIIBUwQMtlJrf5nfQzJaJfwlBIIBL-pqRhsvAjN5rS-j2ZSU29pD0w4iOyfW3Fcq_-BgGjSoZhb--FLv18KXVTvRG7gHdCYThvUsybyMNkY15Ml9f0yuQgz0gHzPRp3AGERHbH2Kzw7XsGXtJMIe6MbVAIkoAp4e4_oaOCKNp3MZRLzqNBvqZAeYnZMS85bbwclA8piR7ellloN7Osqjc4sJSYX17ajO9V75j2-XSAUcG8Os8myjT6BkVq5Eun935Dk2cquaQyRUH0XrblBfs0YpsN69sw0nhzHevdZRaMNlhRM05nISerITt4romUhY4u5GU-uSEPaKY0LADDPNO8H6x0dhwSUPWWVn--RtuNMg6hPqTxwgiH8Zw3dsHqkaalzvGaj1y5CKaC9bPiIy6wNlylpMq2JPsRvtCXXDBaKEARL_5wQQYIpcYI39A_0-pYdjLTBidQ%3D%3D&og_info=%7B%22title%22%3A%22D%C3%A9p+Nam+B%C3%ADt+%C4%90%E1%BA%A7u+Tuy%E1%BA%BFt+Nhung+Cao+C%E1%BA%A5p+%E2%80%93+D%C3%A9p+s%E1%BB%A5c+nam+%C3%8Am+Ch%C3%A2n%2C+Kh%C3%A2u+vi%E1%BB%81n+ch%E1%BA%AFc+ch%E1%BA%AFn%2C+B%E1%BB%81n+%C4%90%E1%BA%B9p%2C+Ch%E1%BB%91ng+Tr%C6%A1n+%E2%80%93+M%C3%A0u+%C4%90en%5C%2FN%C3%A2u%5C%2FN%C3%A2u+%C4%90%E1%BB%8F%5C%2FV%C3%A0ng%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F49ee75f28ef74d2987bc1a0d20632125~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=C0CDA73C-919B-44D1-AAE9-355DE7921396&share_region=VN&social_share_type=15&timestamp=1788357435&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
       "cachedAt": "2026-09-05T23:00:16.247Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrs9xr7Jv-zFBVL": {
+      "productId": "1730406597153950029",
+      "title": "[Khâu Đế] Dép Nam Da sít nhăn Đen vá Nâu Cafe cao cấp mác Fashion Đế Kép 2 lớp Cao Hàng Đẹp Slipper Dép Lê Quai Ngang Đế Bằng Quai Ngang Đế Bằng dép  nam đẹp",
+      "productDescription": "HH SHOP DÉP TREND\nSản Xuất Trực Tiếp Tại Xưởng\nMÔ TẢ SẢN PHẨM\n+ Chất liệu Quai Da sít Đen vá Nâu Cafe cao cấp mềm và êm Đế cao su\n- Hình dáng Trang trí mác Fashion\n- Đế cực êm, đi đứng lâu vẫn thoải mái.\nBẢO QUẢN VÀ SỬ DỤNG\n- Tránh ánh nắng trực tiếp trong khoảng thời gian từ 2 tiếng trở lên .\n- Khi rửa nước xong nên dựng đứng dép lên để cho dóc nước , nhanh khô .\n- Tránh để những nơi ẩm ướt , nơi có nhiệt độ cao .\nĐẶC BIỆT :\n- Chăm sóc , tư vấn nhiệt tình , chu đáo đến khách hàng .\n️ Uy tín - Chất lượng là những gì SHOP đặt lên hàng đầu\nHÌNH ẢNH THẬT DO SHOP CHỤP\n-Nếu quý khách muốn biết rõ hơn về sản phẩm Xin vui lòng CHAT vs SHOP để được tư vấn trước khi đặt hàng\nKích thước ( SIZE) 38-39-40-41-42\nChiều cao đế 3cm\nÔm chân, thon gọn, Siêu mềm\nBẢNG CHỌN\nChiều dài chân Size số\n23 ----> 23,5cm. 38\n24 ----> 24,5cm. 39\n25 ----> 25,5 cm. 40\n25,5 ----> 26 cm. 41\n26 ---- > 26,5 cm. 42\nXƯỞNG SẢN XUẤT GIẦY DÉP HẢI HÀ\n#dep #depnam #depnu #dephottrend #shopgiaydep #giaydephaiha #giaydep #hhstoreluxury #dephot #depdepnam #xandalcaogot #guocdepnu #depcaogot7cm #sandalcaogotthoitrangnu #sandalquaimanh7cm #xuonggiaydepthoitrang #xuonggiaydepgiasi #giaycaogotnu #giaybupbe #sandalnu",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3440abc1c3e24343b0ca816dd4c972bf~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1290,
+          "height": 1713
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/f59351e48693422a9a39d86c87fba771~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2564,
+          "height": 2564
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/8d19dedbc6294397b678fbf43dc23a80~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2564,
+          "height": 2564
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b2358a0645244c3a96f26340026c5586~tplv-o3syd03w52-crop-webp:1700:1700.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1700,
+          "height": 1700
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b2358a0645244c3a96f26340026c5586~tplv-o3syd03w52-crop-webp:1700:1700.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1700,
+          "height": 1700
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/c1bca569740e4da9abbfb22e787125c9~tplv-o3syd03w52-crop-webp:2300:2300.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2300,
+          "height": 2300
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/c1bca569740e4da9abbfb22e787125c9~tplv-o3syd03w52-crop-webp:2300:2300.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2300,
+          "height": 2300
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2a62f95927064516a1eb062a00f3b7cb~tplv-o3syd03w52-crop-webp:1371:1371.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1371,
+          "height": 1371
+        }
+      ],
+      "hashtags": [
+        "#dep",
+        "#depnam",
+        "#depnu",
+        "#dephottrend",
+        "#shopgiaydep",
+        "#giaydephaiha",
+        "#giaydep",
+        "#hhstoreluxury",
+        "#dephot",
+        "#depdepnam",
+        "#xandalcaogot",
+        "#guocdepnu",
+        "#depcaogot7cm",
+        "#sandalcaogotthoitrangnu",
+        "#sandalquaimanh7cm",
+        "#xuonggiaydepthoitrang",
+        "#xuonggiaydepgiasi",
+        "#giaycaogotnu",
+        "#giaybupbe",
+        "#sandalnu"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1730406597153950029?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936707753592583%22%2C%22sc%22%3A%22telegram%22%7D&checksum=3b5cdccf0b0d9a672d237559ba05b6f3e92635fa265c6674a6a4b573ee5176fa&encode_params=MIIBUwQM6efAEStZBWjOWOLABIIBL0g4zk6bqXgggG4uso52qAoO_CVEVpOF9Sa1xrRmwr2Dhkkmvpc1sWCQD6mgI7dkxdaou42xZTryk7UFBEX49vb1FGS8lgwNUQGgjM7Pq9NbxBDMow5-zNZr6jndcrH_uLtQN84lwIMn7h1kO5sd64kFHVChufD5vUvekZ390ABboI2t_woAzt5HW8AfErF-d-Q-itQr6gbLzZLQeLQKBA1fKUFcpOoRitKV0O6bZUJIO8JeAeNbgcypU9BVxNLLomnq-RvF5bX6vAwRKSA5Yb6VYgRpZMtz4JPhJ8APM80dt9ewKNbmhcC5yKXMzLPNpcO13TORH1Wii9O5y4Cg_kIjRv1TnSk8MFfEsi4cBeqCWT8g0SwPv8cbQU8Xa4UfntiVxuQgU_7DyQ7lw_d9XwQQlIrjx51FU8gB4-EwvOy93w%3D%3D&og_info=%7B%22title%22%3A%22%5BKh%C3%A2u+%C4%90%E1%BA%BF%5D+De%CC%81p+Nam+Da+si%CC%81t+nh%C4%83n+%C4%90en+va%CC%81+N%C3%A2u+Cafe+cao+c%C3%A2%CC%81p+ma%CC%81c+Fashion+%C4%90%C3%AA%CC%81+Ke%CC%81p+2+l%C6%A1%CC%81p+Cao+Ha%CC%80ng+%C4%90e%CC%A3p+Slipper+D%C3%A9p+L%C3%AA+Quai+Ngang+%C4%90%E1%BA%BF+B%E1%BA%B1ng+Quai+Ngang+%C4%90%E1%BA%BF+B%E1%BA%B1ng+d%C3%A9p++nam+%C4%91%E1%BA%B9p%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fb2358a0645244c3a96f26340026c5586~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=D423E9B5-BDA1-4CB9-954C-709FDA0BE449&share_region=VN&social_share_type=15&timestamp=1788357446&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-08T05:00:21.501Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrn1FDEMc-Tp3Df": {
+      "productId": "1732386202041746937",
+      "title": "Giày Thể Thao Nam ANCOL Họa Đế Lân, Da Lộn, Đế Cao Su Chống Mòn, Tăng Chiều Cao",
+      "productDescription": "",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/ae18885d665647cf897c6cb183378dfd~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1500,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/075658dd41d3406ebd6f868e819a121e~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1500,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e3d3629307354b43882fd18d09837799~tplv-aphluv4xwc-crop-webp:1284:1284.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1284,
+          "height": 1284
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e3d3629307354b43882fd18d09837799~tplv-aphluv4xwc-crop-webp:1284:1284.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1284,
+          "height": 1284
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7c27515886904d7597e851a0fe648529~tplv-aphluv4xwc-crop-webp:1500:2000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1500,
+          "height": 2000
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/7c27515886904d7597e851a0fe648529~tplv-aphluv4xwc-crop-webp:1500:2000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1500,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b351a5c14d7f4ff0be9592907648ad7b~tplv-aphluv4xwc-crop-webp:1500:2000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1500,
+          "height": 2000
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b351a5c14d7f4ff0be9592907648ad7b~tplv-aphluv4xwc-crop-webp:1500:2000.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1500,
+          "height": 2000
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732386202041746937?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936732481013522%22%2C%22sc%22%3A%22telegram%22%7D&checksum=18ffb97d509502e1a2c58f833c5df11877d809aa8d7473fe5102ecf3bf0f7ac3&encode_params=MIIBUwQMqpJJzIeW6GePe22JBIIBLzoasVtzzRvgCttZYObm0BZVyqhyOb94Q5owMSnqftnrnznbb03Vh3_ZKmpu8im27kFEQm6uHRGV_1Pn5nBfCbbU9A9vl1ugVDMZf5AZVSv06kGlcvcypA8NYAmmPmRueWTslDv6KBYBYP2E2b6vQIeMUt_1AsFI0dAj1BuZRDwNqSwp-5XUFyLdbcf5ttEbh5v4YbkBCy83ydeNNJlZxW63WAcPTDmk5NuieZPH49ziLFwxKvDN26oVucr4oi6j0oqhpSzoZISa5uIyogekj0-3Xmyxe4pHudQgP2T8zz3fi9XQ3aTxzpqToFNXAz7K1saL1-N1JBjk-MakkVuOnPwlvKlSsR54pqPHEwnjTWdy0KdVz_UD_a9pQBDFuNs99VdoFyNVPeU6GCs4NrNtoAQQbbvWgrsVao2wexcsDGihUQ%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+Th%E1%BB%83+Thao+Nam+ANCOL+H%E1%BB%8Da+%C4%90%E1%BA%BF+L%C3%A2n%2C+Da+L%E1%BB%99n%2C+%C4%90%E1%BA%BF+Cao+Su+Ch%E1%BB%91ng+M%C3%B2n%2C+T%C4%83ng+Chi%E1%BB%81u+Cao%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Fe3d3629307354b43882fd18d09837799~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=4DE8774F-4D51-411E-BA5A-B97B8F8A36A7&share_region=VN&social_share_type=15&timestamp=1788357455&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-08T08:00:21.694Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrcEkjt3a-sd2mq": {
+      "productId": "1731973727571184549",
+      "title": "Giày Sneaker Nam Trẻ Trung Mẫu Mới 2025 , Giày Phong Cách Hàn Quốc Hottrend DC02",
+      "productDescription": "-Thân giày được làm bằng da PU cao cấp\n-Đế giày: Được làm bằng cao su tổng hợp,giúp giày\nthêm bền đẹp & êm chân\n-Thích hợp đi chơi,đi dạo,dạo phố...\nKiểu dáng Thiết Kế : Trẻ Trung, Thời Trang, Phong Cách\nSản phẩm bên shop là hàng Fulbox đầy đủ hộp theo\nsản phẩm\nSản phẩm chuẩn 100% như hình\nBảo hành: 6t\nLưu ý : Shop Chỉ Bảo Hành Cho Những Sản Phẩm\nLỗi Do Nhà Sản Xuất\nGiao hàng trên toàn quốc\nLưu Ý:\n-Kích Thước: Có thể xảy ra sai số 1-2 cm trong các số đo kích\nthước tùy thuộc vào quá trình sản xuất sản phẩm và cỡ chân\nthực tế mỗi người.\n-Do màn hình và điều kiện ánh sáng khác nhau, màu thực tế\ncủa sản phẩm có thể chênh lệch khoảng 3-5%.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a0aad2f70a9e45e387e460a1cd79f621~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1258,
+          "height": 1055
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/70517ad09e1b4f0da54400ec9d655a5c~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b72c99a8b205406990c54365bf52cc2d~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/5244fc7ce3d0445baea16768fcfb9f6b~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/5244fc7ce3d0445baea16768fcfb9f6b~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f6fb81e2435648f1b37066dc7c4df4a8~tplv-aphluv4xwc-crop-webp:727:727.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 727,
+          "height": 727
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f6fb81e2435648f1b37066dc7c4df4a8~tplv-aphluv4xwc-crop-webp:727:727.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 727,
+          "height": 727
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/62013abbd4e942cd8abce82c8954868c~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731973727571184549?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936837464114951%22%2C%22sc%22%3A%22telegram%22%7D&checksum=7d892619b3e1f3594bac17ff16a87ffc45e8018646462d54ac8133679b98a27b&encode_params=MIIBUwQMKNx7gSkdoYztHYkoBIIBL2Lkk9KYk5wC_rGKzQS0EQclSwLvHszr7QQ7tA1AFdQkgPEsS0cQZ9vDi8dBAugXAN7CN_Jazozd05YKsOHSu2bei994Nl9aichGh_Aj57TQ_Nu2inqJKNtMogS7QhhQFQp-4c9iutxX9QFTjgO6k9nyi8ye_XO5zGDsYQvLT1GwMqDN418os95Xc28noE_zKvWZL2K9mOLmEMaGfSQ9GgF9kKcnBER7-aevJiY82dKgoz4_jGC7svekVUK8GsH85H9U24jjtLrSOQErNvO9VSNp6i348DeZSqNvtKNpafaqcxczLa_HujOjfi2eNG3D50dZ19au9UYr0bgHS5XVd1WRxGY0msTklcO6TKgWSD1sZH__j93UxmKU-jjBsVq2Qf8LZwOAFB5BFaShA6S0qgQQnyAYVtUvIZzaU7kt5lrEcA%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+Sneaker+Nam+Tr%E1%BA%BB+Trung+M%E1%BA%ABu+M%E1%BB%9Bi+2025+%2C+Gi%C3%A0y+Phong+C%C3%A1ch+H%C3%A0n+Qu%E1%BB%91c+Hottrend+DC02%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F5244fc7ce3d0445baea16768fcfb9f6b~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=FA107C0B-E877-4143-A531-4885823AEF87&share_region=VN&social_share_type=15&timestamp=1788357472&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-08T23:00:15.016Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrcd2u7Sq-dP46H": {
+      "productId": "1729569753325537296",
+      "title": "[GIÀY DÂY BUỘC] Giày Nam Tăng Chiều Cao 6cm SIGOURNEY SIG-33 Da Bò Nguyên Tấm",
+      "productDescription": "Giày nam tăng chiều cao 6cm Sigourney SIG-33 có thiết kế dáng Oxford cổ điển với màu đen bóng sang trọng, dễ mang, dễ phối đồ, mang đến vẻ sang trọng và chỉn chu cho người mang.\nVới thiết kế TĂNG CHIỀU CAO, không khó để SIG-33 “giấu” một miếng độn đế dày 3cm, cộng với phần đế giày cao 3cm, tổng thể tăng thêm 6cm cho người mang, hoàn toàn bí mật, cực kì dễ mang và không hề chông chênh.\n----\nTHÔNG TIN SẢN PHẨM\na) Thành phần:\n- Da Bò, Đế Cao su\nb) Thông số kỹ thuật:\n• Tên sản phẩm: Giày nam tăng chiều cao 6cm Sigourney SIG-33\n• Mã sản phẩm: SIG-33\n• Thiết kế: Oxford - Có dây buộc\n• Màu sắc: Màu Đen\n• Chất liệu: Da bò\n• Size : 38 ,39 ,40 ,41 ,42 ,43\n• Xuất xứ: Việt Nam\n• Chiều cao đế giày: 6cm\nc) Thông tin cảnh báo: Không\nd) Hướng dẫn sử dụng, hướng dẫn bảo quản:\n- Không để sản phẩm bị ẩm, ướt, không phơi dưới trời nắng gắt.\n- Sử dụng xi chuyên dụng để vệ sinh, làm mới.\n- Để sản phẩm ở nơi khô ráo, mát mẻ.\n----\nMÔ TẢ CHI TIẾT SẢN PHẨM\nSIG-33 là một đôi Oxford cổ điển, với thiết kế có dây buộc, mang đến sự sang trọng, lịch lãm cho người mang.\nGiày phù hợp với những anh em cần một đôi giày tây cao cấp, lịch sự để sử dụng hằng ngày nơi công sở, hay những dịp đặc biệt như tiệc tùng, đám cưới, hẹn hò, gặp gỡ đối tác, khách hàng,…\nVới chiều cao đế lên đến 6cm, giúp tăng sự tự tin hơn cho những anh chàng có chiều cao khiêm tốn mà không hề lộ liễu hay đau chân giống những đôi Giày tăng chiều cao nam khác trên thị trường.\nKhác biệt lớn nhất của một đôi giày tây tăng chiều cao và một đôi giày tây thường đó là phần thân giày.\nGiày nam tăng chiều cao có phần thân giày cao, để khi bỏ thêm lót tăng 3cm bên trong thì vẫn còn không gian để xỏ chân vào.\nCòn giày tây thường, với phần thân ngắn, nếu bỏ thêm lót 3cm thì rất khó để mang vào, và cũng rất dễ bị tuột giày trong quá trình sử dụng.\nVì thế nếu muốn mang giày tây mà “ăn gian” thêm chiều cao, các anh nên chọn một đôi tăng chiều cao từ đầu luôn nhé!\nĐiểm qua ưu điểm của SIG-33:\n----\nCHÍNH SÁCH BẢO HÀNH – ĐỔI TRẢ\n#giay_nam #giay_luoi_nam #giay_da_nam #giay_nam_dep #giay_tay_nam #giay_tay #giay_da #giay_nam_cao_cap #size_giay_nam #giay_suc #giay_nam_cong_so #giay_da_nam_cao_cap #giay_moi_nam #giay_tay_nam_dep #giay_tang_chieu_cao #giay_cao #giay_tang_cao",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/8b31f1c440654fa39f1210cb515b0956~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f4777a348d41451e9efbaf47d408a9a8~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/92ba9b0be2e943148f3556b3e94bdc98~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 3753,
+          "height": 5640
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/134b8c02f1c443bbb6298ee7f03b0acc~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 3753,
+          "height": 5640
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/8cbb18dbd7a645e99fa39a478868d65f~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 3200,
+          "height": 3200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/522b80b65d6840a581d1d3d6916fd61e~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/fa151be6e4384e1dbe4c1fffa77e0ebb~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/56dcb25ad82647839a8e25997a6a498e~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        }
+      ],
+      "hashtags": [
+        "#giay_nam",
+        "#giay_luoi_nam",
+        "#giay_da_nam",
+        "#giay_nam_dep",
+        "#giay_tay_nam",
+        "#giay_tay",
+        "#giay_da",
+        "#giay_nam_cao_cap",
+        "#size_giay_nam",
+        "#giay_suc",
+        "#giay_nam_cong_so",
+        "#giay_da_nam_cao_cap",
+        "#giay_moi_nam",
+        "#giay_tay_nam_dep",
+        "#giay_tang_chieu_cao",
+        "#giay_cao",
+        "#giay_tang_cao"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729569753325537296?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936855207102216%22%2C%22sc%22%3A%22telegram%22%7D&checksum=416a69daca5c014211ec32d45de77c8946eb661440d54da1ddd1fdce666ef3c0&encode_params=MIIBUwQMOfWqaTcjXcGVx6gTBIIBL1tmpfTK56Qer4QPXCtBjC-I3Wim5yTRDkcJ_CxNPSew5MQfcJWZ6zxY5slJ-JzLC8LquMXfC9zQok8Wb1OQX_sM_NUy8pX7pF0LhYLmN7i4z4LmcvHMnNcFF2SMvuW8Cv2d7MPT1Z8SMB2_IcYXFV-6R0kX6OvcWtcQGB8kmoXxw4wzUk_Tzg0jVyH84jo6UcErFKliqqGLTFKcBeCbqkz1Ogeqd9QlGXf241GNDo5zn91MOrn_j_fw3rkCSiZ_XG0sg1e2lW6xp5gzdOqmOqzHyL_znzT0iAk4FJ1Qew2IQcCPXpeSU3fhXpcDvt01kP9gLgCq_8qsbYgZqy_UMArT5HKd2vwsnJM__Xcm5Y51YpcpNWAM8x3WN2HF2nDUmkPG_AXrP5l8I2e6nxHshQQQVGE_qThJx3PSKlVY-HR7JQ%3D%3D&og_info=%7B%22title%22%3A%22%5BGI%C3%80Y+D%C3%82Y+BU%E1%BB%98C%5D+Gi%C3%A0y+Nam+T%C4%83ng+Chi%E1%BB%81u+Cao+6cm+SIGOURNEY+SIG-33+Da+B%C3%B2+Nguy%C3%AAn+T%E1%BA%A5m%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Ff4777a348d41451e9efbaf47d408a9a8~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=695F1491-F18B-44E1-AAFF-D12A7A198FCA&share_region=VN&social_share_type=15&timestamp=1788357480&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-09T05:00:12.147Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrwCUkRcC-mWNk7": {
+      "productId": "1734523533494028180",
+      "title": "Giày lười nam phong cách Hàn Quốc thoáng khí |   Giày thể thao nam thường ngày phổ biến - Thích hợp để đi bộ, đi làm và du lịch |   Dép đế mềm, thoải mái, chống mồ hôi. giay thethao chay bo.  mẫu giày mới.",
+      "productDescription": "",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/6f4982b73ca5408ab4c19b4cb395ee8d~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1270,
+          "height": 1920
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/29b0794d20ad4fe48ff1d0192f19f872~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 985
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/faab611fcdf9404babdbc4a8d9859f75~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 1061
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/77c03191e9a64b45b23bd3e32d9ba5d1~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 341
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6e85f17a4bdf49d0834f94d1edf14e1b~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 771
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/629210d5913e4d3d9f418ff59d06f6c1~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 999
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/8ae8f88059f64730b584700bc7c3e910~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 941
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/c168655837fc4ffa90dbc91d2651be6f~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 941
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1734523533494028180?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936899598698247%22%2C%22sc%22%3A%22telegram%22%7D&checksum=ce33b9c10ff9d89fda95504105ffbcf16a084b7fba75f929b8c67403ea9ec585&encode_params=MIIBUwQMlodz872-iQjel3JQBIIBLwFqUnrDtUrFky44pUf39lBA53y8zNEQIvOrccf9Ag7YZ_aaG3mhby0Y7GY0GlgzMMGBTzwx26qRzbgVx_jp1VD4eHqg1TXQyStnshGKv9zy0PxzC8yG79O2hWXbMrATVJY5kSnCGQsHhBWEAeQF2yByZ2xTGRzrqNVbx9aEABzNrqIUZYgXYuJ1El76f-SD3PUB-t1CdqCqeyrV1D7B2OA2A4GZ-YDDnv07ZYEEO497q1TpgFLs7w4A7GCM8SKFQTcyKt_opDxnlC_9v4BY0iLftiS1CedBtOhNVNLr1QU8N0DDPp2M87k5Tiio8kpcSyPIcjnCYNuQAYG0FsyFhgJqAnRWt_8v20NdWOG6lHSSTAzCAwo9jgogLcML-NH_I4sdn21jyWrPLFPFui3ATAQQgE_8dEIqicGp7qr-MchGDQ%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+l%C6%B0%E1%BB%9Di+nam+phong+c%C3%A1ch+H%C3%A0n+Qu%E1%BB%91c+tho%C3%A1ng+kh%C3%AD+%7C+++Gi%C3%A0y+th%E1%BB%83+thao+nam+th%C6%B0%E1%BB%9Dng+ng%C3%A0y+ph%E1%BB%95+bi%E1%BA%BFn+-+Th%C3%ADch+h%E1%BB%A3p+%C4%91%E1%BB%83+%C4%91i+b%E1%BB%99%2C+%C4%91i+l%C3%A0m+v%C3%A0+du+l%E1%BB%8Bch+%7C+++D%C3%A9p+%C4%91%E1%BA%BF+m%E1%BB%81m%2C+tho%E1%BA%A3i+m%C3%A1i%2C+ch%E1%BB%91ng+m%E1%BB%93+h%C3%B4i.+giay+thethao+chay+bo.++m%E1%BA%ABu+gi%C3%A0y+m%E1%BB%9Bi.%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fa9b9db74d0c543a289a1b69f571964d4~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=2F26FC96-5313-4EF9-90C3-6A3974B30D23&share_region=VN&social_share_type=15&timestamp=1788357490&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-09T08:00:17.309Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrThtpquE-FUogU": {
+      "productId": "1729564475417004414",
+      "title": "Giày Lười Nam Da DONAVY Cao Cấp, Da Chống Nhăn, Hàng Full Box Chất Lượng D.GLS",
+      "productDescription": "SẢN PHẨM QUÝ KHÁCH HÀNG TIN DÙNG ĐƯỢC CUNG CẤP BỞI THƯƠNG HIỆU DONAVY\nGiày Lười Nam Da DONAVY Cao Cấp, Da Chống Nhắn, Hàng Full Box Chất Lượng D.GLS\nSản phẩm được làm từ chất liệu da cao cấp, mang đến cảm giác êm chân, dễ chịu. Đôi quai da rất mềm mại, thiết kế bản to nam tính, đường may vô cùng chắc chắn và khéo léo. Kiểu dáng đôi dép đơn giản nhưng rất tinh tế và đẹp mắt, dễ dàng kết hợp với nhiều loại trang phục khác nhau. Đế dép được đúc với thiết kế xẻ rãnh tránh trơn trượt khi di chuyển, giúp từng bước đi của bạn thật tự tin, tràn đầy năng lượng.\nĐặc điểm sản phẩm:\n- Thương hiệu DONAVY\n- Chất liệu da thật cao cấp\n- Thiết kế đơn giản, gọn nhẹ, nam tính\n- Đường may bền chắc, tinh tế\n- Đế cao su, xẻ rãnh chống trơn trượt\n- Size đa dạng 38 - 39 - 40 - 41 - 42 - 43 - 44\n- Thích hợp sử dụng khi đi chơi, dạo phố, công việc thường ngày\n- Dễ dàng đổi trả nếu mang không vừa\n- Sản xuất tại Việt Nam\n- Sản phẩm được bảo hành 03 tháng từ nhà sản xuất DONAVY:\nBộ sản phẩm bao gồm:\n1 x Sản phẩm\n1 x Hộp nhãn hiệu DONAVY\nDễ dàng kết hợp với nhiều loại trang phục như quần jeans, quần tây, quần kaki…để đi làm, xuống phố cùng bạn bè, hoặc tham dự những dịp quan trọng đảm bảo chắc, đẹp, giá thành tốt.\n--------------------------------------\nThời Trang Nam - Chất Lượng Quốc Tế - Giá Cho Mọi Nhà\nDONAVY - Uy tín để bền vững - Đẳng cấp cho phái mạnh\n#depnam #depnamda #depnamquaingang #depquaingang #depnamdabo #depnamdathat #depnamdongian #depnamthoitrang #depdabo #depda #quatangbantrai #depnamgonnhe #depnamemchan #depthoitrang #depnamtretrung #depnamdep #depdadep #depdathat",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/26a0c1f00b8b470592d2212dce094b99~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1141,
+          "height": 569
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/f5c61d8d7d14491a80bc77f232d30335~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/df0b3e7622384940bad7858f21ec256d~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/98ecb89589424d1e90863489effb4d25~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/8419b49627974da98d256617105b6881~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/9f90e3b410d14686ae30eccc6f90fbf2~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1080,
+          "height": 490
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/51da2ea0ff7748828ac77fa335f6cc34~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1080,
+          "height": 484
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/753375c8d6794080a3f570fe0f7b8e83~tplv-aphluv4xwc-crop-webp:2992:2992.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2992,
+          "height": 2992
+        }
+      ],
+      "hashtags": [
+        "#depnam",
+        "#depnamda",
+        "#depnamquaingang",
+        "#depquaingang",
+        "#depnamdabo",
+        "#depnamdathat",
+        "#depnamdongian",
+        "#depnamthoitrang",
+        "#depdabo",
+        "#depda",
+        "#quatangbantrai",
+        "#depnamgonnhe",
+        "#depnamemchan",
+        "#depthoitrang",
+        "#depnamtretrung",
+        "#depnamdep",
+        "#depdadep",
+        "#depdathat"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729564475417004414?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936940249925394%22%2C%22sc%22%3A%22telegram%22%7D&checksum=c5b48a20587721f8a8344b669f1cbf701512eed5d0a3380159ce90540df8381f&encode_params=MIIBUwQMZ5D0QUTh7mA_NuHbBIIBLzvglncy3q-Y6BQY2GStyFBk6-xqNIZz5CuD2LH9Ar20dHtRmY-wtQ_h-PaFYg28AkUQLiPJFG5ksaEXPnJNbUy4l53fqfAiNnnE2HWvyVTc-3skJq5ZEJk18az6BNPzW8rxBevj0JpxV_tyFd0tbNhxvPv1iyVBZOS-GsIJ1eXcc0wzQNgtOjde45Eg7xmDDct6i6kaR3IVn-gezsg5VaXz0dEE4-t45BG-LhBxjLKvTfzucYWUMSOpO-beaQXzDQep7obGPTdTwURPzE34QKf5dkLzj6wAPLwsxxTPGfsW_-7yN855MZuKAGy57aVqlmZ-E_kiwEKlh0X1rmqhNNrhULLzfFQZw4QGeGxqxNY1ikEYD5p1MWrNg2lbMEoMeaoqz7Q0YYrMJJeNP0dhUgQQWxrQPVl-GRZrcm_-_kLbGw%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+L%C6%B0%E1%BB%9Di+Nam+Da+DONAVY+Cao+C%E1%BA%A5p%2C+Da+Ch%E1%BB%91ng+Nh%C4%83n%2C+H%C3%A0ng+Full+Box+Ch%E1%BA%A5t+L%C6%B0%E1%BB%A3ng+D.GLS%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F753375c8d6794080a3f570fe0f7b8e83~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=2A3A11C9-8C3B-4C99-9D55-1CD4A15883FE&share_region=VN&social_share_type=15&timestamp=1788357497&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-10T05:00:27.211Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrEbEGEbj-T259w": {
+      "productId": "1729598359134636679",
+      "title": "Giày tây lười da nam đai khóa trẻ trung, đế cao su khâu chắc chắn, có thẻ bảo hành 12 tháng - A64 Shoes",
+      "productDescription": "1.THÔNG TIN SẢN PHẨM:\n- Phong cách: Trẻ trung, năng động, dễ đi, dễ kết hợp đồ, quần Kaki, quần âu, quần Jean.\n- Chất liệu: Da  microfiber cao cấp, Da đẹp và đồng đều ( có thẻ bảo hành 1 năm đi kèm)\n- Lót phía trong êm, lót thành thấm hút tốt, hạn chế mồ hôi chân\n- Đế cao su mềm, cao 3 cm, mặt đế có tạo rãnh nhám, tăng ma sát. ĐẾ KHÂU CHỈ CHẮC CHẮN.\n- Đai khóa cao cấp chống han rỉ ,sử dụng lâu dài\n- Giày chuẩn size nên quý khách có thể dựa theo size giày da hay đi để chọn size ưng ý nhất\n- Hàng có sẵn, giao hàng ngay khi nhận được đơn đặt hàng .\n- Hỗ trợ đổi hàng khi size không vừa\n- Giao hàng toàn quốc, thanh toán khi nhận hàng..\n- Tiêu chí bán hàng của shop là để khách quay lại mua nhiều lần nữa chứ ko phải bán 1 lần rồi thôi\n#giay #giayda #giaynam #giaydanam #giaydabo #giaydachinhhang #giaydathat #giaynamda #giaychinhhang #giaynamchinhhang #giaysucnam #giaytaynam #giayluoinam",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/8aed839fbe154c8d89e75dc939b642fb~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1242,
+          "height": 1242
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f24a5c0a40764d4ca0a0e730922984fc~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 912,
+          "height": 1147
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9f737fddb6ad46e6b808ea8c5ff7500b~tplv-aphluv4xwc-crop-webp:895:895.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 895,
+          "height": 895
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9f737fddb6ad46e6b808ea8c5ff7500b~tplv-aphluv4xwc-crop-webp:895:895.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 895,
+          "height": 895
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9793c00103a843f6872ac55745ad12af~tplv-aphluv4xwc-crop-webp:912:912.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 912,
+          "height": 912
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9793c00103a843f6872ac55745ad12af~tplv-aphluv4xwc-crop-webp:912:912.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 912,
+          "height": 912
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/17e2ee2b3cbd451089395f86be357eb1~tplv-o3syd03w52-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/17e2ee2b3cbd451089395f86be357eb1~tplv-o3syd03w52-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        }
+      ],
+      "hashtags": [
+        "#giay",
+        "#giayda",
+        "#giaynam",
+        "#giaydanam",
+        "#giaydabo",
+        "#giaydachinhhang",
+        "#giaydathat",
+        "#giaynamda",
+        "#giaychinhhang",
+        "#giaynamchinhhang",
+        "#giaysucnam",
+        "#giaytaynam",
+        "#giayluoinam"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729598359134636679?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680936983188080391%22%2C%22sc%22%3A%22telegram%22%7D&checksum=fe82c5eb962ca3c90004a9a915a22073b1ae1ecae03ad6950a602aa44981290d&encode_params=MIIBUwQMCZjuw8IXpxwve_r5BIIBL1XTnotirP7awBiNdfUYIMhb1Fy8QdbCyuYG4EpjDvTHscC_WnT0Ms6zJBPJRTsYTSwMMIRgZjVdKCAeAxHVRbGEw0cDVRUgvLILC15nv6LzeElCmDxigmcoXhYberw1yNLewGRGBKBTBARvJRELlwBDZIg4FUWDIo5UOnHFmqZcU4ZJbISMXBJ3Z-ldpZ_4TfMRiF4jLdr1nxUJAtEsf7IzSPwjMJG1dqEC8l0HqPKOHzzmy1j90nF1fZyRNv_2orP8hYD7qkHq5vH-6u_mo6JE86YvOJBPdOQCzJKGWC6TloGucQGHEANMC4G3jmtzR93nnzu7dYBkEUZ1sOWto38KmDIp34SSlQgpJrfT7wxlXK8cwvMO6mX_QfU3umXxzqLOnExYgJJBcCsfX3fayAQQZ3MRJRBYk7XblcSsSJqfIg%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+t%C3%A2y+l%C6%B0%E1%BB%9Di+da+nam+%C4%91ai+kh%C3%B3a+tr%E1%BA%BB+trung%2C+%C4%91%E1%BA%BF+cao+su+kh%C3%A2u+ch%E1%BA%AFc+ch%E1%BA%AFn%2C+c%C3%B3+th%E1%BA%BB+b%E1%BA%A3o+h%C3%A0nh+12+th%C3%A1ng+-+A64+Shoes%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F9f737fddb6ad46e6b808ea8c5ff7500b~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=6610B587-E533-4BDE-BB39-F22682E65CD6&share_region=VN&social_share_type=15&timestamp=1788357506&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-10T08:00:28.814Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhJvA9Qvq-K3Mv1": {
+      "productId": "1731107822680837027",
+      "title": "Gìay Sneaker Nam,Gìay Thể Thao Nam Cổ Lửng 2 Màu Aboy Shop Men's MẪU MỚI Bốn Mùa giay nam giày  af1 af1  dây",
+      "productDescription": "Sản Phẩm 100% Giống Mô Tả\nGiao Đúng Size,Lỗi 1 Đổi 1\nGiao Nhanh Đúng Với Mong Muốn Của  Khách\nChất Liệu Đế: Cao Su Đúc\nChất Liệu Gìay : Da PU\nChiều Cao Đế : 3-5cm\nKích Thước : 39-43",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/be6a348be3d54bffb26e47a1d125ca75~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 450
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/455c689ddda14641adb61707b0aaa374~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/771e5837af5a4f8a9409dacf152a05d8~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a2d6b7922442448a9c252db71da85a4d~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b72e6c897601476bbb5efd695d91e7a9~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b72e6c897601476bbb5efd695d91e7a9~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/0ffd91f306a2465e8d55786fe232e90d~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/0ffd91f306a2465e8d55786fe232e90d~tplv-o3syd03w52-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731107822680837027?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937034417145608%22%2C%22sc%22%3A%22telegram%22%7D&checksum=670b128f347979c26326f0306432ef77d93cbd458ffec09cbcec300cf37d0dfa&encode_params=MIIBUwQMvRHYLpvp-J0aRnLSBIIBLwWnqWOM3WkiG9HkdDJemyiuY7IG8c0OFheQAWWpKkcDzKmFTlJECRrU3ppzFRG0ev8qpMnAjujlzD_VtjjkDIharD4dtJguJMUxLDR3BBuJuYhbvrk1WBinIqfjOZr5kIhBeOiYUJQEjaGaw79jc8e74-96LMKtrMQpKvjxU9sju02dYDPRCHsXsjo1vvJrRuvXWL03gHEjeQBG2MKPCCakRVqXXhManPDLHdeBgm0N7SH2_fp3IZRrNBUUmgcn2ZTZU9M-k2k-CH-mdFucq7E8-MEATzCLTIPXJjsefCRopTS0hZknR7Gxgxjuk1BDD6v6La1QcZnjd1qQTcwosLjibiFrMiWn6wy-8laZ6jG6es8xHiiMIu9R5ns4sS7mniU5kU-Is4DYqmJUYaOC1AQQHtV09hiOm5qTrwaxAaz2gQ%3D%3D&og_info=%7B%22title%22%3A%22G%C3%ACay+Sneaker+Nam%2CG%C3%ACay+Th%E1%BB%83+Thao+Nam+C%E1%BB%95+L%E1%BB%ADng+2+M%C3%A0u+Aboy+Shop+Men%27s+M%E1%BA%AAU+M%E1%BB%9AI+B%E1%BB%91n+M%C3%B9a+giay+nam+gi%C3%A0y++af1+af1++d%C3%A2y%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fb72e6c897601476bbb5efd695d91e7a9~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=54E98895-8D0E-47D4-A172-F701B8CB42FD&share_region=VN&social_share_type=15&timestamp=1788357523&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-11T05:00:09.893Z"
+    },
+    "https://vt.tiktok.com/ZS9BWrosjn7oR-dEv29": {
+      "productId": "1733765571594257610",
+      "title": "Giày nam mùa xuân 2025 - Giày vải Bắc Kinh cổ, giày vải bố thoải mái, thoáng khí, chống trơn trượt, chống mài mòn, giày công sở, giày thường ngày 5068",
+      "productDescription": "Giày nam mùa xuân 2025\n✨ Giày vải Bắc Kinh cổ ✨\nChống trơn trượt\nChống mài mòn\nĐa dụng",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e13972ff6626496db0310e14218aceca~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1260,
+          "height": 1263
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/60e8076abac0407a8c441ad804a642dd~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 961
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/dba657be3b494a6aba35641f53429ac3~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 969
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/2acf67dd82f447c896cbacf634da54c7~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 863
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/132024124dc54e22b1644c5f224d4903~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 969
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/fd1de2a36b354c47bb58c3adcdcbd85b~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 971
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f406781d89034728acbfcfd2b0a591dd~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 970
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/2dc93b44c26e4df49f10356907852f93~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 790,
+          "height": 828
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1733765571594257610?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937068617860882%22%2C%22sc%22%3A%22telegram%22%7D&checksum=018db7bf4273923eeb97ca6ed74dcf0fb42dfe5ee3d25aa13f111359441cbf56&encode_params=MIIBUwQMwugmLAs2sfQEMTotBIIBLxBQNdYtq7gGQOvqoHLynVPJyDJCSh0ymZrB9-y09t7a9mOzFc7b2NLjZmRmDJoFJILjQ9nZY7vCRzTOBTO07ecE4aEwMfs5N2aI-bBRm3wfvwtX2uPCRMmkE3Okyqpf5_cljzmRxrLYp9tzlxrUCSNl8j4wqgvGoNBVuPHOGHiEhZh0nOaTRqYQmx-yZAbTJVaIc3Ns1JeO3PrSEIN_dzdh163OknC5Xw4i7LzTDytWl1MIJmeoeeXuyDbyWqtJWHsZsEKCIs5DcXwp_ekNanj4PbPSZcw7-CMnkOYYuiZWBhx1FrkkBURJRgdUsKmngRAFKy3dWxGlcV4QRNbA1yqvoWZ5_xTN2cJ_Ou7k4GFYHDZOAczNOsO0RDGVbhWGkqUP30tCXbz_uuzh2RRPmAQQ3ys0WlnLT8UB1sPCOf-QyQ%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+nam+m%C3%B9a+xu%C3%A2n+2025+-+Gi%C3%A0y+v%E1%BA%A3i+B%E1%BA%AFc+Kinh+c%E1%BB%95%2C+gi%C3%A0y+v%E1%BA%A3i+b%E1%BB%91+tho%E1%BA%A3i+m%C3%A1i%2C+tho%C3%A1ng+kh%C3%AD%2C+ch%E1%BB%91ng+tr%C6%A1n+tr%C6%B0%E1%BB%A3t%2C+ch%E1%BB%91ng+m%C3%A0i+m%C3%B2n%2C+gi%C3%A0y+c%C3%B4ng+s%E1%BB%9F%2C+gi%C3%A0y+th%C6%B0%E1%BB%9Dng+ng%C3%A0y+5068%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Fc333b8706041438f9163ca45842fe072~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=29D0B1E7-616F-4B26-8EA3-B3BBC6735F59&share_region=VN&social_share_type=15&timestamp=1788357531&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-11T08:00:08.761Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhdJaVcCL-evX8K": {
+      "productId": "1731790204604090046",
+      "title": "HaLiTa Giày Mọi Da Bò Vân Bản Nâng Cấp, Đế Cao Su Vân Nhám Chống Trơn Giảm Mỏi Chân Phom Bàn Chân Việt Nam ,Đẹp Sang Chảnh Siêu Hot Tik Tok Shop",
+      "productDescription": "✨ Thiết kế độc đáo: HaLiTa Giày Mọi Da Bò Vân Bản Nâng Cấp mang đến phong cách sang trọng, hiện đại. Đế cao su vân nhám chống trơn, giảm mỏi chân. Phom bàn chân Việt Nam, phù hợp với nhiều dáng chân.\n* Da bò vân bản nâng cấp: Mang lại cảm giác mềm mại, bền bỉ.\n* Đế cao su: Chống trơn trượt hiệu quả, bảo vệ sức khỏe chân bạn.\nHaLiTa Giày Mọi là lựa chọn số 1 trên Tik Tok Shop. Đẹp, sang chảnh, phù hợp mọi phong cách.\nMua ngay để trải nghiệm sự khác biệt!",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4d7ab6511d9f4150bf9649e988ce2e99~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 750,
+          "height": 498
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/1b35b289efb04fcfb324e9451ec593dc~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/4866cf76b7234bd49f0355f970835695~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/62328a5e3e9b4d20bab40e0787ceddc0~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/629881f767c94574b584d90bcda9ab91~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aea2bc5332ab4f4f92bf858cbda5d5c0~tplv-aphluv4xwc-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/aea2bc5332ab4f4f92bf858cbda5d5c0~tplv-aphluv4xwc-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/12ee7112e9434329a313d262e2a982a2~tplv-aphluv4xwc-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731790204604090046?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937130411542280%22%2C%22sc%22%3A%22telegram%22%7D&checksum=ac232bb697ea75872d4478a675b0fefc55606c9b334d9f06d74bb9d6f31d7620&encode_params=MIIBUwQMWRBIkYzjeEH6HqNnBIIBL1oItUSbJO_8YQq-hRyy-VB2YfcVAKBeCOgWCLn84OyLliuSHEbrm3SxzsLuCsgpauSBySwaAEEjO3mm30Lh78lYRi-kslbIDkWDC9M7ZlkZ704UdMXXFSnGWAKBStP9zQnZXjT0t9UUaWclkPbln924fHF1TK7WWNZNpZ1tXagW4jZFzfqTOQ7snuR9EHVlXOqLKlOLYybbZKn1m8fX9JaN7ReH0iPm7xxkRPl4w6gAlMOOrCPXsVlddB7EGD6kce8wdFKaTyX4fZzevHMiaiqMPA_1eAXjCX2MDzGJo49sUkyr-JqzK92cRuJ_hi1SS0szwU7vZAyS0bvgCCpNM3L_U_XPHM1h6bb1ib8KdXIXc_yvsl_9Nkg5i61DOdlEoNXLT-M4reqaScmxtRNdOAQQ_b9wnlI2qHtjiUdsjc-aiA%3D%3D&og_info=%7B%22title%22%3A%22HaLiTa+Gi%C3%A0y+M%E1%BB%8Di+Da+B%C3%B2+V%C3%A2n+B%E1%BA%A3n+N%C3%A2ng+C%E1%BA%A5p%2C+%C4%90%E1%BA%BF+Cao+Su+V%C3%A2n+Nh%C3%A1m+Ch%E1%BB%91ng+Tr%C6%A1n+Gi%E1%BA%A3m+M%E1%BB%8Fi+Ch%C3%A2n+Phom+B%C3%A0n+Ch%C3%A2n+Vi%E1%BB%87t+Nam+%2C%C4%90%E1%BA%B9p+Sang+Ch%E1%BA%A3nh+Si%C3%AAu+Hot+Tik+Tok+Shop%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Faea2bc5332ab4f4f92bf858cbda5d5c0~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=8895FA45-4032-49B1-8345-A6DC4A064DDE&share_region=VN&social_share_type=15&timestamp=1788357540&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-12T05:00:10.010Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhLr3uTS1-p0EhI": {
+      "productId": "1729679756559813527",
+      "title": "Giày thể thao nam Lakinta, giày sneaker nam giày lười màu trắng , màu kem GR01",
+      "productDescription": "THÔNG TIN SẢN PHẨM: \nGiày thể thao nam Lakinta GR01 - giày sneaker nam hàn quốc\n-Chất liệu vải dệt cao cấp khiến giày thoáng khí không gây mùi.\n-Đế cao su mang lại sự êm ái khi đi.\n-Thiết kế phong cách, trẻ trung, năng động, tôn dáng khi đi.\n-Form ôm chân thoải mái ngay cả khi mang giày cả ngày dài.\nTheo dõi shop để nhận thêm voucher cũng như ưu đãi riêng nhé\nBảng size giày form chuẩn cho các bạn tham khảo hoặc có thể chọn size mà mình hay đi\nSize 39: 24.1-24.5cm\n40: 24.6-25 cm\n41: 25.1-25.5 cm\n42: 25.6-26 cm\n43: 26.1-26.5cm\n44: 26.5-27 cm\n#giaynam #giay #the #thao #nam #sneaker #giaythethaonam #giaysneaker #gia #re #dep #giayluoi #giaycongso #giaytangchieucao #giaytrang #giaytapgym #giaychaybo #lakinta",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/14bc0014921e4752a120a42322356054~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 521,
+          "height": 459
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/6995a8cf133d4998826653f3accde2c8~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a4e905b5259d4ae0a9d279eff567b6fc~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/d83f83290cca44818cac2053d450ebea~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/16d47d5d91d645c387ac7675bd28ca2b~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4ea179a0ff17475b9575397cdcdb9d98~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/4ea179a0ff17475b9575397cdcdb9d98~tplv-o3syd03w52-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/013b6715267240a189857f9ba16f4285~tplv-o3syd03w52-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        }
+      ],
+      "hashtags": [
+        "#giaynam",
+        "#giay",
+        "#the",
+        "#thao",
+        "#nam",
+        "#sneaker",
+        "#giaythethaonam",
+        "#giaysneaker",
+        "#gia",
+        "#re",
+        "#dep",
+        "#giayluoi",
+        "#giaycongso",
+        "#giaytangchieucao",
+        "#giaytrang",
+        "#giaytapgym",
+        "#giaychaybo",
+        "#lakinta"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729679756559813527?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937175136651026%22%2C%22sc%22%3A%22telegram%22%7D&checksum=d7414ed5a24b8924e9e4b3b3c73452bff90aa938ffcde8ed4d7de94a6c70ab79&encode_params=MIIBUwQMuSdEqLN46QgCMklTBIIBL0Tz975zgihPC9fIbi_O_3FTVnxVYSxEqhFeoREJZvZKyyFCQYlMPek6t6KyOFTg4TgKZbd278VEeyaq7inqv9tTC1Lk-esHietHHBhAp2bfSKNrGLSN3h1vXvzVTW9TibCXwwYb9Mi28eyGb1qDYqCA5s6E2qk-p-87KcuOuj1O7IVCdcmV1CDtQPOlb6apjEVY53YIqAHqFGRy_rlfttgHic9gqSdIDWoweewPxHXTB0HHNdt65zXoUhzo18ugVz8U7e9ojQUeCjRodx23fGiGdcSnElIR7HySWKOOTFHE1kIjo_YL0AwKWW-7_6SGxLZVdVlxY8GEera_47_EdiqlS6KfRZLHXEV4SJbunFK5Ma8BFBhOIXUd-ukC1lsQRaUmYiv35D2E42xkI0YumgQQyAcCKP2RpxWqWUMFmsH7Ug%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+th%E1%BB%83+thao+nam+Lakinta%2C+gi%C3%A0y+sneaker+nam+gi%C3%A0y+l%C6%B0%E1%BB%9Di+m%C3%A0u+tr%E1%BA%AFng+%2C+m%C3%A0u+kem+GR01%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2F4ea179a0ff17475b9575397cdcdb9d98~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=03E62C0B-3E93-446E-90CA-26D8892A2BD3&share_region=VN&social_share_type=15&timestamp=1788357551&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-12T08:00:39.430Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhRXD9TTY-1mfYu": {
+      "productId": "1732974994215175192",
+      "title": "Giày Nam TIMAN GT554 – Giày Tây Full Da Bò Thật, Sản Xuất Thủ Công Tinh Xảo, Thể Hiện Đẳng Cấp Cá Nhân",
+      "productDescription": "Giày Tây TIMAN GT554 – Full Da Bò Thật, Thủ Công Tinh Xảo, Thể Hiện Đẳng Cấp Cá Nhân\nĐôi Giày Tây nam cao cấp TIMAN TM-GT554 là sản phẩm hoàn hảo cho quý ông muốn thể hiện sự tinh tế và đẳng cấp cá nhân qua từng chi tiết. Được chế tác từ Full Da Bò Thật (quai và lót) và kỹ thuật Sản Xuất Thủ Công Tinh Xảo, sản phẩm này mang lại vẻ ngoài chuyên nghiệp, sang trọng và độ bền vượt trội.\nĐẶC ĐIỂM NỔI BẬT\n️ THÔNG SỐ SẢN PHẨM\nMã sản phẩm: TM-GT554\nChất liệu: Da bò thật (Quai); Lót da bò thật (Lót)\nMàu sắc: Đen Size: 38 – 44 (Tư vấn kỹ size, dễ đổi nếu không vừa)\nĐế cao: 3 cm (Tôn dáng kín đáo)\nĐặc điểm: Giày Tây – Full Da Bò – Thủ Công Tinh Xảo – Đẳng Cấp\nHƯỚNG DẪN CHỌN SIZE GIÀY PHÙ HỢP\nKhông ít người lo lắng khi mua giày online sợ chọn nhầm size, vậy nên TIMAN hướng dẫn bạn cách đo nhanh:\nTIP: Nếu bạn có bàn chân bè, nên chọn tăng 1 size để mang thoải mái hơn.\nCHÍNH SÁCH HỖ TRỢ\nĐừng vội đánh giá 1 sao nếu có sự cố! Hãy nhắn ngay cho chúng tôi qua kênh chat - từ đổi trả linh hoạt, nhầm hàng, hay thiếu quà tặng, tất cả đều sẽ được xử lí nhanh chóng. TIMAN luôn đồng hành cùng bạn!\n#TimanOfficial #TIMAN #GiayTayTiman #GiayNamTiman #GiayDaBoThat #GiayCongSo #GiayNamLichLam #GiayNamCaoCap #GiayThuCong #GiayDaNamGT554",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e37e7eec5e3c4cfe93ed1833139e6cde~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 756,
+          "height": 692
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/26ead258167f4ca385c809d1a19820e3~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/e6c0b28b7bf449aaa99c669febb302b8~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/c698397689344b359dab1cd904c6c23b~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2000,
+          "height": 2000
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/5b3e3c47f1954ba689c4f8278cf6dae8~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1000,
+          "height": 850
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/9e8fd30a5abe424e8f666718fae2bdcf~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 1056
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/ba4e3559581a4ce9a91ef7405477b4a2~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1200,
+          "height": 961
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/61f462ac07644bbb8f46205fbb364fa2~tplv-aphluv4xwc-crop-webp:1200:1200.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "hashtags": [
+        "#TimanOfficial",
+        "#TIMAN",
+        "#GiayTayTiman",
+        "#GiayNamTiman",
+        "#GiayDaBoThat",
+        "#GiayCongSo",
+        "#GiayNamLichLam",
+        "#GiayNamCaoCap",
+        "#GiayThuCong",
+        "#GiayDaNamGT554"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732974994215175192?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937218584397575%22%2C%22sc%22%3A%22telegram%22%7D&checksum=1e58f4395a29c580bf9f17c2af1374036e9f507ac530e016cc248babe7b4c4a6&encode_params=MIIBUwQM6lKQztNHftI_ov19BIIBL0hQqviJUyzKWv4KFV-0vc5AzOD8ZSLfC8ZQiiag2hwU7LWltvgrM4zcfFEmF5RhRNWUM9hSsdsfOxs2lm8J70BYjEDGSGo1vc-5YPNJPujtARgSsb1kNmvJooaEQY02jSBlzBapzi1zu1nJeG5h10l-YkO1sPl-d9dHQ0AGhsuBlLvodzPN82Tu-I0VRMyZWuIwH7n0khh2OSv6nFNRO8qGAvgC1_hV3gcuK6q8SrKCyL7mHcdA0RzYSVFWLYBXspfVbjlZpUBtAXaGlVlI9_iVkcfcm6Ibdsp56YIkNQGPN9L_Qu1rrMuNjmfgyRmedmcEwnqzgyDRTGr5LO5mfN5XlMFEfZGWl9wQR7UiO8v8hq8vIBegDu1LNmhR1Z5vOKQ-eV8ZDWz-JXGBky_yYgQQTpQehomo6C5BrAFslV7clg%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+Nam+TIMAN+GT554+%E2%80%93+Gi%C3%A0y+T%C3%A2y+Full+Da+B%C3%B2+Th%E1%BA%ADt%2C+S%E1%BA%A3n+Xu%E1%BA%A5t+Th%E1%BB%A7+C%C3%B4ng+Tinh+X%E1%BA%A3o%2C+Th%E1%BB%83+Hi%E1%BB%87n+%C4%90%E1%BA%B3ng+C%E1%BA%A5p+C%C3%A1+Nh%C3%A2n%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F61f462ac07644bbb8f46205fbb364fa2~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=AD5906D7-F3CF-4581-99F5-131E28472414&share_region=VN&social_share_type=15&timestamp=1788357559&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-12T11:00:09.979Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhLLaSa5c-DV4Nf": {
+      "productId": "1731040623892466636",
+      "title": "[DÉP QUAI DÙ] DéP Sandal Chéo Kẹp Doctor nam quai dù dày dặn khâu may thủ công chắc chắn Đế Bằng cao su êm chân 2 bản dép chữ x kẹp và quai chéo DTDA22 Sandal Nhung cho mọi lứa tuổi",
+      "productDescription": "* Đặc điểm sản phẩm\n- Sản phẩm trẻ trung, phù hợp với mọi lứa tuổi, từ học sinh cho đến nhân viên văn phòng, từ trung niên cho đến thanh thiếu niên đều sử dụng được.\n- Thiết kế đơn giản nhưng không kém phần sang trọng, thu hút, lịch lãm, sử dụng khi đi du lịch, đi học, đi chơi hay đi làm đều rất đẹp.\n- Đế cao khoảng 1-2cm\n- Màu sắc đa dạng, tổng 3 màu quai, thoải mái thể hiện cá tính của bản thân.\n- Có bảng size chuẩn để khách hàng dể dàng chọn lựa sao cho phù hợp với bàn chân.\n* Chính sách bảo hành\n- Bảo hành 6 tháng kể từ ngày mua sản phẩm.\n- Những trường hợp được bảo hành: lỗi kỹ thuật từ phía nhà sản xuất như đứt chỉ, gãy đế, rách quai, và các lỗi từ sản phẩm.\n* Cách đo chiều dài bàn chân:\nB1: Đặt bàn chân lên tờ giấy trắng, đánh dấu đầu mũi ngón chân cái và gót chân.\nB2: Đo chiều dài từ đầu mũi ngón chân cái đến gót chân -> ra kết quả chiều dài bàn chân.\nB3: Đối chiếu chiều dài bàn chân đo được với số đo chiều dài bàn chân của bản size tiêu chuẩn để tìm size phù hợp với bàn chân của mình.\nLưu ý:\n- Nếu quý khách cần tư vấn size vui lòng inbox cho shop để được tư vấn chọn size chính xác nhất.\n- Khi bạn gặp bất kì vấn đề gì về sản phẩm đừng vội đánh giá mà hãy liên hệ shop để được hổ trợ 1 cách nhanh nhất và tốt nhất.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/8ef01db5e500411892232534e18159a6~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 1500,
+          "height": 1500
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/52e86dd456d94ee79d134f537ff85ae4~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a76c0d8b6fbc4c419f24436fa7cd390d~tplv-aphluv4xwc-crop-webp:928:928.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 928,
+          "height": 928
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/a76c0d8b6fbc4c419f24436fa7cd390d~tplv-aphluv4xwc-crop-webp:928:928.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 928,
+          "height": 928
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2ba0d1b50cae415bbd8cf0935e595336~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/2ba0d1b50cae415bbd8cf0935e595336~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/45852c2d20564342ab043231c54da107~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p21-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/45852c2d20564342ab043231c54da107~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731040623892466636?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937222137579271%22%2C%22sc%22%3A%22telegram%22%7D&checksum=85ed2eccabae0fdad3e84d15e751f5fdc41cb156624e5aa45ccda54b36af219a&encode_params=MIIBUwQMjPcwUmONFl6zCZbFBIIBL8H5EXAmezlmnkLid6vKvLoCTtyRpgfDpLwZPXKM9DXA4HiUyu3Zlb0bAQD1_5f60nxqmFfGa2z4BwVgSn7tpyjrI902Ezc5v_uWcZS0Qv5rTOy73WBRxS66AF3urB7FKYPlYgqcMsXhKrSZAcjV2V23UpP4r8lQC-tzhZC_pP1GUWVfD2zVZHdieKBTsrlRKQi5AAGHy5uHZLmheZDMfvGKYcE1YTQyR3rbovr4JaKU3AcLNwpJyD1YOMQRF6h-MAHvYk2Y2GVb0E1GjA3nxUPcIZNmMUA1b5o7rdPfIo7suaO_dtzHw-HmKHMK9jGIsyXh674llCNKvMOtTCppV2WfKLshRNbNJzy-mZQ0JcQH1G_GceRVqevhMB4zvH96w3OjeNOARri4LiOnPJZAtQQQgFtlsTm8Pphj8XbiBBtFpQ%3D%3D&og_info=%7B%22title%22%3A%22%5BD%C3%89P+QUAI+D%C3%99%5D+D%C3%A9P+Sandal+Ch%C3%A9o+K%E1%BA%B9p+Doctor+nam+quai+d%C3%B9+d%C3%A0y+d%E1%BA%B7n+kh%C3%A2u+may+th%E1%BB%A7+c%C3%B4ng+ch%E1%BA%AFc+ch%E1%BA%AFn+%C4%90%E1%BA%BF+B%E1%BA%B1ng+cao+su+%C3%AAm+ch%C3%A2n+2+b%E1%BA%A3n+d%C3%A9p+ch%E1%BB%AF+x+k%E1%BA%B9p+v%C3%A0+quai+ch%C3%A9o+DTDA22+Sandal+Nhung+cho+m%E1%BB%8Di+l%E1%BB%A9a+tu%E1%BB%95i%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2Fa76c0d8b6fbc4c419f24436fa7cd390d~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=CB846829-120E-4BCA-85B7-CB27FD2412AD&share_region=VN&social_share_type=15&timestamp=1788357574&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-13T01:00:20.396Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhLKfkqYQ-KaQwc": {
+      "productId": "1729591953251666656",
+      "title": "Giày Tây Nam Buộc Dây- Đế Khâu Da Mềm Mã CS88 Shoes",
+      "productDescription": "Chi tiết sản phẩm giầy tây nam CS88\nKiêu dáng thanh lịch, tối giản trong thiết kế. Dây buộc truyền thống dễ kết hợp trang phục.\nChất liệu: Da cán tấm Microfiber mềm mịn.\nĐế cao su mềm, có rãnh mã sát dưới mặt đế. Đế khâu giúp giày sử dụng lâu dài, không bung đế.\nBẢNG ĐO SIZE GIẦY\nSize 38: 23,5- 24 cm\nSize 39: 24,5 cm\nSize 40: 25 cm\nSize 41: 26 cm\nSize 42: 26.5-27 cm\nSize 43: 27,5-28 cm .\nNếu chân mập béo, to ngang, quý khách nhắc shop tư vấn điều chỉnh size.",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/3f547fb703ba4ca08654aa14e10e31e3~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 756,
+          "height": 704
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/b44bdb24287c4fb69f55876ca36c29f7~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 720,
+          "height": 720
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/d9e1c30a76e149cfb63ff4bbfe48d787~tplv-o3syd03w52-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a3a5a82cd11e43ee83704226f4737885~tplv-o3syd03w52-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/a3a5a82cd11e43ee83704226f4737885~tplv-o3syd03w52-crop-webp:1280:1280.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 1280,
+          "height": 1280
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/db55e1db0e0948d4931e76e40d5f0f09~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p19-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/db55e1db0e0948d4931e76e40d5f0f09~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        },
+        {
+          "url": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/ae813db1d7594f5a89796bc125ead302~tplv-o3syd03w52-crop-webp:2560:2560.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2560,
+          "height": 2560
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1729591953251666656?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937303222109959%22%2C%22sc%22%3A%22telegram%22%7D&checksum=ba40141e6f4ee84a0ec52726401d931779daf28cafdad7d7e8a2bd830a150190&encode_params=MIIBUwQMup3mfEgt-oadcza2BIIBLzofjnlOKkLWha4Dv57vkuzZkc347kxpJP2x-N2kEAaA7XR52otBvgpjg7pXoPVma3IDWM1hFuq1bqrljeuOX_I3dZ21V19NCQYGnvQqVgkwJXTv1VVTnTf81ZZrw-P2PywiPNUL6f6zgJzGLkHDZkVMWFPw9A1zzO2Zqn-K9Ba1uTbq1kzuxSc1rY12j5kS4JqdN61WIFPq7p9kIUPrBmeDa6DcAlUFVCdDmj13XbBA5LcNVOFzHvOPY_KjW2iK6Y7AQwzmEBoQ0XaAbihIenkAezLR6BsWd6DQ3aT26PwH-DbRuJ3ceuvndL8s2mN8za4ZPUC0hVmBBl2ocj_7cKiRwfq3FfCgwU0RggepmJjpl-1ioj-ajVYaruoYDYL4_E2WixsETLXnxI0YF8YYJAQQC_6NkaGoFLGVdi4aXS9Afg%3D%3D&og_info=%7B%22title%22%3A%22Gi%C3%A0y+T%C3%A2y+Nam+Bu%E1%BB%99c+D%C3%A2y-+%C4%90%E1%BA%BF+Kh%C3%A2u+Da+M%E1%BB%81m+M%C3%A3+CS88+Shoes%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-va.ibyteimg.com%5C%2Ftos-maliva-i-o3syd03w52-us%5C%2Fa3a5a82cd11e43ee83704226f4737885~tplv-o3syd03w52-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=64C902F0-D402-4366-BD8E-AEE1D9386144&share_region=VN&social_share_type=15&timestamp=1788357582&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-13T05:00:37.907Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhjGUa9y5-BRYMJ": {
+      "productId": "1731383824730850925",
+      "title": "Dép Cross Unisex Street Style Hottrend 2026 – Sục EVA Êm Nhẹ Độn Đế 5cm – Đi Học Đi Chơi – DC06 - 2SEVEN",
+      "productDescription": "Dép Cross Unisex Street Style Hottrend 2026 – Sục EVA Êm Nhẹ Độn Đế 5cm – Đi Học Đi Chơi – DC06 - 2SEVEN\n***Dép đúng size nên lấy theo size dép hay đi, đủ size từ 40-45. Nếu không vừa inbox shop để shop hỗ trợ đổi trả!\n2SEVEN - Dẫn đầu xu hướng thời trang giới trẻ ️️️\nTHÔNG TIN SẢN PHẨM:\n- Tên sản phẩm: Dép Cross Nam Nữ Unisex Hottrend 2026 – Dép Sục EVA Êm Nhẹ, Độn Đế Thoáng Khí – Phong Cách Streetwear – DC06 – 2SEVEN\n- Mã sản phẩm: DC06\n- Màu: Trắng, Be, Đen\n-️ Kiểu đáy gót: Đáy dày\n-️ Chất liệu: EVA\n️- Chiều cao gót: 3-5cm\n- Kích thước: size 40-45\nƯU ĐIỂM NỔI BẬT:\n- Dép làm từ chất liệu cao su tổng hợp, chắc chắn, dẻo dai.\n- Được thiết kế theo công nghệ mới, độ chống trơn trượt cao, mang đến cho người sử dụng sự thoải mái khi di chuyển.\n- Thích hợp mang đi mưa, đi biển, đi dã ngoại, đi học, ...\n- Dễ dàng lau chùi và vệ sinh.\nHƯỚNG DẪN CHỌN SIZE\nDép đúng size nên lấy theo size dép hay đi, đủ size từ 36-44. Nếu không vừa inbox shop để shop hỗ trợ đổi trả!\nQUY ĐỊNH BẢO HÀNH, ĐỔI TRẢ:\n1. Điều kiện áp dụng (trong vòng 07 ngày kể từ khi nhận sản phẩm)\n- Hàng hoá vẫn còn mới, chưa qua sử dụng.\n- Hàng hoá bị lỗi hoặc hư hỏng do vận chuyển hoặc do nhà sản xuất.\n- Hàng không đúng size, kiểu dáng như quý khách đặt hàng.\n2. Trường hợp không đủ điều kiện áp dụng chính sách:\n- Quá 07 ngày kể từ khi Quý khách nhận hàng.\n- Gửi lại hàng không đúng mẫu mã, không phải sản phẩm của shop\n- Nhãn mác, mã vạch không còn nguyên vẹn.\n- Sản phẩm đã chỉnh sửa, đã qua sử dụng.\nHƯỚNG DẪN SỬ DỤNG:\n- Không sử dụng hóa chất tẩy rửa có hoạt tính mạnh\n- Tránh phơi giày trực tiếp dưới nắng gắt\n- Không để giày ở nơi ẩm mốc cao\nCAM KẾT CỦA 2SEVEN\n- Về sản phẩm: Hàng thật 100% như hình, video.\n- Về dịch vụ: Luôn hỗ trợ khách hàng chu đáo, cố gắng trả lời hết những thắc mắc xoay quanh sản phẩm ạ\n- Thời gian chuẩn bị: Giày có sẵn, thời gian chuẩn bị hàng và gửi hàng nhanh nhất\n- Chính sách đổi trả miễn phí khi giày không giống hình, nhầm mẫu, số lượng, bị lỗi\n️ Cảm ơn bạn đã ủng hộ ️\nChúc các bạn mua sắm vui vẻ ^-^\n#2seven #depnam #depcross #coross #depsucnam #sucnam #crossnam #crossnu #sandal #sandalnam #sandalnu #depsuc #unisex #basic #street",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/f1dffb806edd4bceb1b59f2f2f652622~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 600,
+          "height": 600
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/0ad81b2f846a477887321ef5bc728fc0~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b3799e39d9b6495187327791e02408ef~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 600,
+          "height": 600
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/59fbf57c8ef640f28f8eaf7f20817f07~tplv-aphluv4xwc-crop-webp:450:450.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 450,
+          "height": 450
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/59fbf57c8ef640f28f8eaf7f20817f07~tplv-aphluv4xwc-crop-webp:450:450.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 450,
+          "height": 450
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b67b6d4ea11546cb972e1376f3c33f98~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/b67b6d4ea11546cb972e1376f3c33f98~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/c1c62998990f4bb7848bc78bb27f6534~tplv-aphluv4xwc-crop-webp:800:800.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 800,
+          "height": 800
+        }
+      ],
+      "hashtags": [
+        "#2seven",
+        "#depnam",
+        "#depcross",
+        "#coross",
+        "#depsucnam",
+        "#sucnam",
+        "#crossnam",
+        "#crossnu",
+        "#sandal",
+        "#sandalnam",
+        "#sandalnu",
+        "#depsuc",
+        "#unisex",
+        "#basic",
+        "#street"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1731383824730850925?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937335363094290%22%2C%22sc%22%3A%22telegram%22%7D&checksum=1f4e86c7baec766ae8ddb9a79e6ef62d2bb89215ff7b9f35523469a28497118b&encode_params=MIIBUwQMkw_WPzdH8j8HYQJcBIIBL_Bgc3SLkkDKe9aUORP9OQhsOGdpB9o6q2JfTiRcTxOOsVKtbXSKOTtwdGQUIaRE_b-IkNISYvfyhbEVOf49XsNesIJDhtNG7HaagNR6AjDP1BkrIL9byq31HnOEqAo_fyrmBznaTBSX5jBIIcqPU3T7eqcXPn4B5JlwkwkHAz3_5M0t-YEpY279gsDKG3ixN72rlKuUZ2uqnes2JxPX5VzfY9zosUvCuGUm5GZ_Kvq6nZmeq_81txKcONe4ss4nryGO6jU-T08yVO9CxGk42sGFWH4b1NrcRz28QAaxpyauBbanErYD-vxXl6MoyeUPuUsKsp37ZrqckXEWtakE6SDlrFzTTSIDI7HYKL1xl9W82FZIONeE_d8HUTd-t6cUqAIP5iQcIugPOqOWPmlXhQQQj4IzCwFXP9PSZ5r7Hj8aIg%3D%3D&og_info=%7B%22title%22%3A%22D%C3%A9p+Cross+Unisex+Street+Style+Hottrend+2026+%E2%80%93+S%E1%BB%A5c+EVA+%C3%8Am+Nh%E1%BA%B9+%C4%90%E1%BB%99n+%C4%90%E1%BA%BF+5cm+%E2%80%93+%C4%90i+H%E1%BB%8Dc+%C4%90i+Ch%C6%A1i+%E2%80%93+DC06+-+2SEVEN%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F59fbf57c8ef640f28f8eaf7f20817f07~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=B29A1D30-51F7-4125-8ADA-CA6987F879C6&share_region=VN&social_share_type=15&timestamp=1788357592&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-13T08:00:37.089Z"
+    },
+    "https://vt.tiktok.com/ZS9BWhj8rJeEW-oF4WE": {
+      "productId": "1732666889929524931",
+      "title": "VIP Dép Nhựa Sục Nhựa Lỗ Dẻo cho NAM bít mũi đi mưa bảo hộ lao động Chống Trơn Trượt FASHION VIP",
+      "productDescription": "Thông tin sản phẩm:\n✨ Tên sản phẩm: Dép Nhựa, Sục Nhựa Lỗ Dẻo cho NAM bít mũi đi mưa bảo hộ lao động Chống Trơn Trượt\nMô tả sản phẩm:\nLưu ý: Đảm bảo sử dụng đúng cách để tận hưởng lợi ích tốt nhất từ sản phẩm.\n- Loại dép: Sục\n- Chất liệu mặt: cao su cao cấp\nSize kép:\n40/41 : 25 - 26cm\n42/43: 26 - 27cm\n44/45: 27.5cm - 29cm",
+      "productImages": [
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/895ba860a8f64f33b1c479ec37666fe5~tplv-aphluv4xwc-origin-jpeg.jpeg?dr=15568&t=555f072d&ps=933b5bde&shp=a3510d86&shcp=6ce186a1&idc=my&from=2739998086",
+          "width": 756,
+          "height": 356
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/07fc494f982040198fa79c40afb5338e~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/07fc494f982040198fa79c40afb5338e~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/91f74f570b0e48088a08d386be761f3f~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/91f74f570b0e48088a08d386be761f3f~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/13058aa3d46a45cbb68ea928e2d56f9b~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p19-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/13058aa3d46a45cbb68ea928e2d56f9b~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        },
+        {
+          "url": "https://p16-oec-sg.ibyteimg.com/tos-alisg-i-aphluv4xwc-sg/c6b45a91f8374788b4549383e8429d14~tplv-aphluv4xwc-crop-webp:2250:2250.webp?dr=15592&t=555f072d&ps=933b5bde&shp=8dbd94bf&shcp=607f11de&idc=my&from=2378011839",
+          "width": 2250,
+          "height": 2250
+        }
+      ],
+      "hashtags": [
+        "#GiaySneaker",
+        "#GiayTheThao",
+        "#ReviewGiay",
+        "#SneakerVN",
+        "#TikTokShopVN"
+      ],
+      "productUrl": "https://shop.tiktok.com/vn/pdp/1732666889929524931?_d=ed073b4k7jl467&_svg=1&chain_key=%7B%22t%22%3A1%2C%22k%22%3A%22000000000000000007680937388047271687%22%2C%22sc%22%3A%22telegram%22%7D&checksum=d87e0e9ff900d733207252c524e730823a59a2edb368b8358dcb0112b34f1822&encode_params=MIIBUwQMyxr1rEpx2tZwzED1BIIBL95_6i4cad4zE0YHY984BLvx28EFetH3pT0u8JpbhgJgwqz3MfIt1gR4R-lQfLiZGhFxaUmS8xfTDw0EJI7q0AI-Rl8C2qQsvFnxtr0jAkOdB3sS3h0pHF3uyC3iD5R7tqwCBZ5m0ECBtcagQDldLOPOTlIkeEQnQQE3GjKru1CoPUj148A0_cbKjXS-zqcJwuQZlL8H2bGqU-scYDlh7YC_-ni-xB_pwi-npYtFI_iAAzphLI7ZleuhcqkRrCY0s4g0WwfndTyiy1xUFFxiG4YNARSMWqqzWavKOA0VrORCbZGp4PWlq1fs7ADb6gHzg2wZOmK25ZB6AxLS34vfVyLwud2Ol8O6Q0wjHfzwD_XyS2i3f-8BJ6MyhiQn0ouKVxQZ9a03fmmYfaEv1Er5owQQjiRRfhigLzlZIFK7iDY5Qg%3D%3D&og_info=%7B%22title%22%3A%22VIP+D%C3%A9p+Nh%E1%BB%B1a+S%E1%BB%A5c+Nh%E1%BB%B1a+L%E1%BB%97+D%E1%BA%BBo+cho+NAM+b%C3%ADt+m%C5%A9i+%C4%91i+m%C6%B0a+b%E1%BA%A3o+h%E1%BB%99+lao+%C4%91%E1%BB%99ng+Ch%E1%BB%91ng+Tr%C6%A1n+Tr%C6%B0%E1%BB%A3t+FASHION+VIP%22%2C%22image%22%3A%22https%3A%5C%2F%5C%2Fp16-oec-sg.ibyteimg.com%5C%2Ftos-alisg-i-aphluv4xwc-sg%5C%2F07fc494f982040198fa79c40afb5338e~tplv-aphluv4xwc-resize-webp%3A260%3A260.webp%3Fdr%3D15582%26t%3D555f072d%26ps%3D933b5bde%26shp%3D7745054a%26shcp%3D9b759fb9%26idc%3Dmy%26from%3D2001012042%22%7D&panel_source_v2=share_panel&sec_user_id=MS4wLjABAAAARvcKk2sLx7EyHH5y42b4G9GkIwKu7O6gVNxEnyiMpDT5gw6n9ZuIPgKgnaIB7Hzu&share_app_id=1180&share_enter_from=&share_link_id=58C66067-457F-43B4-88A4-F4AC691E1C1C&share_region=VN&social_share_type=15&timestamp=1788357603&trackParams=%7B%22source_page_type%22%3A%22product_share%22%2C%22traffic_source%22%3A3%2C%22enter_from_info%22%3A%22product_share_outside%22%2C%22device_id%22%3A%227341695451814774274%22%2C%22enable_shop_tab_popup%22%3A1%2C%22traffic_source_list%22%3A%5B3%5D%7D&tt_from=telegram&u_code=ED075%3ADLG6J4F6&ug_btm=b1285%2Cb6661&unique_id=hanhi012002&user_id=7341699006654841857&utm_campaign=client_share&utm_medium=ios&utm_source=telegram",
+      "cachedAt": "2026-09-13T11:00:33.808Z"
     }
   }
 }

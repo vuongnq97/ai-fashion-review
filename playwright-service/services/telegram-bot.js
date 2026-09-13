@@ -30,7 +30,45 @@ const { sendPhotoToTelegram } = require('./telegram-send');
 
 // Chat-specific batch data accumulator (for the normal photo flow)
 const botBatches = new Map();
-const pendingTemplateByChat = new Map();
+const CHAT_TEMPLATES_FILE = path.join(__dirname, '..', 'chat-templates.json');
+
+function loadChatTemplates() {
+  try {
+    if (fs.existsSync(CHAT_TEMPLATES_FILE)) {
+      const raw = fs.readFileSync(CHAT_TEMPLATES_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      return new Map(Object.entries(parsed));
+    }
+  } catch (e) {
+    console.warn('[Telegram Bot] Could not load chat-templates.json:', e.message);
+  }
+  return new Map();
+}
+
+const selectedTemplateByChat = loadChatTemplates();
+
+function saveChatTemplate(chatId, template) {
+  const cId = String(chatId);
+  selectedTemplateByChat.set(cId, template);
+  try {
+    const data = Object.fromEntries(selectedTemplateByChat);
+    fs.writeFileSync(CHAT_TEMPLATES_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[Telegram Bot] Could not write chat-templates.json:', e.message);
+  }
+}
+
+function getChatTemplate(chatId) {
+  return selectedTemplateByChat.get(String(chatId)) || null;
+}
+
+// Giữ lại alias để tránh lỗi tương thích nếu có hàm ngoài gọi
+const pendingTemplateByChat = {
+  get: (cid) => getChatTemplate(cid),
+  set: (cid, tpl) => saveChatTemplate(cid, tpl),
+  has: (cid) => selectedTemplateByChat.has(String(cid)),
+  delete: () => {}, // Không xóa để luôn ghi nhớ
+};
 const lastRunByChat = new Map();
 const BATCH_WINDOW_MS = 5000;
 let isPolling = false;
@@ -47,7 +85,8 @@ const RESERVED_COMMANDS = new Set([
   'template5_3', 'template53',
   'template6', 't1', 't2', 't3', 't4', 't5', 't6',
   't51', 't52', 't53', 't5_1', 't5_2', 't5_3',
-  'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4',
+  'template_pro', 'templatepro', 'tpro',
+  'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4', 'remake_all',
   'again', 'redo',
   'tq', 'cancel',
 ]);
@@ -57,7 +96,7 @@ function classifyTelegramCommand(text = '') {
   if (/^\/upload(?:@\w+)?(?:\s|$)/i.test(value)) return 'upload';
   if (/^\/remake(?:[_@\s]|$)/i.test(value)) return 'remake';
   if (/^\/register(?:@\w+)?(?:\s|$)/i.test(value)) return 'register';
-  if (/^\/(?:template[0-9_.]+|t[0-9_.]+)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
+  if (/^\/(?:template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
   if (/^\/(start|help|menu)(?:@\w+)?(?:\s|$)/i.test(value)) return 'start';
   if (/^\/status(?:@\w+)?(?:\s|$)/i.test(value)) return 'status';
   if (/^\/dailyvlog(?:@\w+)?(?:\s|$)/i.test(value)) return 'dailyvlog';
@@ -116,7 +155,10 @@ async function downloadTelegramFile(botToken, fileId) {
 }
 
 function buildTemplateReadyMessage(templateName, description) {
-  return `✅ Đã bật ${templateName}. Hãy gửi shortlink TikTok Shop (https://vt.tiktok.com/...) để tạo video.\n\n`;
+  return `✅ Đã chọn và lưu ${templateName} cho tài khoản của bạn.\n` +
+    (description ? `• Đặc điểm: ${description}\n\n` : '\n') +
+    `👉 Bây giờ bạn chỉ cần gửi link TikTok Shop (https://vt.tiktok.com/...) là bot sẽ tự động tạo video theo template này!\n` +
+    `💡 Bot sẽ luôn ghi nhớ template này cho các lần gửi link sau. Bạn có thể đổi template bất kỳ lúc nào bằng cách gõ lệnh template khác (/tpro, /t10, /t5_3, v.v.).`;
 }
 
 async function handleTemplate1Command(botToken, chatId) {
@@ -236,6 +278,32 @@ async function handleTemplate6Command(botToken, chatId) {
   await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/template6', 'Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart ngẫu nhiên, không chữ, không tiếng).'));
 }
 
+async function handleTemplate10Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template10';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /t10 cho album ảnh đang gom: VEO_NATIVE_FAST — 2 video × 8s (evidence-first, faceless 100%, không chữ, native Veo voice).');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template10');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/t10', 'VEO_NATIVE_FAST: 2 video × 8s (evidence-first, faceless 100%, không chữ, native Veo voice).'));
+}
+
+async function handleTemplateProCommand(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template_pro';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /tpro cho album ảnh đang gom: Review Pro tương tác storyboard (remake từng cảnh trước khi chốt).');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template_pro');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/tpro', 'Review Pro tương tác storyboard (remake từng panel trước khi chốt).'));
+}
+
 // Import from shared module to keep single source of truth (also used by generation-job.js)
 const { buildTemplateOptions } = require('./template-options');
 
@@ -260,15 +328,40 @@ function getLastRunForChat(chatId, baseDir) {
     return mem;
   }
 
+  try {
+    const job = generationJobService.getLatestCompletedJob(String(chatId));
+    if (job && job.result?.reviewArchive?.panelsDir && fs.existsSync(job.result.reviewArchive.panelsDir)) {
+      return {
+        runDir: job.result.reviewArchive.root || job.jobDir,
+        panelsDir: job.result.reviewArchive.panelsDir,
+        videosDir: job.result.reviewArchive.videosDir,
+        analysis: job.result.analysis || job.analysis,
+        template: job.template,
+      };
+    }
+  } catch (_) {}
+
   const latestDir = getLatestRunDirectory(baseDir);
   if (latestDir) {
     const panelsDir = path.join(latestDir, 'panels');
     const videosDir = path.join(latestDir, 'videos');
     if (fs.existsSync(panelsDir)) {
+      let analysis = null;
+      let template = null;
+      const sessionPath = path.join(latestDir, 'session.json');
+      if (fs.existsSync(sessionPath)) {
+        try {
+          const sess = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+          analysis = sess.analysis || null;
+          template = sess.template || null;
+        } catch (_) {}
+      }
       return {
         runDir: latestDir,
         panelsDir,
         videosDir,
+        analysis,
+        template,
       };
     }
   }
@@ -285,6 +378,9 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   if (match) {
     numbers = (match[1].match(/\d+/g) || []).map(Number);
     customInstruction = (match[2] || '').replace(/^_+/, '').trim();
+  } else if (/^(?:all|ca\s*2|cả\s*2|tat\s*ca|tất\s*cả)/i.test(rawArgs)) {
+    numbers = [1, 2];
+    customInstruction = rawArgs.replace(/^(?:all|ca\s*2|cả\s*2|tat\s*ca|tất\s*cả)\s*/i, '').replace(/^_+/, '').trim();
   } else {
     numbers = (rawArgs.match(/\d+/g) || []).map(Number);
     customInstruction = rawArgs.replace(/\d+/g, '').replace(/cảnh/gi, '').replace(/^_+/, '').trim();
@@ -293,9 +389,10 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   if (numbers.length === 0) {
     await sendTelegramMessage(botToken, chatId,
       '💡 Cú pháp dùng lệnh /remake để tạo lại video:\n' +
-      '• /remake 1 — Tạo lại video cảnh 1 (sử dụng prompt chuẩn)\n' +
+      '• /remake 1 (hoặc /remake_1) — Tạo lại video cảnh 1\n' +
+      '• /remake 2 (hoặc /remake_2) — Tạo lại video cảnh 2\n' +
+      '• /remake all (hoặc /remake_all hoặc /remake 1 2) — Tạo lại cả 2 video\n' +
       '• /remake 2 tạo lại cảnh khác cho panel — Tạo lại cảnh 2 với yêu cầu tùy chỉnh ưu tiên\n' +
-      '• /remake 2 4 — Tạo lại nhiều video cùng lúc (VD: cảnh 2 và 4)\n' +
       '• /remake 3 xoay nhẹ góc 45 độ — Tùy biến góc máy / hành động theo ý muốn'
     );
     return;
@@ -308,22 +405,39 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
     return;
   }
 
-  const template = runInfo.template || (
-    runInfo.runDir && (runInfo.runDir.includes('template5_3') || runInfo.runDir.includes('template5.3') || runInfo.runDir.includes('template53')) ? 'template5_3' :
-      runInfo.runDir && runInfo.runDir.includes('template6') ? 'template6' :
-        runInfo.runDir && (runInfo.runDir.includes('template5_2') || runInfo.runDir.includes('template5.2')) ? 'template5_2' :
-          runInfo.runDir && (runInfo.runDir.includes('template5_1') || runInfo.runDir.includes('template5.1')) ? 'template5_1' :
-            runInfo.runDir && runInfo.runDir.includes('template5') ? 'template5' :
-              runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3'
-  );
+  const isTemplatePro = runInfo.template === 'template_pro' ||
+    runInfo.template === 'templatepro' ||
+    runInfo.template === 'tpro' ||
+    Boolean(runInfo.runDir && (runInfo.runDir.includes('template_pro') || runInfo.runDir.includes('templatepro') || runInfo.runDir.includes('tpro')));
+
+  const template = isTemplatePro ? 'template_pro' : (runInfo.template || (
+    runInfo.runDir && (runInfo.runDir.includes('template10') || runInfo.runDir.includes('template_10') || runInfo.runDir.includes('t10')) ? 'template10' :
+      runInfo.runDir && (runInfo.runDir.includes('template5_3') || runInfo.runDir.includes('template5.3') || runInfo.runDir.includes('template53')) ? 'template5_3' :
+        runInfo.runDir && runInfo.runDir.includes('template6') ? 'template6' :
+          runInfo.runDir && (runInfo.runDir.includes('template5_2') || runInfo.runDir.includes('template5.2')) ? 'template5_2' :
+            runInfo.runDir && (runInfo.runDir.includes('template5_1') || runInfo.runDir.includes('template5.1')) ? 'template5_1' :
+              runInfo.runDir && runInfo.runDir.includes('template5') ? 'template5' :
+                runInfo.runDir && runInfo.runDir.includes('template4') ? 'template4' : 'template3'
+  ));
   let panelPrompts = [];
-  if (template === 'template5_3' || template === 'template5.3' || template === 'template53') {
+  if (isTemplatePro) {
+    const { buildTemplateProVideoPrompts } = require('./template-pro-storyboard');
+    panelPrompts = buildTemplateProVideoPrompts(runInfo.analysis, {
+      customInstruction,
+    });
+  } else if (template === 'template10' || template === 'template_10') {
+    const { getTemplate10VideoPrompts } = require('./template10-storyboard');
+    panelPrompts = getTemplate10VideoPrompts(runInfo.analysis, {
+      template: 'template10',
+      customInstruction,
+    });
+  } else if (template === 'template5_3' || template === 'template5.3' || template === 'template53') {
     const { getTemplate5_3VideoPrompts } = require('./template5-storyboard');
     panelPrompts = getTemplate5_3VideoPrompts(runInfo.analysis, {
       template: 'template5_3',
       customInstruction,
     });
-  } else if (template === 'template6' || template === 'template_6') {
+  } else if (template === 'template6' || template === 'template6') {
     const { getTemplate6VideoPrompts } = require('./template6-storyboard');
     panelPrompts = getTemplate6VideoPrompts(runInfo.analysis, {
       template: 'template6',
@@ -345,64 +459,100 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
   const validPanels = [];
   const invalidIndices = [];
 
-  for (const idx of numbers) {
-    const pPath = path.join(runInfo.panelsDir, `panel-${idx}.png`);
-    if (fs.existsSync(pPath)) {
-      const buf = fs.readFileSync(pPath);
-      let prompt = panelPrompts[idx - 1] || `Tạo video review sản phẩm faceless cảnh ${idx}`;
+  if (isTemplatePro) {
+    const runId = path.basename(runInfo.runDir);
+    const { executeProRemakeSingleVideo } = require('./template-pro-storyboard');
+    const validIndices = numbers.filter(n => n >= 1 && n <= 4);
+    if (validIndices.length === 0) {
+      await sendTelegramMessage(botToken, chatId,
+        `⚠️ Cảnh không hợp lệ (${numbers.join(', ')}). Template Pro gồm 4 cảnh (1, 2, 3, 4).`);
+      return;
+    }
 
-      if (customInstruction) {
-        if (template === 'template5_3' || template === 'template5.3' || template === 'template53') {
-          const prodName = runInfo.analysis?.productName || 'sản phẩm';
-          const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
-          const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
-          const { clampScriptWords } = require('./template5-storyboard');
-          const scriptItem = runInfo.analysis?.script?.[idx - 1];
-          const vo = scriptItem?.voiceOver ? clampScriptWords(scriptItem.voiceOver, 21) : '';
-          const voiceClause = vo ? ` Giọng đọc review: ${voiceDesc}, tốc độ đọc nhanh liên tục dồn dập không ngừng nghỉ. Lời thoại nhân vật đọc liên tục trong 4 giây: "${vo}".` : ` Giọng đọc review: ${voiceDesc}.`;
-          prompt = `Tạo video review ${prodName} faceless dài đúng 4 giây từ hình ảnh Cảnh ${idx} đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI.${voiceClause} VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI.`;
-        } else if (template === 'template6' || template === 'template_6') {
-          const prodName = runInfo.analysis?.productName || 'sản phẩm';
-          prompt = `Tạo video review ${prodName} siêu thị góc nhìn thứ nhất (POV) dài đúng 8 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay bằng iPhone 15 Pro ngoài đời thực. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
-        } else if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
-          const prodName = runInfo.analysis?.productName || 'sản phẩm';
-          const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
-          const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
-          const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
-          const { combineTwoSceneScripts } = require('./template5-storyboard');
-          const vo = idx === 1
-            ? combineTwoSceneScripts(runInfo.analysis?.script?.[0]?.voiceOver, runInfo.analysis?.script?.[1]?.voiceOver, 42)
-            : combineTwoSceneScripts(runInfo.analysis?.script?.[2]?.voiceOver, runInfo.analysis?.script?.[3]?.voiceOver, 42);
-          const voiceClause = vo ? ` Giọng đọc review: ${voiceDesc}, tốc độ đọc nhanh dồn dập. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${vo}".` : ` Giọng đọc review: ${voiceDesc}.`;
-          prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI.${voiceClause} VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI.`;
-        } else if (template === 'template5') {
-          const prodName = runInfo.analysis?.productName || 'sản phẩm';
-          const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
-          const { normalizePanelOverlays } = require('./template5-storyboard');
-          const overlays = runInfo.analysis?.panelOverlays || (normalizePanelOverlays ? normalizePanelOverlays(runInfo.analysis || {}) : []);
-          const textClause = idx === 1
-            ? `HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 1 ("${overlays[0]?.headline || 'TIÊU ĐỀ'}"), tại mốc 4 giây chuyển sang hiển thị chính xác chữ Cảnh 2 ("${overlays[1]?.headline || 'GIẢI PHÁP'}").`
-            : `HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 3 ("${overlays[2]?.headline || 'CHẤT LƯỢNG'}"), tại mốc 4 giây chuyển sang hiển thị chính xác chữ Cảnh 4 ("${overlays[3]?.headline || 'CHỐT ĐƠN'}").`;
-          prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. ${textClause} Chữ đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm chữ rác khác. VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
-        } else if (template === 'template5_1' || template === 'template5.1' || template === 'template51') {
-          const prodName = runInfo.analysis?.productName || 'sản phẩm';
-          const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
-          prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
-        } else {
-          prompt = `Tạo video review giày dép faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC: Giữ nguyên người mẫu, trang phục, sản phẩm, không gian cửa hàng và ánh sáng. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). Thực hiện chính xác góc máy và chuyển động: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+    await sendTelegramMessage(botToken, chatId,
+      `🔄 Đang tạo lại video Cảnh ${validIndices.join(', ')} (4s Start Frame) & ghép lại video 16s lồng voice review...`);
+
+    for (const pIdx of validIndices) {
+      flowQueue.enqueue({
+        chatId: String(chatId),
+        photos: [],
+        baseDir,
+        label: `Remake Video Cảnh ${pIdx} (/tpro - ${runId})`,
+        execute: async () => {
+          await executeProRemakeSingleVideo(chatId, baseDir, runId, pIdx, {
+            botToken,
+            lastRunByChat,
+            customInstruction,
+          });
         }
-      }
-
-      validPanels.push({
-        index: idx,
-        panelIndex: idx,
-        imagePath: pPath,
-        buffer: buf,
-        prompt: prompt,
-        videoModelKey: (template === 'template6' ? '8s' : ((template === 'template2' || template === 'template5_3' || template === 'template5.3' || template === 'template53') ? '4s' : (['template3', 'template4', 'template5', 'template5_1', 'template5_2'].includes(template) ? 'abra_i2v_8s' : '6s'))),
+      }).catch(err => {
+        console.error(`[Telegram Bot] Remake video scene error for chat ${chatId}:`, err.message);
       });
-    } else {
-      invalidIndices.push(idx);
+    }
+    return;
+  } else {
+    for (const idx of numbers) {
+      const pPath = path.join(runInfo.panelsDir, `panel-${idx}.png`);
+      if (fs.existsSync(pPath)) {
+        const buf = fs.readFileSync(pPath);
+        let prompt = panelPrompts[idx - 1] || `Tạo video review sản phẩm faceless cảnh ${idx}`;
+
+        if (customInstruction) {
+          if (template === 'template10' || template === 'template_10') {
+            const { buildVeoNativeFastPrompt } = require('./template10-storyboard');
+            prompt = buildVeoNativeFastPrompt(runInfo.analysis, idx, { customInstruction });
+          } else if (template === 'template5_3' || template === 'template5.3' || template === 'template53') {
+            const prodName = runInfo.analysis?.productName || 'sản phẩm';
+            const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
+            const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
+            const { clampScriptWords } = require('./template5-storyboard');
+            const scriptItem = runInfo.analysis?.script?.[idx - 1];
+            const vo = scriptItem?.voiceOver ? clampScriptWords(scriptItem.voiceOver, 21) : '';
+            const voiceClause = vo ? ` Giọng đọc review: ${voiceDesc}, tốc độ đọc nhanh liên tục dồn dập không ngừng nghỉ. Lời thoại nhân vật đọc liên tục trong 4 giây: "${vo}".` : ` Giọng đọc review: ${voiceDesc}.`;
+            prompt = `Tạo video review ${prodName} faceless dài đúng 4 giây từ hình ảnh Cảnh ${idx} đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI.${voiceClause} VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI.`;
+          } else if (template === 'template6' || template === 'template_6') {
+            const prodName = runInfo.analysis?.productName || 'sản phẩm';
+            prompt = `Tạo video review ${prodName} siêu thị góc nhìn thứ nhất (POV) dài đúng 8 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay bằng iPhone 15 Pro ngoài đời thực. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+          } else if (template === 'template5_2' || template === 'template5.2' || template === 'template52') {
+            const prodName = runInfo.analysis?.productName || 'sản phẩm';
+            const isMale = runInfo.analysis?.voicePersona?.gender === 'nam' || runInfo.analysis?.category === 'gadgets';
+            const voiceDesc = runInfo.analysis?.voicePersona?.voiceDescription || (isMale ? 'nam miền Nam trầm ấm' : 'nữ miền Nam ngọt ngào');
+            const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
+            const { combineTwoSceneScripts } = require('./template5-storyboard');
+            const vo = idx === 1
+              ? combineTwoSceneScripts(runInfo.analysis?.script?.[0]?.voiceOver, runInfo.analysis?.script?.[1]?.voiceOver, 42)
+              : combineTwoSceneScripts(runInfo.analysis?.script?.[2]?.voiceOver, runInfo.analysis?.script?.[3]?.voiceOver, 42);
+            const voiceClause = vo ? ` Giọng đọc review: ${voiceDesc}, tốc độ đọc nhanh dồn dập. Lời thoại nhân vật đọc liên tục trong 8 giây (tối đa 42 từ): "${vo}".` : ` Giọng đọc review: ${voiceDesc}.`;
+            prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI.${voiceClause} VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI.`;
+          } else if (template === 'template5') {
+            const prodName = runInfo.analysis?.productName || 'sản phẩm';
+            const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
+            const { normalizePanelOverlays } = require('./template5-storyboard');
+            const overlays = runInfo.analysis?.panelOverlays || (normalizePanelOverlays ? normalizePanelOverlays(runInfo.analysis || {}) : []);
+            const textClause = idx === 1
+              ? `HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 1 ("${overlays[0]?.headline || 'TIÊU ĐỀ'}"), tại mốc 4 giây chuyển sang hiển thị chính xác chữ Cảnh 2 ("${overlays[1]?.headline || 'GIẢI PHÁP'}").`
+              : `HIỂN THỊ CHỮ THEO THỜI GIAN: 4 giây đầu (0s-4s) hiển thị chính xác chữ Cảnh 3 ("${overlays[2]?.headline || 'CHẤT LƯỢNG'}"), tại mốc 4 giây chuyển sang hiển thị chính xác chữ Cảnh 4 ("${overlays[3]?.headline || 'CHỐT ĐƠN'}").`;
+            prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. ${textClause} Chữ đúng chính tả tiếng Việt có dấu, tuyệt đối không tự tạo thêm chữ rác khác. VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+          } else if (template === 'template5_1' || template === 'template5.1' || template === 'template51') {
+            const prodName = runInfo.analysis?.productName || 'sản phẩm';
+            const borderRule = 'KHUNG VIỀN TRẮNG CỐ ĐỊNH (SOLID WHITE BORDER PADDING): Toàn bộ video được bao bọc bởi một khung viền màu trắng tĩnh cố định dày chính xác 12% ở mỗi cạnh: cạnh trên dày 12%, cạnh dưới dày 12%, cạnh trái dày 12%, cạnh phải dày 12% (solid white border frame: 12% top, 12% bottom, 12% left, 12% right padding). Toàn bộ nội dung chuyển động và hình ảnh video chỉ hiển thị chính xác bên trong khung viền trắng này, tuyệt đối không tràn ra ngoài viền trắng, và bên trong nội dung video hoàn toàn liền mạch không có bất kỳ vạch kẻ hay viền trắng nào chia cắt.';
+            prompt = `Tạo video review ${prodName} faceless dài đúng 8 giây từ hình ảnh 2 cảnh đã cung cấp. ${borderRule} YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). VISUAL VÀ CHUYỂN ĐỘNG: Thực hiện ưu tiên chính xác theo yêu cầu: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế, không hiệu ứng ảo CGI. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+          } else {
+            prompt = `Tạo video review giày dép faceless dài đúng 6 giây, sử dụng chính xác hình ảnh gốc đã cung cấp. YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${customInstruction}. GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC: Giữ nguyên người mẫu, trang phục, sản phẩm, không gian cửa hàng và ánh sáng. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). Thực hiện chính xác góc máy và chuyển động: ${customInstruction}. Cảnh quay chân thực tự nhiên 100% như quay thực tế. Video hoàn toàn im lặng, không có voice-over, không lời thoại, không tiếng review, không nhạc nền.`;
+          }
+        }
+
+        validPanels.push({
+          index: idx,
+          panelIndex: idx,
+          imagePath: pPath,
+          buffer: buf,
+          prompt: prompt,
+          videoModelKey: (template === 'template10' || template === 'template_10') ? 'abra_i2v_8s' : (template === 'template6' ? '8s' : ((template === 'template2' || template === 'template5_3' || template === 'template5.3' || template === 'template53') ? '4s' : (['template3', 'template4', 'template5', 'template5_1', 'template5_2'].includes(template) ? 'abra_r2v_4s' : '6s'))),
+        });
+      } else {
+        invalidIndices.push(idx);
+      }
     }
   }
 
@@ -426,8 +576,12 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
     execute: async () => {
       const videos = await generateVideosFromPanelsDirect(baseDir, validPanels, {
         aspectRatio: '9:16',
+        videoModelKey: isTemplatePro ? 'abra_r2v_8s' : undefined,
         includeVideoBase64: true,
-        cropPercent: (template === 'template5_3' || template === 'template5.3' || template === 'template53' || template === 'template6') ? undefined : (template.includes('template5') ? 0.12 : undefined),
+        multiImageMode: isTemplatePro ? true : undefined,
+        preserveBorder: isTemplatePro ? true : undefined,
+        cropPercent: isTemplatePro ? 0 : (template === 'template5_3' || template === 'template5.3' || template === 'template53' || template === 'template6') ? undefined : (template.includes('template5') ? 0.12 : undefined),
+        runId: path.basename(runInfo.runDir),
       });
 
       let successCount = 0;
@@ -511,14 +665,30 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
         if (rIdx >= 0) runInfo.videos[rIdx] = rEntry;
         else runInfo.videos.push(rEntry);
 
-        const caption = `🎬 Video Cảnh ${v.panelIndex} (Tạo lại / Remake)\n` +
-          `• Template: ${template}\n` +
-          `• Thời lượng: ${validPanels.find(p => p.index === v.panelIndex)?.videoModelKey || '6s'}\n` +
-          (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '');
+        let caption;
+        if (isTemplatePro) {
+          const label = v.panelIndex === 1 ? 'Cảnh 1 & 2 (Hook + Giải pháp)' : 'Cảnh 3 & 4 (Bằng chứng + Chốt đơn)';
+          caption = `🎬 <b>Video ${v.panelIndex}/2: ${label} (Tạo lại / Remake)</b> đã xong!\n` +
+            (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '') +
+            `👉 Nhấn để tạo lại video này nếu cần: /remake_${v.panelIndex}`;
+        } else {
+          caption = `🎬 Video Cảnh ${v.panelIndex} (Tạo lại / Remake)\n` +
+            `• Template: ${template}\n` +
+            `• Thời lượng: ${validPanels.find(p => p.index === v.panelIndex)?.videoModelKey || '6s'}\n` +
+            (customInstruction ? `• Tùy biến: ${customInstruction}\n` : '');
+        }
 
         const ok = await sendVideoToTelegramDirect(chatId, base64, v.panelIndex, `Panel ${v.panelIndex}`, caption);
         if (ok) {
           successCount++;
+          if (isTemplatePro && runInfo.runDir) {
+            try {
+              const { appendMarkdownLog } = require('./template-pro-storyboard');
+              if (typeof appendMarkdownLog === 'function') {
+                appendMarkdownLog(runInfo.runDir, `\n- Remake Video ${v.panelIndex}: Thành công -> \`videos/panel-${v.panelIndex}.mp4\` (${(fs.statSync(targetVideoPath).size / 1024).toFixed(1)} KB) lúc ${new Date().toISOString()}`);
+              }
+            } catch (_) {}
+          }
         } else {
           failedPanels.push({ panelIndex: v.panelIndex, error: 'Gửi video qua Telegram thất bại' });
           await sendTelegramMessage(botToken, chatId,
@@ -528,8 +698,26 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
 
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       if (successCount > 0 && failedPanels.length === 0) {
+        const runId = path.basename(runInfo.runDir);
+        const replyMarkup = isTemplatePro ? {
+          inline_keyboard: [
+            [
+              { text: '🔄 Remake Video 1', callback_data: `tpro_remake_video:1:${runId}` },
+              { text: '🔄 Remake Video 2', callback_data: `tpro_remake_video:2:${runId}` }
+            ],
+            [
+              { text: '🔄 Remake Cả 2 Video (Remake All)', callback_data: `tpro_remake_video:all:${runId}` }
+            ]
+          ]
+        } : undefined;
         await sendTelegramMessage(botToken, chatId,
-          `✅ Đã tạo lại xong ${successCount} video (${elapsed}s)!\n\n👉 Gõ /upload để ghép đầy đủ các cảnh theo đúng thứ tự và đăng lên TikTok.\n👉 Hoặc gõ /remake [số_cảnh] nếu muốn đổi lại video khác.`);
+          `✅ <b>Đã tạo lại xong ${successCount} video (${elapsed}s)!</b>\n\n` +
+          `👉 Gõ <code>/upload</code> để ghép đầy đủ các cảnh theo đúng thứ tự và đăng lên TikTok.\n` +
+          (isTemplatePro
+            ? `👉 Hoặc bấm nút bên dưới / gõ lệnh <code>/remake_1</code>, <code>/remake_2</code>, <code>/remake_all</code> nếu muốn tạo lại tiếp.`
+            : `👉 Hoặc gõ /remake [số_cảnh] nếu muốn đổi lại video khác.`),
+          { parse_mode: 'HTML', reply_markup: replyMarkup }
+        );
       } else if (successCount > 0 && failedPanels.length > 0) {
         await sendTelegramMessage(botToken, chatId,
           `⚠️ Đã hoàn thành ${successCount} video, nhưng có ${failedPanels.length} cảnh bị lỗi (${elapsed}s).\n👉 Gõ /remake ${failedPanels.map(f => f.panelIndex).join(' ')} để tạo lại các cảnh lỗi.`);
@@ -625,27 +813,106 @@ async function handleUploadDirectCommand(botToken, chatId, targetJobId, uploadMs
   if (uploadMsgId) {
     job.uploadMessageId = uploadMsgId;
   } else if (!job.uploadMessageId) {
-    const msgId = await sendTelegramMessage(botToken, chatId, '⏳ Đang upload...');
+    const msgId = await sendTelegramMessage(botToken, chatId, '⏳ Đang chuẩn bị tải video lên TikTok...');
     if (msgId) job.uploadMessageId = msgId;
   }
   try {
     const { prepareUploadJob } = require('./generation-job');
     await prepareUploadJob(job.jobId);
+
+    const uploadChannel = getChannelForChat(path.resolve(__dirname, '..'), chatId);
+    const payload = {
+      route: 'command',
+      command: 'upload',
+      text: `/upload ${job.jobId}`,
+      chatId: String(chatId),
+      messageId: null,
+      uploadMessageId: job.uploadMessageId || null,
+      targetJobId: job.jobId,
+      tiktokCredentialId: uploadChannel.tiktokCredentialId,
+      tiktokCredentialName: uploadChannel.tiktokCredentialName,
+      timestamp: Date.now()
+    };
+
+    // 1. Thử gửi webhook sang n8n trước (quy trình tự động gắn giỏ hàng affiliate)
+    let n8nForwarded = false;
+    try {
+      n8nForwarded = await forwardToN8nWebhook(payload);
+    } catch (_) {}
+
+    if (n8nForwarded) {
+      console.log(`[Telegram Bot] 🚀 Đã chuyển tiếp lệnh upload cho Job ${job.jobId} sang n8n webhook.`);
+      if (job.uploadMessageId) {
+        await editTelegramMessage(
+          chatId,
+          job.uploadMessageId,
+          `⏳ <b>Đang tự động đăng video lên TikTok qua n8n...</b>\n\n` +
+          `📌 Hệ thống đang lấy link affiliate, gắn giỏ hàng vàng và đăng lên kênh <b>${uploadChannel.label}</b>.\n` +
+          `Vui lòng đợi trong giây lát!`,
+          { parse_mode: 'HTML' }
+        );
+      }
+      return;
+    }
+
+    // 2. Fallback: Nếu n8n không phản hồi hoặc đang tắt, thực hiện upload trực tiếp bằng web session cookie
+    console.log(`[Telegram Bot] ⚠️ n8n không phản hồi, chuyển sang tự động upload trực tiếp qua TikTok Creator Center...`);
     if (job.uploadMessageId) {
       await editTelegramMessage(
         chatId,
         job.uploadMessageId,
-        '⚠️ <b>CHƯA THỂ ĐĂNG LÊN TIKTOK:</b>\n\n' +
-        'Video 9:16 đã được ghép và gửi preview ở trên, nhưng hệ thống n8n đang không phản hồi.\n' +
-        '👉 Hãy đảm bảo container n8n đang chạy (lệnh: <code>docker start n8n</code>) rồi gõ lại <code>/upload</code> để tự động đăng video kèm giỏ hàng vàng!'
+        `⏳ <b>Đang tải video trực tiếp lên TikTok...</b>\n\n` +
+        `📌 Kênh: <b>${uploadChannel.label}</b>\n` +
+        `Vui lòng đợi vài giây!`,
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    const finalVideoPath = job.finalVideoPath || (job.result?.finalVideoPath);
+    if (!finalVideoPath || !fs.existsSync(finalVideoPath)) {
+      throw new Error('Không tìm thấy file video 9:16 hoàn chỉnh trên máy chủ để upload!');
+    }
+
+    const { uploadVideoWithCookie } = require('./tiktok-web-upload');
+    const videoBuffer = fs.readFileSync(finalVideoPath);
+    const caption = job.caption || job.productTitle || 'Video review sản phẩm';
+
+    const uploadRes = await uploadVideoWithCookie(uploadChannel.tiktokCredentialId, videoBuffer, {
+      title: job.productTitle,
+      caption,
+      privacy: 'PUBLIC_TO_EVERYONE',
+    });
+
+    job.upload = {
+      status: 'published',
+      publishId: uploadRes.publishId || uploadRes.item_id || 'SUCCESS',
+      publishedAt: new Date().toISOString(),
+    };
+
+    if (job.uploadMessageId) {
+      await editTelegramMessage(
+        chatId,
+        job.uploadMessageId,
+        `🎉 <b>ĐĂNG VIDEO LÊN TIKTOK THÀNH CÔNG!</b>\n\n` +
+        `📦 Sản phẩm: <b>${job.productTitle || 'Sản phẩm'}</b>\n` +
+        `🔑 Publish ID: <code>${uploadRes.publishId || 'OK'}</code>\n` +
+        `🏪 Kênh: <b>${uploadChannel.label}</b>`,
+        { parse_mode: 'HTML' }
       );
     }
   } catch (err) {
     console.error('[Telegram Bot] Direct upload error:', err.message);
     if (job.uploadMessageId) {
-      await editTelegramMessage(chatId, job.uploadMessageId, `❌ Lỗi upload: ${err.message}`);
+      await editTelegramMessage(
+        chatId,
+        job.uploadMessageId,
+        `❌ <b>CHƯA THỂ ĐĂNG LÊN TIKTOK:</b>\n\n` +
+        `Chi tiết lỗi: <code>${err.message}</code>\n\n` +
+        `👉 Vui lòng kiểm tra lại container n8n (<code>docker start n8n</code>) hoặc quét lại mã QR liên kết TikTok (<code>/register</code>)!`,
+        { parse_mode: 'HTML' }
+      );
     } else {
-      await sendTelegramMessage(botToken, chatId, `⚠️ Lỗi chuẩn bị upload: ${err.message}`);
+      await sendTelegramMessage(botToken, chatId, `⚠️ Lỗi đăng TikTok: ${err.message}`);
     }
   }
 }
@@ -682,6 +949,189 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       baseDir,
       flowQueue
     );
+    return;
+  }
+
+  // ── /tpro interactive storyboard callbacks ────────────────────────────────
+  if (data.startsWith('tpro_remake:')) {
+    const parts = data.split(':');
+    const pIdx = parseInt(parts[1], 10);
+    const runId = parts[2];
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang remake Cảnh ${pIdx}...`);
+
+    const { executeProRemakePanel, getProSession, saveProSession } = require('./template-pro-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
+
+    // Xóa message status cũ
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    // Gửi message status mới ở đáy chat
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(3, `Đang remake Cảnh ${pIdx}...`);
+    if (session && typeof saveProSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveProSession(runId, session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake Cảnh ${pIdx} (/tpro - ${runId})`,
+      execute: async () => {
+        if (typeof executeProRemakePanel === 'function') {
+          await executeProRemakePanel(chatId, baseDir, runId, pIdx, { stepTracker: tracker });
+        }
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake panel error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('tpro_remake_all:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang tạo lại toàn bộ Storyboard...');
+
+    const { executeProRemakeAll, getProSession, saveProSession } = require('./template-pro-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
+
+    // Xóa message status cũ
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    // Gửi message status mới ở đáy chat
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(3, 'Đang tạo lại toàn bộ 4 cảnh...');
+    if (session && typeof saveProSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveProSession(runId, session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake All (/tpro - ${runId})`,
+      execute: async () => {
+        if (typeof executeProRemakeAll === 'function') {
+          await executeProRemakeAll(chatId, baseDir, runId, { stepTracker: tracker });
+        }
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake all error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('tpro_ok:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '✅ Đã duyệt Storyboard! Đang tiến hành tạo video...');
+
+    const { finalizeProStoryboardAndGenerateVideos, getProSession, saveProSession } = require('./template-pro-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
+
+    // Xóa message status cũ
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    // Gửi message status mới ở đáy chat
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(4, 'Đang sinh 4 video chuyển động AI...');
+    if (session && typeof saveProSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveProSession(runId, session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Generate Videos (/tpro - ${runId})`,
+      execute: async () => {
+        await finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, {
+          botToken,
+          lastRunByChat,
+          stepTracker: tracker,
+        });
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Generate videos error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('tpro_remake_video:')) {
+    const parts = data.split(':');
+    const target = parseInt(parts[1], 10) || 1;
+    const runId = parts[2];
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang tạo lại Video Cảnh ${target}...`);
+
+    const { executeProRemakeSingleVideo, getProSession, saveProSession } = require('./template-pro-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
+
+    // Xóa message status cũ (nếu có)
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    // Gửi message status mới
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(4, `Đang tạo lại Video Cảnh ${target} (4s Start Frame)...`);
+    if (session && typeof saveProSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveProSession(runId, session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake Video Cảnh ${target} (/tpro - ${runId})`,
+      execute: async () => {
+        await executeProRemakeSingleVideo(chatId, baseDir, runId, target, {
+          botToken,
+          stepTracker: tracker,
+          lastRunByChat,
+        });
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake video scene error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('tpro_upload:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang chuẩn bị tải video lên TikTok...');
+    await handleUploadDirectCommand(botToken, chatId, `tpro-${runId}`);
     return;
   }
 
@@ -862,7 +1312,7 @@ async function handleUpdate(botToken, update) {
     const commandKind = classifyTelegramCommand(text);
     const isUploadCmd = commandKind === 'upload';
     const isRemakeCmd = commandKind === 'remake';
-    const templateCmdMatch = text.match(/^\/(template[0-9_]+)/i);
+    const templateCmdMatch = text.match(/^\/(template[0-9_.]+|t[0-9_.]+)/i);
 
     if (isUploadCmd) {
       const targetJobId = text.split(/\s+/)[1] || null;
@@ -915,23 +1365,32 @@ async function handleUpdate(botToken, update) {
     } else if (isRemakeCmd) {
       let numbers = [];
       let customInstruction = '';
-      const underscoreMatch = text.match(/^\/remake_([0-9_]+)(?:@\w+)?(?:\s+(.*))?$/i);
+      const underscoreMatch = text.match(/^\/remake_([0-9_]+|all)(?:@\w+)?(?:\s+(.*))?$/i);
       if (underscoreMatch) {
-        numbers = underscoreMatch[1].split('_').map(d => parseInt(d, 10)).filter(n => !isNaN(n) && n > 0 && n <= 10);
+        if (underscoreMatch[1].toLowerCase() === 'all') {
+          numbers = [1, 2];
+        } else {
+          numbers = underscoreMatch[1].split('_').map(d => parseInt(d, 10)).filter(n => !isNaN(n) && n > 0 && n <= 10);
+        }
         customInstruction = (underscoreMatch[2] || '').trim();
       } else {
         const parts = text.replace(/^\/remake(?:@\w+)?\s*/i, '').trim();
-        const tokens = parts ? parts.split(/\s+/) : [];
-        const remaining = [];
-        for (const tok of tokens) {
-          const n = parseInt(tok, 10);
-          if (!isNaN(n) && n > 0 && n <= 10 && remaining.length === 0) {
-            numbers.push(n);
-          } else if (tok) {
-            remaining.push(tok);
+        if (/^(?:all|ca\s*2|cả\s*2|tat\s*ca|tất\s*cả)/i.test(parts)) {
+          numbers = [1, 2];
+          customInstruction = parts.replace(/^(?:all|ca\s*2|cả\s*2|tat\s*ca|tất\s*cả)\s*/i, '').trim();
+        } else {
+          const tokens = parts ? parts.split(/\s+/) : [];
+          const remaining = [];
+          for (const tok of tokens) {
+            const n = parseInt(tok, 10);
+            if (!isNaN(n) && n > 0 && n <= 10 && remaining.length === 0) {
+              numbers.push(n);
+            } else if (tok) {
+              remaining.push(tok);
+            }
           }
+          customInstruction = remaining.join(' ').trim();
         }
-        customInstruction = remaining.join(' ').trim();
       }
       if (numbers.length === 0) numbers = [1];
 
@@ -953,13 +1412,13 @@ async function handleUpdate(botToken, update) {
           );
           return;
         }
-
-        // ── Fallback: n8n không còn execution đang chờ → xử lý trực tiếp ──
-        console.log(`[Telegram Bot] /remake: no active n8n execution waiting, falling back to direct handleRemakeCommand`);
-        const remakeBaseDir = path.resolve(__dirname, '..');
-        await handleRemakeCommand(botToken, chatId, text, remakeBaseDir);
-        return;
       }
+
+      // ── Fallback: nếu không có n8n job đang chờ hoặc không có latestJob, xử lý trực tiếp ──
+      console.log(`[Telegram Bot] /remake: processing directly via handleRemakeCommand`);
+      const remakeBaseDir = path.resolve(__dirname, '..');
+      await handleRemakeCommand(botToken, chatId, text, remakeBaseDir);
+      return;
     } else if (templateCmdMatch) {
       const latestJob = generationJobService.getLatestCompletedJob(String(chatId));
       if (latestJob) {
@@ -1145,10 +1604,11 @@ async function handleUpdate(botToken, update) {
 
     if (urlMatch || isUploadCmd) {
       console.log(`[Telegram Bot] Received TikTok / Upload command from chat ${chatId}: ${text}`);
-      let template = pendingTemplateByChat.get(chatId) || process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3';
+      let template = getChatTemplate(chatId);
       const templateMatch = text.match(/\/(template[0-9_.]+|t[0-9_.]+)/i);
       if (templateMatch) {
         template = normalizeTemplateName(templateMatch[1]);
+        saveChatTemplate(chatId, template);
       }
 
       const channel = getChannelForChat(path.resolve(__dirname, '..'), chatId);
@@ -1161,7 +1621,7 @@ async function handleUpdate(botToken, update) {
           chatId: String(chatId),
           messageId: message.message_id || null,
           targetJobId: text.split(/\s+/)[1] || null,
-          template,
+          template: template || 'template_pro',
           channelId: channel.channelId,
           tiktokCredentialId: channel.tiktokCredentialId,
           tiktokCredentialName: channel.tiktokCredentialName,
@@ -1172,10 +1632,26 @@ async function handleUpdate(botToken, update) {
           await handleUploadDirectCommand(botToken, chatId, payload.targetJobId);
         }
       } else if (urlMatch) {
-        // shortlink → xử lý trực tiếp tại server (n8n mới không handle generate)
-        if (pendingTemplateByChat.has(chatId)) {
-          pendingTemplateByChat.delete(chatId); // clear sau khi dùng
+        // Yêu cầu người dùng phải chọn /template trước nếu chưa từng chọn
+        if (!template) {
+          await sendTelegramMessage(
+            botToken,
+            chatId,
+            '⚠️ <b>Bạn chưa chọn template để tạo video!</b>\n\n' +
+            'Vui lòng bấm chọn 1 template mong muốn trước khi gửi link TikTok Shop:\n\n' +
+            '• <code>/tpro</code> — Review Pro tương tác (duyệt Storyboard & remake từng cảnh) <i>[Khuyên dùng]</i>\n' +
+            '• <code>/t10</code> — VEO_NATIVE_FAST (2 video 8s, voice native Veo)\n' +
+            '• <code>/t5_3</code> — Spam đa ngành hàng (4 video 4s, model Veo, có voice)\n' +
+            '• <code>/t5_2</code> — Review đa ngành hàng (2 video 8s, không chữ, có voice)\n' +
+            '• <code>/t5_1</code> — Review đa ngành hàng (2 video 8s, không chữ, không voice)\n' +
+            '• <code>/t6</code> — Review siêu thị POV (2 video 8s)\n\n' +
+            '👉 <i>Bạn chỉ cần chọn template 1 lần duy nhất. Các lần sau chỉ cần gửi link TikTok Shop là bot sẽ tự động tạo video theo template đã chọn!</i>',
+            { parse_mode: 'HTML' }
+          );
+          return;
         }
+
+        // Đã có template đã lưu -> Giữ nguyên template cho các lần sau (KHÔNG xóa)
         await handleTikTokDirectFlow(botToken, chatId, message.message_id, urlMatch[1], template);
       }
       return;
@@ -1205,7 +1681,9 @@ async function handleUpdate(botToken, update) {
         '• /t51 (hoặc /template5_1) — Review đa ngành hàng (2 video 8s, KHÔNG CHỮ / No Text)\n' +
         '• /t52 (hoặc /template5_2) — Review đa ngành hàng (2 video 8s, KHÔNG CHỮ + VOICE REVIEW faceless)\n' +
         '• /t53 (hoặc /template5_3) — Review spam đa ngành hàng (4 video 4s, model Veo, KHÔNG CHỮ + VOICE REVIEW faceless)\n' +
-        '• /t6 (hoặc /template6) — Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart)\n\n' +
+        '• /t6 (hoặc /template6) — Review siêu thị POV 2 cảnh 8s (Bách Hóa Xanh / WinMart)\n' +
+        '• /t10 (hoặc /template10) — VEO_NATIVE_FAST: 2 video 8s (evidence-first, faceless 100%, native Veo voice)\n' +
+        '• /tpro (hoặc /template_pro) — Review Pro tương tác storyboard (remake từng panel trước khi chốt)\n\n' +
         '⚡ <b>CÁC LỆNH ĐIỀU KHIỂN & HỖ TRỢ:</b>\n' +
         '• /register [Tên Shop] — Đăng ký TikTok Shop\n' +
         '• /upload — Ghép các cảnh video thành video 9:16 và đăng lên TikTok\n' +
@@ -1288,10 +1766,22 @@ async function handleUpdate(botToken, update) {
       return;
     }
 
+    // ── Template 10 command (QUALITY_LOCKED Atomic Shot) ──────────────────────
+    if (/^\/(template10|template_10|t10)(?:@\w+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received Template 10 command (${text}) from chat ${chatId}`);
+      await handleTemplate10Command(botToken, chatId);
+      return;
+    }
+
+    // ── Template Pro command (Interactive Storyboard Remake) ──────────────────
+    if (/^\/(template_pro|templatepro|tpro)(?:@\w+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received Template Pro command (${text}) from chat ${chatId}`);
+      await handleTemplateProCommand(botToken, chatId);
+      return;
+    }
+
     // ── Remake / Again / Redo command ─────────────────────────────────────────
-    if (text === '/remake' || text.startsWith('/remake ') || text.startsWith('/remake@') || /^\/remake\d+/i.test(text) ||
-      text === '/again' || text.startsWith('/again ') || text.startsWith('/again@') || /^\/again\d+/i.test(text) ||
-      text === '/redo' || text.startsWith('/redo ') || text.startsWith('/redo@') || /^\/redo\d+/i.test(text)) {
+    if (/^\/(?:remake|again|redo)(?:[_@\s\d]|$)/i.test(text)) {
       console.log(`[Telegram Bot] Received remake command from chat ${chatId}: ${text}`);
       const baseDir = path.resolve(__dirname, '..');
       await handleRemakeCommand(botToken, chatId, text, baseDir);
@@ -1420,6 +1910,8 @@ async function handleUpdate(botToken, update) {
         templateMessage = ' theo /template5_2 đa ngành hàng 4 cảnh (2 video 8s) (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
       } else if (batch.template === 'template5_3' || batch.template === 'template5.3' || batch.template === 'template53') {
         templateMessage = ' theo /template5_3 spam đa ngành hàng 4 cảnh (4 video 4s, model Veo) (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
+      } else if (batch.template === 'template_pro' || batch.template === 'templatepro' || batch.template === 'tpro') {
+        templateMessage = ' theo /tpro review Pro tương tác storyboard (remake từng panel)';
       }
 
       const tracker = new FlowStepTracker(chatId, { title: 'Tạo video từ ảnh tải lên' });
@@ -1457,22 +1949,24 @@ async function handleUpdate(botToken, update) {
 
           await tracker.completeAll();
 
-          // 1. Gửi tin nhắn CHỈ CHỨA TITLE VÀ HASHTAG (để user dễ dàng copy thủ công nếu muốn tự đăng tay)
-          const analyzedTitle = res.analysis?.productName || res.analysis?.product_name || 'Sản phẩm review';
-          const defaultTags = ['#review', '#sanphamchinhhang', '#trending', '#xuhuong', '#tiktokshop'];
-          const hashtags = (Array.isArray(res.analysis?.hashtags) && res.analysis.hashtags.length > 0)
-            ? res.analysis.hashtags.slice(0, 5)
-            : defaultTags;
-          await sendTelegramMessage(botToken, chatId, `${analyzedTitle}\n\n${hashtags.join(' ')}`);
+          if (!res?.isInteractiveStoryboard && batch.template !== 'template_pro' && batch.template !== 'tpro') {
+            // 1. Gửi tin nhắn CHỈ CHỨA TITLE VÀ HASHTAG (để user dễ dàng copy thủ công nếu muốn tự đăng tay)
+            const analyzedTitle = res.analysis?.productName || res.analysis?.product_name || 'Sản phẩm review';
+            const defaultTags = ['#review', '#sanphamchinhhang', '#trending', '#xuhuong', '#tiktokshop'];
+            const hashtags = (Array.isArray(res.analysis?.hashtags) && res.analysis.hashtags.length > 0)
+              ? res.analysis.hashtags.slice(0, 5)
+              : defaultTags;
+            await sendTelegramMessage(botToken, chatId, `${analyzedTitle}\n\n${hashtags.join(' ')}`);
 
-          // 2. Gửi tin nhắn hướng dẫn và lệnh remake / upload
-          const videoCount = (Array.isArray(res.videos) ? res.videos.length : 2);
-          const remakeLines = Array.from({ length: videoCount }, (_, i) => `  • Cảnh ${i + 1}: /remake_${i + 1}`).join('\n');
-          await sendTelegramMessage(
-            botToken,
-            chatId,
-            `✅ Đã tạo xong ${videoCount} video panel.\n\n👉 Nhấn lệnh để tạo lại từng cảnh nếu cần:\n${remakeLines}\n\n👉 Gõ /upload để ghép video và đăng lên TikTok.\n👉 Gõ /start để xem toàn bộ danh sách lệnh.`
-          );
+            // 2. Gửi tin nhắn hướng dẫn và lệnh remake / upload
+            const videoCount = (Array.isArray(res.videos) ? res.videos.length : 2);
+            const remakeLines = Array.from({ length: videoCount }, (_, i) => `  • Cảnh ${i + 1}: /remake_${i + 1}`).join('\n');
+            await sendTelegramMessage(
+              botToken,
+              chatId,
+              `✅ Đã tạo xong ${videoCount} video panel.\n\n👉 Nhấn lệnh để tạo lại từng cảnh nếu cần:\n${remakeLines}\n\n👉 Gõ /upload để ghép video và đăng lên TikTok.\n👉 Gõ /start để xem toàn bộ danh sách lệnh.`
+            );
+          }
 
           return res;
         },
@@ -1513,6 +2007,7 @@ function buildTelegramCommands() {
     { command: 't5_1', description: '💎 Review đa ngành hàng (2 video 8s, KHÔNG CHỮ)' },
     { command: 't5_2', description: '🎙️ Review đa ngành hàng (2 video 8s, CÓ VOICE)' },
     { command: 't5_3', description: '⚡ Spam đa ngành hàng (4 video 4s, CÓ VOICE)' },
+    { command: 'tpro', description: '💎 Review Pro tương tác storyboard (remake từng panel)' },
     { command: 't6', description: '🛒 Review siêu thị POV 2 cảnh 8s' },
     { command: 't1', description: '👟 Review faceless 2 cảnh' },
     { command: 't2', description: '🥿 Review 8 cảnh 4s' },
@@ -1633,6 +2128,7 @@ module.exports = {
   registerBotCommands,
   buildTelegramCommands,
   lastRunByChat,
+  handleUploadDirectCommand,
   _test: {
     classifyTelegramCommand,
   },

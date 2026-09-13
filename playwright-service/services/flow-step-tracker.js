@@ -1,4 +1,4 @@
-const { sendTelegramMessage, editTelegramMessage } = require('./telegram-send');
+const { sendTelegramMessage, editTelegramMessage, deleteTelegramMessage } = require('./telegram-send');
 
 /**
  * Manages the live 5-step progress template message on Telegram.
@@ -6,9 +6,9 @@ const { sendTelegramMessage, editTelegramMessage } = require('./telegram-send');
  * Steps:
  * 1. Tải thông tin & hình ảnh sản phẩm
  * 2. Phân tích sản phẩm & lên kịch bản review
- * 3. Tạo Master Storyboard & tách panel 2 cảnh
- * 4. Sinh 2 video chuyển động AI (Google Flow)
- * 5. Xử lý hậu kỳ & tối ưu khung hình video (Crop 12%)
+ * 3. Tạo storyboard
+ * 4. Tạo video
+ * 5. Xử lý hậu kỳ
  * 
  * Icons:
  * - ⏳ : Đang diễn ra (running / loading)
@@ -20,8 +20,9 @@ class FlowStepTracker {
   constructor(chatId, options = {}) {
     this.chatId = String(chatId);
     this.title = options.title || '';
-    this.messageId = null;
+    this.messageId = options.messageId || null;
     this.startPromise = null;
+    this._renderChain = Promise.resolve();
     this.steps = [
       { id: 1, name: 'Tải thông tin & hình ảnh sản phẩm', status: 'pending' },
       { id: 2, name: 'Phân tích sản phẩm & lên kịch bản review', status: 'pending' },
@@ -55,6 +56,12 @@ class FlowStepTracker {
     if (this.startPromise) return this.startPromise;
 
     const idx = initialStep - 1;
+    for (let i = 0; i < idx; i++) {
+      if (this.steps[i]) {
+        this.steps[i].status = 'completed';
+        this.steps[i].detail = '';
+      }
+    }
     if (this.steps[idx]) {
       this.steps[idx].status = 'running';
       if (detail) this.steps[idx].detail = detail;
@@ -70,6 +77,14 @@ class FlowStepTracker {
     return this.startPromise;
   }
 
+  async deleteMessage() {
+    if (this.messageId) {
+      await deleteTelegramMessage(this.chatId, this.messageId).catch(() => {});
+      this.messageId = null;
+      this.startPromise = null;
+    }
+  }
+
   async setTitle(title) {
     if (!title || this.title === title) return;
     this.title = title;
@@ -83,8 +98,8 @@ class FlowStepTracker {
     this.steps[idx].status = status;
     if (detail !== undefined) this.steps[idx].detail = detail;
 
-    // If step is running, ensure all previous steps are marked completed
-    if (status === 'running') {
+    // Khi một bước đang chạy (running) hoặc đã xong (completed), đảm bảo tất cả các bước trước đó đều là completed
+    if (status === 'running' || status === 'completed') {
       for (let i = 0; i < idx; i++) {
         if (this.steps[i].status !== 'completed') {
           this.steps[i].status = 'completed';
@@ -97,11 +112,31 @@ class FlowStepTracker {
   }
 
   async render() {
-    if (this.startPromise) await this.startPromise;
-    if (!this.messageId) return;
+    this._renderChain = this._renderChain.then(async () => {
+      if (this.startPromise) await this.startPromise;
+      if (!this.messageId) return;
 
-    const text = this.formatMessage();
-    await editTelegramMessage(this.chatId, this.messageId, text, { parse_mode: 'HTML' });
+      const text = this.formatMessage();
+
+      try {
+        await editTelegramMessage(this.chatId, this.messageId, text, { parse_mode: 'HTML' });
+      } catch (err) {
+        if (/message is not modified/i.test(err.message || '')) {
+          return;
+        }
+        // Nếu message không tồn tại (do user xoá), fallback gửi message mới
+        try {
+          const res = await sendTelegramMessage(this.chatId, text, { parse_mode: 'HTML' });
+          this.messageId = (typeof res === 'object' && res?.message_id) ? res.message_id : (typeof res === 'number' ? res : null);
+        } catch (sendErr) {
+          console.warn(`[FlowStepTracker] Failed to re-send status message: ${sendErr.message}`);
+        }
+      }
+    }).catch(err => {
+      console.warn(`[FlowStepTracker] Render chain error: ${err.message}`);
+    });
+
+    return this._renderChain;
   }
 
   async completeAll() {

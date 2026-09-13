@@ -18,17 +18,39 @@ const tokenInterceptedPages = new WeakSet();
 // ── Bearer token management ──────────────────────────────────
 let cachedBearerToken = null;
 let tokenCapturedAt = 0;
+const blacklistedBearerTokens = new Set();
+
+function attachGlobalRequestInterceptor(context) {
+  if (!context || context._hasTokenInterceptor) return;
+  context._hasTokenInterceptor = true;
+  context.on('request', request => {
+    const url = request.url();
+    if (url.includes('aisandbox-pa.googleapis.com') || url.includes('labs.google')) {
+      const auth = request.headers()['authorization'];
+      if (auth && auth.startsWith('Bearer ')) {
+        const token = auth.substring(7);
+        if (!blacklistedBearerTokens.has(token)) {
+          cachedBearerToken = token;
+          tokenCapturedAt = Date.now();
+        }
+      }
+    }
+  });
+}
 
 function setupTokenInterceptor(page) {
   if (tokenInterceptedPages.has(page)) return;
   tokenInterceptedPages.add(page);
   page.on('request', request => {
     const url = request.url();
-    if (url.includes('aisandbox-pa.googleapis.com')) {
+    if (url.includes('aisandbox-pa.googleapis.com') || url.includes('labs.google')) {
       const auth = request.headers()['authorization'];
       if (auth && auth.startsWith('Bearer ')) {
-        cachedBearerToken = auth.substring(7);
-        tokenCapturedAt = Date.now();
+        const token = auth.substring(7);
+        if (!blacklistedBearerTokens.has(token)) {
+          cachedBearerToken = token;
+          tokenCapturedAt = Date.now();
+        }
       }
     }
   });
@@ -37,55 +59,152 @@ function setupTokenInterceptor(page) {
 async function adoptBrowserPage(context, page) {
   globalContext = context;
   globalPage = page;
+  attachGlobalRequestInterceptor(globalContext);
   setupTokenInterceptor(globalPage);
   await handleAuthRedirect(globalPage, globalContext);
   return globalPage;
 }
 
-function invalidateBearerToken() {
+function invalidateBearerToken(token) {
+  if (token && typeof token === 'string') {
+    blacklistedBearerTokens.add(token.trim());
+  }
+  if (cachedBearerToken) {
+    blacklistedBearerTokens.add(cachedBearerToken.trim());
+  }
   cachedBearerToken = null;
   tokenCapturedAt = 0;
-  console.log('[Browser] Bearer token invalidated.');
+  console.log(`[Browser] Bearer token invalidated (blacklisted total: ${blacklistedBearerTokens.size}).`);
 }
 
-async function ensureBearerToken(page) {
-  // Token valid for 30 minutes
-  if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
+async function getBearerTokenFromSession(context) {
+  try {
+    const res = await context.request.get('https://labs.google/fx/api/auth/session', {
+      headers: {
+        'Accept': 'application/json',
+      },
+      timeout: 10000
+    });
+    if (!res.ok()) return null;
+    const data = await res.json();
+    if (data && data.access_token && !data.error) {
+      return data.access_token;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function triggerSilentOAuthRefresh(context, baseDir) {
+  console.log('[Browser] Triggering silent NextAuth Google OAuth refresh for Bearer token...');
+  const page = await context.newPage();
+  try {
+    await page.goto('https://labs.google/fx/api/auth/signin/google', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    const formSubmitted = await page.evaluate(() => {
+      const form = document.querySelector('form[action*="/signin/google"]');
+      if (form) {
+        form.submit();
+        return true;
+      }
+      return false;
+    });
+
+    if (!formSubmitted) {
+      const btn = await page.$('button, input[type="submit"]');
+      if (btn) await btn.click();
+    }
+
+    // Wait for redirect to finish back to labs.google
+    await page.waitForURL(url => url.origin === 'https://labs.google' && !url.pathname.includes('/signin'), { timeout: 25000 });
+    await page.waitForTimeout(1000);
+    console.log('[Browser] Silent OAuth refresh completed. Current URL:', page.url());
+
+    // Save refreshed cookies so session token stays fresh on disk
+    try {
+      const allCookies = await context.cookies();
+      const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
+      fs.writeFileSync(cookieFile, JSON.stringify(allCookies, null, 2), 'utf-8');
+      console.log(`[Browser] Saved ${allCookies.length} refreshed cookies to labs.google.cookies.json`);
+    } catch (_) {}
+  } finally {
+    try { await page.close(); } catch (_) {}
+  }
+}
+
+async function ensureBearerToken(page, forceRefresh = false) {
+  // 1. Check in-memory cached token (valid for 25 mins if not force-refreshed and not blacklisted)
+  if (!forceRefresh && cachedBearerToken && !blacklistedBearerTokens.has(cachedBearerToken) && (Date.now() - tokenCapturedAt) < 25 * 60 * 1000) {
     return cachedBearerToken;
   }
 
-  console.log('[Browser] Bearer token expired or missing. Refreshing via labs.google/fx/tools/flow...');
-  const context = page.context();
-  const tokenPage = await context.newPage();
-  setupTokenInterceptor(tokenPage);
+  const context = page ? (typeof page.context === 'function' ? page.context() : page) : globalContext;
+  if (!context) {
+    throw new Error('[Browser] Cannot ensure Bearer token: context is not available');
+  }
+
+  const baseDir = path.resolve(__dirname, '..');
+
+  // Step 1: Check active session token directly from NextAuth session endpoint (if not force-refreshing)
+  if (!forceRefresh) {
+    console.log('[Browser] Checking NextAuth session for active Bearer token...');
+    let token = await getBearerTokenFromSession(context);
+    if (token && !blacklistedBearerTokens.has(token)) {
+      cachedBearerToken = token;
+      tokenCapturedAt = Date.now();
+      console.log('[Browser] ✅ Retrieved Bearer token from active session!');
+      return cachedBearerToken;
+    }
+    if (token && blacklistedBearerTokens.has(token)) {
+      console.log('[Browser] Stored NextAuth session token is blacklisted/expired, proceeding to refresh...');
+    }
+  }
+
+  // Step 2: Session token expired, blacklisted, or force-refreshed. Reload latest cookies and refresh via silent OAuth
+  console.log('[Browser] Bearer token expired or needs refresh. Reloading latest cookies and refreshing via silent OAuth...');
   try {
-    await tokenPage.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    for (let i = 0; i < 30; i++) {
-      if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
-        break;
-      }
-      await tokenPage.waitForTimeout(500);
+    const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
+    if (fs.existsSync(cookieFile)) {
+      const cookies = JSON.parse(fs.readFileSync(cookieFile, 'utf-8'));
+      await context.addCookies(cookies);
     }
-  } catch (err) {
-    console.warn(`[Browser] ⚠️ Token page navigation warning: ${err.message}`);
-  } finally {
-    try { await tokenPage.close(); } catch (_) {}
+  } catch (_) {}
+
+  // Step 3: Trigger silent OAuth refresh
+  try {
+    await triggerSilentOAuthRefresh(context, baseDir);
+    const token = await getBearerTokenFromSession(context);
+    if (token && !blacklistedBearerTokens.has(token)) {
+      cachedBearerToken = token;
+      tokenCapturedAt = Date.now();
+      console.log('[Browser] ✅ Captured fresh Bearer token after silent OAuth refresh!');
+      return cachedBearerToken;
+    }
+  } catch (refreshErr) {
+    console.warn(`[Browser] ⚠️ Silent OAuth refresh warning: ${refreshErr.message}`);
   }
 
-  if (!cachedBearerToken) {
-    // Fallback: try reloading page directly
+  // Step 4: Fallback - check if cachedBearerToken was set via network interceptor
+  if (cachedBearerToken && !blacklistedBearerTokens.has(cachedBearerToken) && (Date.now() - tokenCapturedAt) < 25 * 60 * 1000) {
+    return cachedBearerToken;
+  }
+
+  // Step 5: Fallback - try page reload if available
+  if (page && typeof page.reload === 'function') {
     console.log('[Browser] Falling back to page reload...');
-    await page.reload();
-    for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(1000);
-      if (cachedBearerToken && (Date.now() - tokenCapturedAt) < 30 * 60 * 1000) {
-        break;
+    try {
+      await page.reload();
+      for (let i = 0; i < 10; i++) {
+        await page.waitForTimeout(1000);
+        if (cachedBearerToken && !blacklistedBearerTokens.has(cachedBearerToken) && (Date.now() - tokenCapturedAt) < 25 * 60 * 1000) {
+          break;
+        }
       }
-    }
+    } catch (_) {}
   }
 
-  if (!cachedBearerToken) {
-    throw new Error('[Browser] Could not capture Bearer token from network requests');
+  if (!cachedBearerToken || blacklistedBearerTokens.has(cachedBearerToken)) {
+    throw new Error('[Browser] Could not capture valid Bearer token from network requests or session refresh');
   }
   console.log('[Browser] ✅ Captured Bearer token successfully!');
   return cachedBearerToken;
@@ -192,6 +311,7 @@ async function getSharedContext(baseDir) {
     };
 
     globalContext = await chromium.launchPersistentContext(userDataDir, launchOptions);
+    attachGlobalRequestInterceptor(globalContext);
 
     if (!isHeadless) {
       await applyWindowBounds(globalContext, winConfig);

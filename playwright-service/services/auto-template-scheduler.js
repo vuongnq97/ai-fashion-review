@@ -82,7 +82,7 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
     const config = getConfig(baseDir);
     const s = config[configKey] || {};
     const times = (Array.isArray(s.times) ? s.times : DEFAULT_TIMES)
-      .map(v => String(v || '').trim()).filter(v => /^\d{2}:\d{2}$/.test(v)).slice(0, 5);
+      .map(v => String(v || '').trim()).filter(v => /^\d{2}:\d{2}$/.test(v));
     const shortlinks = (Array.isArray(s.shortlinks) ? s.shortlinks : [])
       .map(v => String(v || '').trim()).filter(Boolean);
     const rawTags = s.hashtags || s.hashtag || [];
@@ -233,6 +233,8 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
         productImages: cached.productImages.slice(0, 8),
         hashtags: cachedTags,
         stepTracker: tracker,
+        isAuto: true,
+        autoUpload: true,
       }, baseDir);
 
       return enqueueResult.job || enqueueResult;
@@ -320,6 +322,8 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
       productImages: assets.productImages.slice(0, 8),
       hashtags: effectiveHashtags,
       stepTracker: tracker,
+      isAuto: true,
+      autoUpload: true,
     }, baseDir);
 
     return enqueueResult.job || enqueueResult;
@@ -430,7 +434,7 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
 
 const autoT3Scheduler = createAutoTemplateScheduler('autoT3Settings', 'auto_t3', { template: 'template3' });
 const autoT4Scheduler = createAutoTemplateScheduler('autoT4Settings', 'auto_t4', { template: 'template4' });
-const autoT5Scheduler = createAutoTemplateScheduler('autoT5Settings', 'auto_t5', { template: 'template5_2' });
+const autoT5Scheduler = createAutoTemplateScheduler('autoT5Settings', 'auto_t5', { template: 'tpro' });
 
 /**
  * Sau khi upload TikTok thành công, gọi hàm này để đánh dấu shortlink đã dùng.

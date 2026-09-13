@@ -5,6 +5,7 @@ const geminiWebapi = require('./gemini-webapi-storyboard');
 const googleFlow = require('./google-flow-storyboard');
 const template5 = require('./template5-storyboard');
 const template6 = require('./template6-storyboard');
+const template10 = require('./template10-storyboard');
 const { getConfig } = require('../utils/config-manager');
 const { normalizeTemplateName } = require('./template-options');
 
@@ -13,11 +14,31 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
   const rawTemplate = String(options.template || options.storyboardTemplate || '').trim();
   const template = normalizeTemplateName(rawTemplate);
 
+  // Template 10 — QUALITY_LOCKED Atomic Shot (EVIDENCE-FIRST + MASTER NARRATION)
+  // Completely isolated pipeline — does NOT touch any template5 / template6 code paths.
+  if (template === 'template10' || template === 'template_10') {
+    return {
+      name: 'template10',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) =>
+        template10.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template10' }),
+    };
+  }
+
   if (template === 'template6' || template === 'template_6') {
     return {
       name: 'template6',
       generateStoryboard: (baseDir, filePayloads, opts = {}) =>
         template6.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template6' }),
+    };
+  }
+
+  if (template === 'template_pro' || template === 'templatepro' || template === 'tpro') {
+    return {
+      name: 'template_pro',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        const templatePro = require('./template-pro-storyboard');
+        return templatePro.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template_pro' });
+      },
     };
   }
 

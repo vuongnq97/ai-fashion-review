@@ -15,13 +15,12 @@
 const fs = require('fs');
 const path = require('path');
 
-// Duration → video model key map (same keys used by the main system)
-const DURATION_MODEL_MAP = {
-  '4s':  'veo_3_1_i2v_s_lite_4s_low_priority',
-  '6s':  '6s',
-  '8s':  'abra_i2v_8s',
-  '10s': '10s',
-};
+// Duration → model key: ghép chuỗi abra_i2v_${duration}
+// Hỗ trợ: 4s, 6s, 8s, 10s
+function getDurationModelKey(duration) {
+  return `abra_i2v_${duration}`;
+}
+
 
 // Per-chat state machine
 // State values: 'waiting_photo' | 'waiting_prompt' | 'waiting_duration'
@@ -206,12 +205,12 @@ async function handleTqDurationCallback(
 
   const data = String(callbackQuery.data || '');
   // callback_data format: tq_duration:<chatId>:<duration>
-  const match = data.match(/^tq_duration:(\d+):(\d+s)$/);
+  const match = data.match(/^tq_duration:(-?\d+):(\d+s)$/);
   if (!match) return false;
 
   const chatId = match[1];
   const duration = match[2]; // '4s' | '6s' | '8s' | '10s'
-  const modelKey = DURATION_MODEL_MAP[duration] || 'abra_i2v_8s';
+  const modelKey = getDurationModelKey(duration);
 
   await answerCallbackQuery(botToken, queryId, `✅ Đã chọn ${duration}!`);
 

@@ -418,6 +418,8 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
         multiImageMode: isMultiMode,
         preserveBorder: options.preserveBorder !== undefined ? options.preserveBorder : false,
         cropPercent: typeof options.cropPercent === 'number' ? options.cropPercent : undefined,
+        voiceId: panel.voiceId || options.voiceId || (options.hasVoice ? 'laomedeia' : null),
+        hasVoice: panel.voiceId || options.voiceId || options.hasVoice ? true : false,
       },
       baseDir
     );

@@ -88,7 +88,7 @@ if (data.route === 'remake' || text.startsWith('/remake')) {
   };
 }
 
-const commandTemplateMatch = text.match(/^\\/(template[0-9_]+)/i);
+const commandTemplateMatch = text.match(/^\\/(template[0-9_.]+|t[0-9_.]+)/i);
 if (data.route === 'template' || commandTemplateMatch) {
   return {
     json: {
@@ -107,7 +107,7 @@ if (data.route === 'template' || commandTemplateMatch) {
 const urlMatch = data.shortlink || text.match(/(https?:\\/\\/(?:vt\\.tiktok\\.com|www\\.tiktok\\.com|shop\\.tiktok\\.com)\\/[^\\s]+)/i)?.[1];
 if (urlMatch) {
   let template = data.template || 'template3';
-  const templateMatch = text.match(/\\/(template[0-9_]+)/i);
+  const templateMatch = text.match(/\\/(template[0-9_.]+|t[0-9_.]+)/i);
   if (templateMatch) {
     template = templateMatch[1];
   }

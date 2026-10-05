@@ -232,5 +232,6 @@ module.exports = {
   uploadVideoWithCookie,
   uploadVideoBase64WithCookie,
   listAccounts,
+  listAccountsRaw: loadAccounts,
   buildCookieString,
 };

@@ -1024,7 +1024,10 @@ $json.targetJobId
 const job = $('Validate Job Found').item.json;
 const affiliateData = $input.item.json;
 const products = Array.isArray(affiliateData.products) ? affiliateData.products : (Array.isArray(affiliateData) ? affiliateData : []);
-const matched = products.find(p => String(p.product_id) === String(job.product?.productId));
+const rawJobId = String(job.jobId || '');
+const extractedIdFromJob = (rawJobId.startsWith('tg_') && rawJobId.split('_')[2]) ? rawJobId.split('_')[2] : '';
+const targetPid = String(job.product?.productId || job.productId || extractedIdFromJob || '').trim();
+const matched = products.find(p => String(p.product_id) === targetPid);
 
 const defaultTags = ['#review', '#sanphamchinhhang', '#tiktokshop', '#xuhuong', '#trending'];
 const hashtags = (Array.isArray(job.hashtags) && job.hashtags.length > 0)
@@ -1108,7 +1111,7 @@ return {
   json: {
     jobId: job.jobId,
     chatId: job.chatId,
-    productId: job.product?.productId,
+    productId: targetPid || job.product?.productId || '',
     productTitle: pTitle,
     cartAnchorText: ctaText,
     caption: finalCaption,
@@ -1144,7 +1147,24 @@ return {
     {
       parameters: {
         chatId: '={{ $json.chatId }}',
-        text: '={{ "⚠️ Sản phẩm (ID: " + $json.productId + " - " + $json.productTitle + ") không nằm trong danh sách affiliate/showcase của tài khoản TikTok. Dừng upload để tránh mất liên kết giỏ hàng." }}',
+        text: '={{ "⚠️ Sản phẩm (ID: " + $json.productId + " - " + $json.productTitle + ") không nằm trong danh sách affiliate/showcase của tài khoản TikTok. Dừng upload để tránh mất liên kết giỏ hàng.\\n\\n🔑 Nếu danh sách sản phẩm đang trống, phiên đăng nhập TikTok có thể đã hết hạn. Bấm nút bên dưới để đăng nhập lại bằng mã QR." }}',
+        replyMarkup: 'inlineKeyboard',
+        inlineKeyboard: {
+          rows: [
+            {
+              row: {
+                buttons: [
+                  {
+                    text: '🔄 Đăng nhập lại TikTok',
+                    additionalFields: {
+                      callback_data: '={{ "qr_login:" + $json.chatId }}'
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
         additionalFields: {
           appendAttribution: false,
           parse_mode: 'HTML'

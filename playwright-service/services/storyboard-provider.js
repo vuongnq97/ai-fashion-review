@@ -42,6 +42,37 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
     };
   }
 
+  if (template === 'template_mom' || template === 'templatemom' || template === 'tmom') {
+    return {
+      name: 'template_mom',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        const templateMom = require('./template-mom-storyboard');
+        return templateMom.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template_mom' });
+      },
+    };
+  }
+
+  if (template === 'template_food' || template === 'templatefood' || template === 'tfood') {
+    return {
+      name: 'template_food',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        const templateFood = require('./template-food-storyboard');
+        return templateFood.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template_food' });
+      },
+    };
+  }
+
+  if (template === 'template_product' || template === 'templateproduct' || template === 'tproduct' || template === 'tpro40nv') {
+    return {
+      name: 'template_product',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        try { delete require.cache[require.resolve('./template-product-storyboard')]; } catch (_) {}
+        const templateProduct = require('./template-product-storyboard');
+        return templateProduct.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template_product' });
+      },
+    };
+  }
+
   if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
       template === 'template5_2' || template === 'template5.2' || template === 'template52' ||
       template === 'template5_3' || template === 'template5.3' || template === 'template53') {

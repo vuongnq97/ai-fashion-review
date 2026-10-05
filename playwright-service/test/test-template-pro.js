@@ -42,6 +42,9 @@ const {
   buildTemplateProVideoVerificationPrompt,
   verifyVideoWithGeminiVision,
   formatVideoQAMarkdown,
+  sanitizeVisualActionPrompt,
+  formatScriptBreakdownMarkdown,
+  normalizeHashtags,
 } = require('../services/template-pro-storyboard');
 const { registerExternalCompletedJob, getLatestCompletedJobForChat } = require('../services/generation-job');
 const {
@@ -933,12 +936,13 @@ const mockClientFail = {
   assert.ok(masterPromptTest.includes('rightHalfComposition'));
   console.log('✅ buildTemplateProMasterPrompt successfully embeds all 4 priority criteria from Evaluation Framework v1.0 directly into generation prompt');
 
-  // 2. Kiểm tra bàn phím 4 tùy chọn Remake Video Cảnh 1..4 + 1 nút Đăng TikTok
+  // 2. Kiểm tra bàn phím 4 tùy chọn Remake Video Cảnh 1..4 + 1 nút Tải Video Panel + 1 nút Đăng TikTok
   const videoKb = buildProVideoInlineKeyboard('run_xyz_789');
-  assert.strictEqual(videoKb.inline_keyboard.length, 3);
+  assert.strictEqual(videoKb.inline_keyboard.length, 4);
   assert.strictEqual(videoKb.inline_keyboard[0].length, 2);
   assert.strictEqual(videoKb.inline_keyboard[1].length, 2);
   assert.strictEqual(videoKb.inline_keyboard[2].length, 1);
+  assert.strictEqual(videoKb.inline_keyboard[3].length, 1);
   assert.strictEqual(videoKb.inline_keyboard[0][0].text, '🔄 Remake Cảnh 1');
   assert.strictEqual(videoKb.inline_keyboard[0][0].callback_data, 'tpro_remake_video:1:run_xyz_789');
   assert.strictEqual(videoKb.inline_keyboard[0][1].text, '🔄 Remake Cảnh 2');
@@ -947,9 +951,11 @@ const mockClientFail = {
   assert.strictEqual(videoKb.inline_keyboard[1][0].callback_data, 'tpro_remake_video:3:run_xyz_789');
   assert.strictEqual(videoKb.inline_keyboard[1][1].text, '🔄 Remake Cảnh 4');
   assert.strictEqual(videoKb.inline_keyboard[1][1].callback_data, 'tpro_remake_video:4:run_xyz_789');
-  assert.strictEqual(videoKb.inline_keyboard[2][0].text, '🚀 Đăng lên TikTok (/upload)');
-  assert.strictEqual(videoKb.inline_keyboard[2][0].callback_data, 'tpro_upload:run_xyz_789');
-  console.log('✅ buildProVideoInlineKeyboard successfully creates 4 remake scene options (Cảnh 1-4) and 1 Upload TikTok button');
+  assert.strictEqual(videoKb.inline_keyboard[2][0].text, '📦 Tải các Video Panel');
+  assert.strictEqual(videoKb.inline_keyboard[2][0].callback_data, 'tpro_download_panels:run_xyz_789');
+  assert.strictEqual(videoKb.inline_keyboard[3][0].text, '🚀 Đăng lên TikTok (/upload)');
+  assert.strictEqual(videoKb.inline_keyboard[3][0].callback_data, 'tpro_upload:run_xyz_789');
+  console.log('✅ buildProVideoInlineKeyboard successfully creates 4 remake scene options, 1 Download Panels button and 1 Upload TikTok button');
 
   // 3. Kiểm tra regex và lệnh remake tương ứng
   const testCmds = ['/remake_1', '/remake_2', '/remake_all', '/remake 1', '/remake 2', '/remake all', '/remake cả 2'];
@@ -1126,6 +1132,14 @@ const mockClientFail = {
   // Single panel prompt with custom instruction
   const p2CustomPrompt = buildTemplatePro4sPanelPrompts(mockAnalysis, { panelIndex: 2, customInstruction: 'quay góc nghiêng 45 độ' });
   assert.ok(p2CustomPrompt.includes('quay góc nghiêng 45 độ'), 'Custom instruction must be integrated into panel prompt');
+
+  // Kiểm tra loại bỏ chỉ tay và icon giỏ hàng khỏi Panel 4 visual & prompts
+  const dirtyVfx = 'Đặt nhẹ đĩa thức ăn ngon lành xuống bàn bếp, chỉ tay về góc trái màn hình.';
+  const dirtyDesc = 'Góc bếp ngăn nắp với túi găng tay treo xinh xắn, bàn tay chạm nhẹ vào icon giỏ hàng góc trái.';
+  assert.strictEqual(sanitizeVisualActionPrompt(dirtyVfx), 'Đặt nhẹ đĩa thức ăn ngon lành xuống bàn bếp.');
+  assert.strictEqual(sanitizeVisualActionPrompt(dirtyDesc), 'Góc bếp ngăn nắp với túi găng tay treo xinh xắn.');
+  assert.ok(panelPromptsAll[3].includes('TUYỆT ĐỐI KHÔNG CÓ HÀNH ĐỘNG CHỈ TAY HOẶC CHẠM VÀO GÓC MÀN HÌNH'), 'Panel 4 prompt must include negative constraint for pointing/cart gestures');
+
   console.log('✅ buildTemplatePro4sPanelPrompts successfully generated 4x 4s Start Frame prompts with zero text rule and custom instructions');
 
   // 3. Kiểm tra trích xuất & ghép nối Audio bằng FFmpeg
@@ -1410,7 +1424,43 @@ const mockClientFail = {
   generationJobService.cleanupJob(testJob.job.jobId);
   console.log('✅ generationJobService correctly propagates isAuto and autoUpload flags');
 
-  console.log('\n🎉 ALL TESTS (TEST 1 - 22) PASSED FULLY & SUCCESSFULLY!');
+  // --- Test 23: Robust Hashtag Normalization & Markdown Breakdown Formatting ---
+  console.log('\n--- Test 23: Robust Hashtag Normalization & Markdown Breakdown Formatting ---');
+  // 1. Array of hashtags
+  assert.deepStrictEqual(normalizeHashtags(['#tag1', '#tag2']), ['#tag1', '#tag2']);
+  // 2. String of space-separated hashtags (e.g. Gemini returned single string)
+  assert.deepStrictEqual(normalizeHashtags('#tag1 #tag2 #tag3'), ['#tag1', '#tag2', '#tag3']);
+  // 3. String of comma-separated hashtags
+  assert.deepStrictEqual(normalizeHashtags('#tag1, #tag2'), ['#tag1', '#tag2']);
+  // 4. Undefined / null / empty
+  assert.deepStrictEqual(normalizeHashtags(undefined), ['#review', '#sanphamchinhhang', '#trending']);
+  assert.deepStrictEqual(normalizeHashtags(''), ['#review', '#sanphamchinhhang', '#trending']);
+  assert.deepStrictEqual(normalizeHashtags({}), ['#review', '#sanphamchinhhang', '#trending']);
+
+  // 5. formatScriptBreakdownMarkdown with string hashtags (the exact failure case)
+  const analysisWithStringHashtags = {
+    productName: 'Bộ bích điệp 21 chi tiết',
+    hashtags: '#review #sanphamchinhhang #lifestyle #trending #xuhuong',
+    script: [
+      { id: 1, phase: 'Hook', voiceOver: 'Cảnh 1 thoại' },
+      { id: 2, phase: 'Solution', voiceOver: 'Cảnh 2 thoại' },
+      { id: 3, phase: 'Proof', voiceOver: 'Cảnh 3 thoại' },
+      { id: 4, phase: 'Closing', voiceOver: 'Cảnh 4 thoại' }
+    ]
+  };
+  const breakdownMd = formatScriptBreakdownMarkdown(analysisWithStringHashtags);
+  assert.ok(breakdownMd.includes('- **Hashtags**: #review #sanphamchinhhang #lifestyle #trending #xuhuong'));
+
+  // 6. formatScriptBreakdownMarkdown with undefined hashtags
+  const analysisWithoutHashtags = {
+    productName: 'Sản phẩm test',
+    script: []
+  };
+  const breakdownMd2 = formatScriptBreakdownMarkdown(analysisWithoutHashtags);
+  assert.ok(breakdownMd2.includes('- **Hashtags**: #review #sanphamchinhhang #trending'));
+  console.log('✅ normalizeHashtags and formatScriptBreakdownMarkdown handle string, array, and missing hashtags without join errors');
+
+  console.log('\n🎉 ALL TESTS (TEST 1 - 23) PASSED FULLY & SUCCESSFULLY!');
 })();
 
 

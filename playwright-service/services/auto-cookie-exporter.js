@@ -48,12 +48,7 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
   const envPath = path.join(baseDir, '.env');
   const cookieDir = path.join(baseDir, 'gemini-cookies');
 
-  if (!fs.existsSync(userDataDir)) {
-    console.warn('ℹ️ [AutoCookie] Chưa có thư mục chrome-data, bỏ qua trích xuất cookie.');
-    return false;
-  }
-
-  // Xóa file lock cũ nếu có
+  // Xóa file lock cũ nếu có thư mục chrome-data
   try {
     if (fs.existsSync(userDataDir)) {
       for (const f of fs.readdirSync(userDataDir)) {
@@ -71,20 +66,23 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
   try {
     console.log('🔄 [AutoCookie] Đang tự động làm mới và trích xuất cookie Google/Gemini...');
 
-    // 1. Nếu services/browser.js đã có BrowserContext đang mở chrome-data, tái sử dụng luôn để không bị khoá profile
+    // 1. Tái sử dụng BrowserContext từ services/browser.js (CDP nếu Chrome thật đang chạy, hoặc persistent context)
     try {
-      const { getContext } = require('./browser');
-      const existing = getContext();
-      if (existing) {
-        existing.pages(); // Kiểm tra context còn sống không
-        context = existing;
+      const { getSharedContext } = require('./browser');
+      const shared = await getSharedContext(baseDir);
+      if (shared) {
+        context = shared;
         isSharedContext = true;
-        console.log('🔄 [AutoCookie] Tái sử dụng BrowserContext đang mở để trích xuất cookie...');
+        console.log('🔄 [AutoCookie] Tái sử dụng BrowserContext từ browser service (CDP/Shared) để trích xuất cookie...');
       }
     } catch (_) {}
 
-    // 2. Nếu chưa có context nào chạy, mới khởi chạy persistent context riêng
+    // 2. Nếu chưa có context nào chạy và có chrome-data, mới khởi chạy persistent context riêng
     if (!context) {
+      if (!fs.existsSync(userDataDir)) {
+        console.warn('ℹ️ [AutoCookie] Chưa có thư mục chrome-data và Chrome CDP không chạy, bỏ qua.');
+        return false;
+      }
       const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
       const isHeadless = process.env.AUTO_COOKIE_HEADLESS !== undefined
         ? process.env.AUTO_COOKIE_HEADLESS === 'true'
@@ -112,8 +110,8 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
       }
     }
 
-    const existingPages = context.pages();
-    page = existingPages.length > 0 ? existingPages[0] : await context.newPage();
+    // Luôn tạo tab mới riêng biệt để làm mới session, tránh chiếm tab làm việc đang mở của user
+    page = await context.newPage();
     // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
     let isLoggedOut = false;
     try {

@@ -22,7 +22,7 @@ const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 const JOB_ROOT = process.env.GENERATION_JOB_ROOT || path.join(os.tmpdir(), 'ai-fashion-review', 'jobs');
 const DEFAULT_TEMPLATE = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3';
-const MAX_IMAGES = Number(process.env.PRODUCT_IMAGE_LIMIT || '8');
+const MAX_IMAGES = Number(process.env.PRODUCT_IMAGE_LIMIT || '16');
 const MIN_IMAGES = Number(process.env.PRODUCT_IMAGE_MIN || '1');
 
 const jobs = new Map();
@@ -441,21 +441,56 @@ async function executeJob(job) {
       job.proRunId = effectiveRunId;
 
       if (job.isAuto) {
+        const isMom = job.template === 'template_mom' || job.template === 'templatemom' || job.template === 'tmom';
+        const isFood = job.template === 'template_food' || job.template === 'templatefood' || job.template === 'tfood';
+        const isProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv';
+        const prefix = isProduct ? 'tproduct' : (isFood ? 'tfood' : (isMom ? 'tmom' : 'tpro'));
         console.log(`[Job ${job.jobId}] 🤖 Auto mode enabled: skipping user review, proceeding directly to video generation and TikTok upload (runId: ${effectiveRunId})!`);
-        const { finalizeProStoryboardAndGenerateVideos } = require('./template-pro-storyboard');
         const { lastRunByChat, handleUploadDirectCommand } = require('./telegram-bot');
-
-        await finalizeProStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
-          stepTracker: tracker,
-          lastRunByChat,
-          isAuto: true,
-        });
-
-        console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tpro-${effectiveRunId}...`);
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        await handleUploadDirectCommand(botToken, job.chatId, `tpro-${effectiveRunId}`);
 
-        latestCompletedByChat.set(String(job.chatId), `tpro-${effectiveRunId}`);
+        if (isProduct) {
+          const { finalizeProductStoryboardAndGenerateVideos } = require('./template-product-storyboard');
+          await finalizeProductStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+            stepTracker: tracker,
+            lastRunByChat,
+            isAuto: true,
+          });
+          console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tproduct-${effectiveRunId}...`);
+          await handleUploadDirectCommand(botToken, job.chatId, `tproduct-${effectiveRunId}`);
+          latestCompletedByChat.set(String(job.chatId), `tproduct-${effectiveRunId}`);
+        } else if (isFood) {
+          const { finalizeFoodStoryboardAndGenerateVideos } = require('./template-food-storyboard');
+          await finalizeFoodStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+            stepTracker: tracker,
+            lastRunByChat,
+            isAuto: true,
+          });
+          console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tfood-${effectiveRunId}...`);
+          await handleUploadDirectCommand(botToken, job.chatId, `tfood-${effectiveRunId}`);
+          latestCompletedByChat.set(String(job.chatId), `tfood-${effectiveRunId}`);
+        } else if (isMom) {
+          const { finalizeMomStoryboardAndGenerateVideos } = require('./template-mom-storyboard');
+          await finalizeMomStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+            stepTracker: tracker,
+            lastRunByChat,
+            isAuto: true,
+          });
+          console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tmom-${effectiveRunId}...`);
+          await handleUploadDirectCommand(botToken, job.chatId, `tmom-${effectiveRunId}`);
+          latestCompletedByChat.set(String(job.chatId), `tmom-${effectiveRunId}`);
+        } else {
+          const { finalizeProStoryboardAndGenerateVideos } = require('./template-pro-storyboard');
+          await finalizeProStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+            stepTracker: tracker,
+            lastRunByChat,
+            isAuto: true,
+          });
+          console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for tpro-${effectiveRunId}...`);
+          await handleUploadDirectCommand(botToken, job.chatId, `tpro-${effectiveRunId}`);
+          latestCompletedByChat.set(String(job.chatId), `tpro-${effectiveRunId}`);
+        }
+
         job.status = 'completed';
         setStep(job, 'completed', 'Auto generation and upload completed.', { status: 'completed', progressPercent: 100 });
         return { success: true, jobId: job.jobId, status: 'completed' };
@@ -612,6 +647,8 @@ function publicJob(job) {
   if (!job) return null;
   const analysis = job.result?.analysis || job.analysis || {};
   const productName = analysis.productName || analysis.product_name || job.productTitle || '';
+  const extractedIdFromJob = (job.jobId && String(job.jobId).startsWith('tg_')) ? String(job.jobId).split('_')[2] : '';
+  const resolvedProductId = job.productId || job.product?.productId || analysis.productId || extractedIdFromJob || '';
   return {
     jobId: job.jobId,
     chatId: job.chatId,
@@ -630,11 +667,11 @@ function publicJob(job) {
       failedStep: job.error.failedStep,
     } : null,
     product: {
-      productId: job.productId,
+      productId: resolvedProductId,
       title: productName || job.productTitle,
       productName: productName || job.productTitle,
-      productUrl: job.productUrl,
-      shortlink: job.shortlink,
+      productUrl: job.productUrl || job.product?.productUrl || '',
+      shortlink: job.shortlink || job.product?.shortlink || '',
     },
     trendingMusic: job.trendingMusic ? {
       title: job.trendingMusic.title,
@@ -671,7 +708,9 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
     if (videoFiles.length === 0) return null;
 
     const runId = session.runId || path.basename(runDir).split('-').pop();
-    const jobId = `tpro-${runId}`;
+    const isProd = session.template === 'template_product' || session.template === 'templateproduct' || session.template === 'tproduct' || session.template === 'tpro40nv';
+    const templatePrefix = isProd ? 'tproduct' : (session.template === 'template_food' ? 'tfood' : (session.template === 'template_mom' ? 'tmom' : 'tpro'));
+    const jobId = `${templatePrefix}-${runId}`;
     const panelsDir = path.join(runDir, 'panels');
     const panelFiles = fs.existsSync(panelsDir)
       ? fs.readdirSync(panelsDir).filter(f => f.endsWith('.png') || f.endsWith('.jpg')).sort()
@@ -682,7 +721,16 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
       videoPath: path.join(videosDir, vf),
     }));
 
-    const finalVideoPath = path.join(runDir, 'final', 'final-video.mp4');
+    let finalVideoPath = path.join(runDir, 'final', 'final-video.mp4');
+    if (!fs.existsSync(finalVideoPath) || fs.statSync(finalVideoPath).size <= 1000) {
+      const altVideoPath = path.join(videosDir, 'final_video.mp4');
+      const rootFinalVideoPath = path.join(runDir, 'final_video.mp4');
+      if (fs.existsSync(altVideoPath) && fs.statSync(altVideoPath).size > 1000) {
+        finalVideoPath = altVideoPath;
+      } else if (fs.existsSync(rootFinalVideoPath) && fs.statSync(rootFinalVideoPath).size > 1000) {
+        finalVideoPath = rootFinalVideoPath;
+      }
+    }
     const hasFinalVideo = fs.existsSync(finalVideoPath) && fs.statSync(finalVideoPath).size > 1000;
 
     const restoredJob = {
@@ -693,16 +741,17 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
       jobDir: runDir,
       baseDir,
       status: 'completed',
-      productId: session.productId || session.analysis?.productId || '',
-      productTitle: session.productTitle || session.analysis?.productName || 'Sản phẩm review',
+      productId: session.productId || session.analysis?.productId || (session.jobId && session.jobId.startsWith('tg_') ? session.jobId.split('_')[2] : '') || '',
+      productTitle: session.productTitle || session.analysis?.productName || session.analysis?.analysis?.productName || session.analysis?.product_name || 'Sản phẩm review',
       productUrl: session.productUrl || '',
       shortlink: session.shortlink || '',
-      cartAnchorText: session.cartAnchorText || session.analysis?.cartAnchorText || '',
+      cartAnchorText: session.cartAnchorText || session.analysis?.cartAnchorText || session.analysis?.analysis?.cartAnchorText || '',
       panels: videos.map((_, i) => ({ index: i + 1, status: 'completed' })),
       finalVideoPath: hasFinalVideo ? finalVideoPath : undefined,
       finalVideoSize: hasFinalVideo ? fs.statSync(finalVideoPath).size : undefined,
       result: {
         runId,
+        finalVideoPath: hasFinalVideo ? finalVideoPath : undefined,
         reviewArchive: {
           root: runDir,
           panelsDir,
@@ -715,13 +764,17 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
         analysis: session.analysis || {},
       },
       analysis: session.analysis || {},
-      caption: session.productTitle || session.analysis?.productName || '',
+      caption: session.productTitle || session.analysis?.productName || session.analysis?.analysis?.productName || '',
       hashtags: session.analysis?.hashtags || [],
       createdAt: session.createdAt || new Date().toISOString(),
       updatedAt: session.updatedAt || new Date().toISOString(),
     };
 
     jobs.set(jobId, restoredJob);
+    jobs.set(runId, restoredJob);
+    if (session.jobId) {
+      jobs.set(String(session.jobId), restoredJob);
+    }
     if (session.chatId) {
       latestCompletedByChat.set(String(session.chatId), jobId);
     }
@@ -773,7 +826,7 @@ function findJobOnDiskById(jobId, baseDir = path.resolve(__dirname, '..')) {
   try {
     const reviewRunsDir = path.join(baseDir, 'storyboard-review-runs');
     if (!fs.existsSync(reviewRunsDir)) return null;
-    const cleanId = String(jobId).replace(/^tpro-/, '');
+    const cleanId = String(jobId).replace(/^(tpro|tfood|tmom|tproduct|tpro40nv)-/, '');
 
     const entries = fs.readdirSync(reviewRunsDir);
     for (const name of entries) {
@@ -804,7 +857,9 @@ function getLatestCompletedJobForChat(chatId) {
   return findLatestCompletedJobOnDisk(chatId);
 }
 
-function registerExternalCompletedJob(chatId, jobData) {
+function registerExternalCompletedJob(chatIdOrJobData, maybeJobData) {
+  const jobData = maybeJobData || chatIdOrJobData;
+  const chatId = maybeJobData ? chatIdOrJobData : jobData?.chatId;
   if (!jobData || !jobData.jobId) return null;
   jobs.set(String(jobData.jobId), jobData);
   if (chatId) {
@@ -817,7 +872,9 @@ function getJobResult(jobId) {
   const job = getJob(jobId);
   if (!job) return null;
   const analysis = job.result?.analysis || job.analysis || {};
-  const productName = analysis.productName || analysis.product_name || job.productTitle || '';
+  const productName = analysis.productName || analysis.product_name || analysis.analysis?.productName || job.productTitle || '';
+  const extractedIdFromJob = (job.jobId && String(job.jobId).startsWith('tg_')) ? String(job.jobId).split('_')[2] : '';
+  const resolvedProductId = job.productId || job.product?.productId || analysis.productId || extractedIdFromJob || '';
   return {
     jobId: job.jobId,
     analysis,
@@ -826,11 +883,11 @@ function getJobResult(jobId) {
     cartAnchorText: job.cartAnchorText || '',
     uploadMessageId: job.uploadMessageId || null,
     product: {
-      productId: job.productId,
+      productId: resolvedProductId,
       title: productName || job.productTitle,
       productName: productName || job.productTitle,
-      productUrl: job.productUrl,
-      shortlink: job.shortlink,
+      productUrl: job.productUrl || job.product?.productUrl || '',
+      shortlink: job.shortlink || job.product?.shortlink || '',
     },
     trendingMusic: job.trendingMusic ? {
       title: job.trendingMusic.title,
@@ -1011,7 +1068,11 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
   if (numbers.length === 0) throw new Error('Valid panel indices are required');
 
   const isTemplatePro = job.template === 'template_pro' || job.template === 'templatepro' || job.template === 'tpro';
-  const effectiveNumbers = isTemplatePro
+  const isTemplateMom = job.template === 'template_mom' || job.template === 'templatemom' || job.template === 'tmom';
+  const isTemplateFood = job.template === 'template_food' || job.template === 'templatefood' || job.template === 'tfood';
+  const isTemplateProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv';
+  const isInteractive = isTemplatePro || isTemplateMom || isTemplateFood || isTemplateProduct;
+  const effectiveNumbers = (isTemplatePro || isTemplateMom)
     ? numbers.map(n => (n === 3 || n === 4 ? 2 : n))
     : numbers;
 
@@ -1021,11 +1082,11 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
   const panels = result.panels || [];
   const targetPanels = panels.filter(p => effectiveNumbers.includes(p.index));
 
-  if (targetPanels.length === 0 && !isTemplatePro) {
+  if (targetPanels.length === 0 && !isInteractive) {
     throw new Error(`Panels ${numbers.join(', ')} not found in job`);
   }
 
-  const targetCount = isTemplatePro ? [...new Set(effectiveNumbers)].length : targetPanels.length;
+  const targetCount = isInteractive ? [...new Set(effectiveNumbers)].length : targetPanels.length;
   setStep(job, 'generating_videos', `Đang tạo lại ${targetCount} video cảnh ${numbers.join(', ')}...`, { status: 'running' });
 
   let videoJobsToRun = targetPanels;
@@ -1034,7 +1095,46 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
     includeVideoBase64: true,
   };
 
-  if (isTemplatePro) {
+  if (isTemplateProduct) {
+    const { buildTemplateProductRemakeVideoJobs } = require('./template-product-storyboard');
+    const runDir = job.result?.reviewArchive?.root || job.jobDir;
+    videoJobsToRun = buildTemplateProductRemakeVideoJobs(runDir, numbers, customInstruction, job.analysis || job.result?.analysis);
+    genOptions = {
+      aspectRatio: '9:16',
+      videoModelKey: 'veo_3_1_i2v_s_lite_8s_low_priority',
+      includeVideoBase64: true,
+      cropPercent: 0,
+      preserveBorder: true,
+      multiImageMode: false,
+      runId: path.basename(runDir),
+    };
+  } else if (isTemplateFood) {
+    const { buildTemplateFoodRemakeVideoJobs } = require('./template-food-storyboard');
+    const runDir = job.result?.reviewArchive?.root || job.jobDir;
+    videoJobsToRun = buildTemplateFoodRemakeVideoJobs(runDir, numbers, customInstruction, job.analysis || job.result?.analysis);
+    genOptions = {
+      aspectRatio: '9:16',
+      videoModelKey: 'veo_3_1_i2v_lite_low_priority',
+      includeVideoBase64: true,
+      cropPercent: 0,
+      preserveBorder: true,
+      multiImageMode: false,
+      runId: path.basename(runDir),
+    };
+  } else if (isTemplateMom) {
+    const { buildTemplateMomRemakeVideoJobs } = require('./template-mom-storyboard');
+    const runDir = job.result?.reviewArchive?.root || job.jobDir;
+    videoJobsToRun = buildTemplateMomRemakeVideoJobs(runDir, numbers, customInstruction, job.analysis || job.result?.analysis);
+    genOptions = {
+      aspectRatio: '9:16',
+      videoModelKey: 'abra_r2v_8s',
+      includeVideoBase64: true,
+      cropPercent: 0,
+      preserveBorder: true,
+      multiImageMode: true,
+      runId: path.basename(runDir),
+    };
+  } else if (isTemplatePro) {
     const { buildTemplateProRemakeVideoJobs } = require('./template-pro-storyboard');
     const runDir = job.result?.reviewArchive?.root || job.jobDir;
     videoJobsToRun = buildTemplateProRemakeVideoJobs(runDir, numbers, customInstruction, job.analysis || job.result?.analysis);

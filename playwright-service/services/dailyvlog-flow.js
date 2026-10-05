@@ -247,7 +247,9 @@ async function runDailyVlogPipeline(botToken, chatId, productPhotos) {
     }
 
     // Send hashtags
-    const hashtags = (result.hashtags || []).join(' ');
+    const hashtags = Array.isArray(result.hashtags)
+      ? result.hashtags.join(' ')
+      : (typeof result.hashtags === 'string' ? result.hashtags : '');
     if (hashtags) {
       await sendTelegramMessage(chatId, `#️⃣ Hashtags: ${hashtags}`);
     }

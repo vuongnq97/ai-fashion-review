@@ -32,6 +32,22 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
       sceneRatio: "9:16",
       nhiReferencePath: "assets/nhi"
     },
+    motherBabySettings: {
+      channelType: "mother_baby",
+      faceless: false,
+      motherAssetPath: "assets/nhi/mom.png",
+      babyAssetPath: "assets/nhi/baby.png",
+      world: {
+        id: "mother_baby_home",
+        style: "warm Vietnamese young-family home",
+        lighting: "soft natural daylight + subtle warm practical light"
+      },
+      voice: {
+        gender: "nu",
+        localeStyle: "southern_vietnamese",
+        persona: "young_mother"
+      }
+    },
     autoT3Settings: {
       enabled: false,
       chatId: "",
@@ -66,9 +82,11 @@ function getConfig(baseDir = path.resolve(__dirname, '..')) {
     const raw = fs.readFileSync(configPath, 'utf8');
     const parsed = JSON.parse(raw);
     return {
+      ...parsed,
       uiSettings: { ...defaults.uiSettings, ...parsed.uiSettings },
       systemSettings: { ...defaults.systemSettings, ...parsed.systemSettings },
       dailyVlogSettings: { ...defaults.dailyVlogSettings, ...parsed.dailyVlogSettings },
+      motherBabySettings: { ...defaults.motherBabySettings, ...(parsed.motherBabySettings || {}) },
       autoT3Settings: { ...defaults.autoT3Settings, ...(parsed.autoT3Settings || {}) },
       autoT4Settings: { ...defaults.autoT4Settings, ...(parsed.autoT4Settings || {}) },
       autoT5Settings: { ...defaults.autoT5Settings, ...(parsed.autoT5Settings || {}) },
@@ -112,6 +130,54 @@ function getRawChannelForChat(baseDir = path.resolve(__dirname, '..'), chatId) {
   const channels = config.channels || {};
   const key = String(chatId || '').trim();
   return channels[key] || null;
+}
+
+/**
+ * Resolves full profile for a given chatId, including gender and audienceAddress.
+ * Lookup order: explicit channel config → auto-inferred from label → default neutral/fallback.
+ * @param {string} baseDir
+ * @param {string|number} chatId
+ * @returns {{ channelId: string, label: string, gender: 'male'|'female'|'neutral', audienceAddress: string, audience: string, tiktokCredentialId: string, tiktokCredentialName: string }}
+ */
+function getChannelProfile(baseDir = path.resolve(__dirname, '..'), chatId) {
+  const channel = getRawChannelForChat(baseDir, chatId) || getChannelForChat(baseDir, chatId);
+  const key = String(chatId || '');
+  const label = channel.label || '';
+  const credName = channel.tiktokCredentialName || '';
+
+  let gender = (channel.gender && String(channel.gender).toLowerCase().trim()) || null;
+  if (!gender || (gender !== 'male' && gender !== 'female' && gender !== 'neutral')) {
+    const combined = `${label} ${credName}`.toLowerCase();
+    if (combined.includes('nam') || combined.includes('men') || combined.includes('man') || combined.includes('boy')) {
+      gender = 'male';
+    } else if (combined.includes('nữ') || combined.includes('nu') || combined.includes('lady') || combined.includes('woman') || combined.includes('women') || combined.includes('gái') || combined.includes('mẹ')) {
+      gender = 'female';
+    } else {
+      gender = 'neutral';
+    }
+  }
+
+  let audience = channel.audience || channel.audienceAddress || null;
+  if (!audience) {
+    if (gender === 'male') {
+      audience = 'anh em';
+    } else if (gender === 'female') {
+      audience = 'chị em';
+    } else {
+      audience = 'mọi người';
+    }
+  }
+
+  return {
+    ...channel,
+    channelId: key || channel.channelId || 'default',
+    label: label || 'Shop Trực Tuyến',
+    gender,
+    audienceAddress: audience,
+    audience,
+    tiktokCredentialId: channel.tiktokCredentialId || '',
+    tiktokCredentialName: credName,
+  };
 }
 
 /**
@@ -301,6 +367,7 @@ module.exports = {
   getConfig,
   getChannelForChat,
   getRawChannelForChat,
+  getChannelProfile,
   registerChannelForChat,
   updateChannelCredential,
   applyConfigToUI

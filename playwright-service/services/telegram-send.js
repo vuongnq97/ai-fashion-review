@@ -213,6 +213,25 @@ async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', op
       if (!response.ok) {
         const errText = await response.text();
         console.error(`[Telegram] sendPhoto failed (attempt ${attempt}/2): ${errText}`);
+        if (errText.includes('BUTTON_DATA_INVALID') && options.reply_markup) {
+          console.warn('[Telegram] ⚠️ BUTTON_DATA_INVALID: callback_data exceeded 64-byte limit. Retrying sendPhoto without reply_markup...');
+          const fallbackFormData = new FormData();
+          fallbackFormData.append('chat_id', chatId);
+          const fallbackBlob = new Blob([buf], { type: mime });
+          fallbackFormData.append('photo', fallbackBlob, filename);
+          if (caption) fallbackFormData.append('caption', caption);
+          if (options.parse_mode) fallbackFormData.append('parse_mode', options.parse_mode);
+
+          const fallbackRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+            method: 'POST',
+            body: fallbackFormData,
+            signal: AbortSignal.timeout(telegramTimeoutMs(90000)),
+          });
+          if (fallbackRes.ok) {
+            const fbJson = await fallbackRes.json();
+            return fbJson?.result?.message_id || null;
+          }
+        }
         if (attempt < 2) {
           await new Promise(r => setTimeout(r, 2000));
           continue;

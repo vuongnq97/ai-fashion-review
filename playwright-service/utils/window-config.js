@@ -207,8 +207,68 @@ async function applyWindowBounds(context, customConfig = null, targetPage = null
   }
 }
 
+/**
+ * Phóng to CỬA SỔ THẬT của Chrome để vùng hiển thị (viewport) đạt tối thiểu minW x minH,
+ * thay vì dùng page.setViewportSize() (giả lập viewport lớn hơn cửa sổ thật → phần dưới/phải
+ * của trang, ví dụ thanh cấu hình Model/số lượng/nút gửi của Flow, bị cắt mất).
+ * - Không giả lập viewport: trang hiển thị y hệt trình duyệt thật.
+ * - Kích thước bị giới hạn theo màn hình (availWidth/availHeight).
+ * - Headless: bỏ qua (không có cửa sổ thật).
+ * @param {import('playwright').Page} page
+ * @param {{minW?: number, minH?: number}} [opts]
+ * @returns {Promise<{innerWidth: number, innerHeight: number}|null>}
+ */
+async function ensureWorkWindow(page, opts = {}) {
+  const minW = opts.minW || 1280;
+  const minH = opts.minH || 800;
+  if (!page || page.isClosed() || process.env.HEADLESS === 'true') return null;
+
+  let session = null;
+  try {
+    const measure = () => page.evaluate(() => ({
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      outerWidth: window.outerWidth,
+      outerHeight: window.outerHeight,
+      availWidth: window.screen.availWidth || window.screen.width,
+      availHeight: window.screen.availHeight || window.screen.height
+    }));
+
+    let m = await measure();
+    // Đủ lớn rồi (hoặc đã bằng mức tối đa màn hình cho phép) thì không làm gì
+    const wantW = Math.min(minW, m.availWidth);
+    const wantH = Math.min(minH, m.availHeight - (m.outerHeight - m.innerHeight));
+    if (m.innerWidth >= wantW - 4 && m.innerHeight >= wantH - 4) {
+      return { innerWidth: m.innerWidth, innerHeight: m.innerHeight };
+    }
+
+    const chromeW = Math.max(0, m.outerWidth - m.innerWidth);
+    const chromeH = Math.max(0, m.outerHeight - m.innerHeight);
+    const width = Math.min(m.availWidth, minW + chromeW);
+    const height = Math.min(m.availHeight, minH + chromeH);
+
+    session = await page.context().newCDPSession(page);
+    const { windowId } = await session.send('Browser.getWindowForTarget');
+    await session.send('Browser.setWindowBounds', {
+      windowId,
+      bounds: { left: 0, top: 0, width, height, windowState: 'normal' }
+    });
+    await page.waitForTimeout(400);
+
+    m = await measure();
+    console.log(`[Browser] 🪟 Phóng to cửa sổ làm việc: viewport thực ${m.innerWidth}x${m.innerHeight} (màn hình ${m.availWidth}x${m.availHeight})`);
+    return { innerWidth: m.innerWidth, innerHeight: m.innerHeight };
+  } catch (err) {
+    console.log(`[Browser] ⚠️ ensureWorkWindow warning: ${err.message}`);
+    return null;
+  } finally {
+    if (session) { try { await session.detach(); } catch (_) { } }
+  }
+}
+
 module.exports = {
   getWindowLaunchConfig,
   ensureProfileWindowPlacement,
   applyWindowBounds,
+  ensureWorkWindow,
 };

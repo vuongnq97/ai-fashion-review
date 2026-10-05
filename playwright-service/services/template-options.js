@@ -16,6 +16,12 @@ function normalizeTemplateName(name) {
   if (s === 't10' || s === 'template10' || s === 'template_10') return 'template10';
   // Template Pro — Interactive Storyboard Remake Workflow
   if (s === 'tpro' || s === 'template_pro' || s === 'templatepro') return 'template_pro';
+  // Template Mom — Mother & Baby Commerce Interactive Storyboard
+  if (s === 'tmom' || s === 'template_mom' || s === 'templatemom') return 'template_mom';
+  // Template Food — Food & Beverage Review 24s Interactive Storyboard (4x 6s)
+  if (s === 'tfood' || s === 'template_food' || s === 'templatefood') return 'template_food';
+  // Template Product — Live-Commerce Presenter Template Pro 40s Native-Voice (5x 8s)
+  if (s === 'tproduct' || s === 'template_product' || s === 'templateproduct' || s === 'tpro40nv') return 'template_product';
   return s;
 }
 
@@ -114,6 +120,52 @@ function buildTemplateOptions(rawTemplate) {
       noText: true,
       hasVoice: true,
       videoModelKey: 'abra_i2v_8s',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
+    };
+  }
+
+  // Template Mom — Mother & Baby Commerce Interactive Storyboard
+  if (template === 'template_mom' || template === 'templatemom' || template === 'tmom') {
+    return {
+      template: 'template_mom',
+      panelCount: 2,
+      noText: true,
+      hasVoice: true,
+      videoModelKey: 'abra_r2v_4s',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
+    };
+  }
+
+  // Template Food — Food & Beverage Review 24s Interactive Storyboard (4 panels)
+  if (template === 'template_food' || template === 'templatefood' || template === 'tfood') {
+    return {
+      template: 'template_food',
+      panelCount: 4,
+      noText: true,
+      hasVoice: true,
+      videoModelKey: 'veo_3_1_i2v_lite_low_priority',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
+    };
+  }
+
+  // Template Product — Live-Commerce Presenter Template Pro 40s Native-Voice (5x 8s)
+  if (template === 'template_product' || template === 'templateproduct' || template === 'tproduct' || template === 'tpro40nv') {
+    return {
+      template: 'template_product',
+      panelCount: 5,
+      noText: true,
+      hasVoice: false, // NO separate TTS stage
+      nativeVoice: true, // Native dialogue/voice directly in Veo
+      clipCount: 5,
+      clipDuration: 8.0,
+      totalTargetDuration: 40.0,
+      videoModelKey: 'veo_3_1_i2v_s_lite_8s_low_priority',
       interactiveStoryboard: true,
       cropPercent: 0,
       preserveBorder: true,

@@ -1,3 +1,16 @@
+// Auto-respawn with 64KB max header size to prevent Node HTTP parser "Header overflow"
+if (!process.execArgv.some(arg => arg.includes('max-http-header-size')) && !process.env._HEADER_SIZE_SET) {
+  const { spawn } = require('child_process');
+  process.env._HEADER_SIZE_SET = '1';
+  const child = spawn(process.execPath, ['--max-http-header-size=65536', ...process.argv.slice(1)], {
+    stdio: 'inherit'
+  });
+  child.on('exit', (code, signal) => {
+    process.exit(code !== null ? code : (signal ? 1 : 0));
+  });
+  return;
+}
+
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 require('dotenv').config();
 require('./utils/shop-context');

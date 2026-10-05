@@ -394,6 +394,66 @@ router.post('/jobs/:jobId/change-template', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Internal test: trigger shortlink flow (same as Telegram bot)
+// POST /api/internal/trigger-shortlink
+// Body: { shortlink, chatId, template }
+// ═══════════════════════════════════════════════════════════════
+router.post('/internal/trigger-shortlink', async (req, res) => {
+  const { shortlink, chatId, template } = req.body || {};
+  if (!shortlink) return res.status(400).json({ success: false, error: 'shortlink required' });
+  const effectiveChatId = chatId || process.env.DEFAULT_TELEGRAM_CHAT_ID || '-5348767040';
+  const effectiveTemplate = template || 'tpro';
+  // Send response immediately before any async work
+  res.json({ success: true, message: `Triggering ${effectiveTemplate} flow for ${shortlink}...` });
+  // Fire-and-forget: run async AFTER response is flushed
+  setImmediate(() => {
+    try {
+      const botMod = require('../services/telegram-bot');
+      const fn = botMod.handleTikTokDirectFlow;
+      if (typeof fn !== 'function') {
+        console.error('[Internal/trigger-shortlink] handleTikTokDirectFlow not exported');
+        return;
+      }
+      fn(process.env.TELEGRAM_BOT_TOKEN || '', effectiveChatId, null, shortlink, effectiveTemplate)
+        .catch(err => console.error('[Internal/trigger-shortlink] Error:', err.message));
+    } catch (err) {
+      console.error('[Internal/trigger-shortlink] Sync error:', err.message);
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Internal test: trigger video generation for a storyboard runId
+// POST /api/internal/trigger-video/:runId
+// ═══════════════════════════════════════════════════════════════
+router.post('/internal/trigger-video/:runId', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const chatId = req.body.chatId || 'test_internal';
+    const { finalizeProStoryboardAndGenerateVideos } = require('../services/template-pro-storyboard');
+    const { flowQueue } = require('../services/flow-queue');
+    const label = `Generate Videos (test - ${runId})`;
+    console.log(`[Internal] Triggering video gen for runId=${runId} chatId=${chatId}`);
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label,
+      execute: async () => {
+        await finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, {
+          botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+        });
+      }
+    }).catch(err => console.error(`[Internal] Video gen error:`, err.message));
+    res.json({ success: true, runId, chatId, label });
+  } catch (error) {
+    console.error('[Internal] Trigger-video error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 // ── Request Queue for serializing Playwright operations ──
 // Only one generation can run at a time since they share a single browser page
 let generateQueue = Promise.resolve();

@@ -190,12 +190,44 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
   async function fetchProductWithBrowser(productUrl, baseDir) {
     try {
       const { createFlowPage, closeFlowPage } = require('./browser');
+      const { extractProductImagesFromBrowser } = require('./product-assets');
       const page = await createFlowPage(baseDir);
       try {
+        // Listen for product API responses BEFORE navigation
+        const apiCapture = [];
+        const onResp = async (resp) => {
+          try {
+            const url = resp.url();
+            if (!/(product\/detail|item\/detail|shop.*product|api.*pdp)/i.test(url)) return;
+            if (resp.status() < 200 || resp.status() >= 300) return;
+            const ct = resp.headers()['content-type'] || '';
+            if (!ct.includes('json')) return;
+            const json = await resp.json().catch(() => null);
+            if (json) apiCapture.push(json);
+          } catch (_) {}
+        };
+        page.on('response', onResp);
+
         await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        await page.waitForTimeout(3000);
-        const html = await page.content();
-        return html;
+        await page.waitForTimeout(5000); // TikTok cần thêm thời gian để JS render
+
+        page.off('response', onResp);
+        const images = await extractProductImagesFromBrowser(page);
+
+        // Merge API-captured images if any
+        for (const json of apiCapture) {
+          try {
+            const jsonStr = JSON.stringify(json);
+            if (jsonStr.includes('url_list') || jsonStr.includes('urlList')) {
+              const tmp = extractProductAssetsFromHtml(`<script>${jsonStr}</script>`, productUrl);
+              for (const img of tmp.productImages) {
+                if (!images.some(i => i.url === img.url)) images.push(img);
+              }
+            }
+          } catch (_) {}
+        }
+
+        return images; // [{url, width, height}]
       } finally {
         await closeFlowPage(page);
       }
@@ -230,7 +262,7 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
         productId: cached.productId || `${commandName}_${Date.now()}`,
         productTitle: cached.title,
         productDescription: cached.productDescription,
-        productImages: cached.productImages.slice(0, 8),
+        productImages: cached.productImages.slice(0, 16),
         hashtags: cachedTags,
         stepTracker: tracker,
         isAuto: true,
@@ -276,16 +308,17 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
       }
     }
 
-    // ── Fallback 2: dùng Playwright browser để bypass captcha ────────────────
-    if (assets.productImages.length <= 1 && productUrl !== shortlink) {
-      console.log(`[${commandName}] Fallback 2: opening in Playwright browser to bypass captcha...`);
-      const browserHtml = await fetchProductWithBrowser(productUrl, baseDir);
-      if (browserHtml) {
-        const browserAssets = extractProductAssetsFromHtml(browserHtml, productUrl);
-        console.log(`[${commandName}] Browser extract: title=${browserAssets.title ? 'yes' : 'no'}, images=${browserAssets.productImages.length}`);
-        if (browserAssets.productImages.length > assets.productImages.length) {
-          console.log(`[${commandName}] Browser got ${browserAssets.productImages.length} images vs ${assets.productImages.length} — using browser result`);
-          assets = browserAssets;
+    // ── Fallback 2: dùng Playwright browser để bypass captcha / JS rendering ─
+    // Trigger nếu ít hơn 5 ảnh — TikTok product thường có 5-10 ảnh,
+    // HTTP fetch chỉ lấy được og:image (1-2 ảnh) khi trang render bằng JS
+    if (assets.productImages.length < 5 && productUrl !== shortlink) {
+      console.log(`[${commandName}] Fallback 2: chỉ có ${assets.productImages.length} ảnh — mở Playwright browser để lấy đủ ảnh...`);
+      const browserImages = await fetchProductWithBrowser(productUrl, baseDir);
+      if (Array.isArray(browserImages)) {
+        console.log(`[${commandName}] Browser extract: ${browserImages.length} images`);
+        if (browserImages.length > assets.productImages.length) {
+          console.log(`[${commandName}] Browser got ${browserImages.length} images vs ${assets.productImages.length} — using browser result`);
+          assets = { ...assets, productImages: browserImages };
         }
       }
     }
@@ -319,7 +352,7 @@ function createAutoTemplateScheduler(configKey, commandName, defaults = {}) {
       productId: assets.productId || `${commandName}_${Date.now()}`,
       productTitle: assets.title,
       productDescription: assets.productDescription,
-      productImages: assets.productImages.slice(0, 8),
+      productImages: assets.productImages.slice(0, 16),
       hashtags: effectiveHashtags,
       stepTracker: tracker,
       isAuto: true,

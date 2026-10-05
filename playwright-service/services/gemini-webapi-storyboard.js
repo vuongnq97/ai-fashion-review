@@ -377,7 +377,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     return [];
   }
 
-  const page = await createFlowPage(baseDir);
+  const page = await createFlowPage(baseDir, options.projectUrl || null);
   const runTag = options.runId || options.jobId || `run-${Date.now()}`;
   const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos', runTag);
   ensureDir(videoDir);
@@ -385,7 +385,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
   const MAX_VIDEO_ATTEMPTS = 3;
   const resultsByPanel = new Map();
 
-  async function prepareJobVideo(job, attemptNumber = 1) {
+  async function prepareJobVideo(job, attemptNumber = 1, existingPage = null) {
     const { panel, filePayload } = job;
     const resolvedModelKey = panel.videoModelKey
       || options.videoModelKey
@@ -406,9 +406,13 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
         })).filter(f => f.buffer)
       : [filePayload];
 
+    const activePrompt = (typeof panel.promptBuilder === 'function')
+      ? panel.promptBuilder(attemptNumber)
+      : (panel.prompt || '');
+
     const prepared = await prepareVideoGeneration(
-      page,
-      panel.prompt,
+      existingPage || page,
+      activePrompt,
       null,
       filePayloadsToSend.length > 0 ? filePayloadsToSend : [filePayload],
       {
@@ -420,6 +424,8 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
         cropPercent: typeof options.cropPercent === 'number' ? options.cropPercent : undefined,
         voiceId: panel.voiceId || options.voiceId || (options.hasVoice ? 'laomedeia' : null),
         hasVoice: panel.voiceId || options.voiceId || options.hasVoice ? true : false,
+        projectId: options.projectId || null,
+        outputCount: options.outputCount || 1,
       },
       baseDir
     );
@@ -443,54 +449,63 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
   }
 
   try {
-    // 1. Chuẩn bị batch đầu tiên tuần tự trên page
-    const preparedJobs = [];
-    for (const job of jobs) {
-      try {
-        const item = await prepareJobVideo(job, 1);
-        preparedJobs.push({ job, ...item });
-      } catch (prepErr) {
-        console.warn(`[GeminiWebAPI->Flow] ⚠️ Initial preparation failed for panel ${job.panel.index}: ${prepErr.message}`);
-        preparedJobs.push({ job, panel: job.panel, prepared: null, error: prepErr });
-      }
+    // Sliding worker pool: Google Flow allows at most 2 concurrent active generating videos per account
+    const CONCURRENCY_LIMIT = Math.min(options.concurrency || 2, 2);
+    console.log(`[GeminiWebAPI->Flow] Starting video generation pool for ${jobs.length} panel(s) (concurrency limit: ${CONCURRENCY_LIMIT})...`);
+
+    // Mutex to ensure only 1 job touches browser page/eb1hJf dispatch at a time
+    let prepareChain = Promise.resolve();
+    function runWithPrepareLock(fn) {
+      const res = prepareChain.then(fn);
+      prepareChain = res.catch(() => {});
+      return res;
     }
 
-    // 2. Poll song song đợt 1
-    console.log(`[GeminiWebAPI->Flow] Polling ${preparedJobs.filter(pj => pj.prepared).length} video job(s) in parallel...`);
-    const initialSettled = await Promise.allSettled(preparedJobs.map(async ({ panel, prepared, error }) => {
-      if (!prepared) throw error || new Error('Preparation failed');
-      return await executeAndSaveVideo(panel, prepared);
-    }));
-
-    initialSettled.forEach((res, idx) => {
-      const { panel } = preparedJobs[idx];
-      if (res.status === 'fulfilled') {
-        resultsByPanel.set(panel.index, res.value);
-        console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video completed successfully (attempt 1)!`);
-      } else {
-        console.warn(`[GeminiWebAPI->Flow] ⚠️ Panel ${panel.index} video attempt 1 failed: ${res.reason?.message || res.reason}`);
-      }
-    });
-
-    // 3. Cơ chế retry tối đa 3 lần cho các panel bị lỗi
-    for (let attempt = 2; attempt <= MAX_VIDEO_ATTEMPTS; attempt++) {
-      const failedJobs = jobs.filter(j => !resultsByPanel.has(j.panel.index));
-      if (failedJobs.length === 0) break;
-
-      console.log(`[GeminiWebAPI->Flow] 🔄 Bắt đầu retry đợt ${attempt}/${MAX_VIDEO_ATTEMPTS} cho ${failedJobs.length} panel video bị lỗi...`);
-      await new Promise(r => setTimeout(r, 4000));
-
-      for (const job of failedJobs) {
+    async function processJob(job) {
+      const panel = job.panel;
+      for (let attempt = 1; attempt <= MAX_VIDEO_ATTEMPTS; attempt++) {
         try {
-          const { panel, prepared } = await prepareJobVideo(job, attempt);
-          const item = await executeAndSaveVideo(panel, prepared);
-          resultsByPanel.set(panel.index, item);
-          console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video thành công ở lần thử thứ ${attempt}!`);
-        } catch (retryErr) {
-          console.warn(`[GeminiWebAPI->Flow] ❌ Panel ${job.panel.index} lần thử ${attempt}/${MAX_VIDEO_ATTEMPTS} thất bại: ${retryErr.message}`);
+          // 1. Acquire browser lock for preparation (image upload + eb1hJf start)
+          const prepResult = await runWithPrepareLock(async () => {
+            // Pacing: wait 2s between consecutive eb1hJf dispatches
+            await new Promise(r => setTimeout(r, 2000));
+            return await prepareJobVideo(job, attempt, page);
+          });
+
+          // 2. Poll and save video (releases browser lock, takes ~60-90s on Google servers)
+          const resultItem = await executeAndSaveVideo(prepResult.panel, prepResult.prepared);
+          resultsByPanel.set(panel.index, resultItem);
+          console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video completed successfully (attempt ${attempt})!`);
+          return resultItem;
+        } catch (err) {
+          const errMsg = err.message || '';
+          console.warn(`[GeminiWebAPI->Flow] ⚠️ Panel ${panel.index} attempt ${attempt}/${MAX_VIDEO_ATTEMPTS} failed: ${errMsg}`);
+          if (attempt < MAX_VIDEO_ATTEMPTS) {
+            // If Google triggered UNUSUAL_ACTIVITY (slots full or cooldown), wait 15s for active video slot to free up
+            const waitMs = /UNUSUAL_ACTIVITY/i.test(errMsg) ? 15000 : 5000;
+            console.log(`[GeminiWebAPI->Flow] ⏳ Waiting ${waitMs / 1000}s before retry attempt ${attempt + 1} for panel ${panel.index}...`);
+            await new Promise(r => setTimeout(r, waitMs));
+          }
         }
       }
     }
+
+    // Execute jobs using sliding window of CONCURRENCY_LIMIT
+    const executing = new Set();
+    for (const job of jobs) {
+      const p = Promise.resolve().then(() => processJob(job));
+      executing.add(p);
+      const clean = () => executing.delete(p);
+      p.then(clean, clean);
+
+      if (executing.size >= CONCURRENCY_LIMIT) {
+        // Wait for at least one active generating video to finish before dispatching next
+        await Promise.race(executing);
+      }
+    }
+
+    // Wait for all remaining jobs in the pool to finish
+    await Promise.all(executing);
 
     // 4. Trả về kết quả đầy đủ theo thứ tự các panel
     return jobs.map(job => {

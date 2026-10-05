@@ -391,11 +391,28 @@ class GeminiApiClient {
       return true;
     });
 
-    if (filtered.length < cookies.length) {
-      console.log(`[GeminiAPI] Filtered cookies: ${cookies.length} → ${filtered.length} (kept only essential auth cookies: ${filtered.map(c => c.name).join(', ')})`);
+    // Deduplicate by cookie name (prioritizing gemini.google.com then .google.com)
+    // to keep Cookie header compact and prevent "Parse Error: Header overflow"
+    filtered.sort((a, b) => {
+      const aScore = (a.domain?.includes('gemini.google.com') ? 2 : (a.domain === '.google.com' ? 1 : 0));
+      const bScore = (b.domain?.includes('gemini.google.com') ? 2 : (b.domain === '.google.com' ? 1 : 0));
+      return bScore - aScore;
+    });
+
+    const deduplicated = [];
+    const seenNames = new Set();
+    for (const c of filtered) {
+      if (!seenNames.has(c.name)) {
+        seenNames.add(c.name);
+        deduplicated.push(c);
+      }
     }
 
-    return filtered;
+    if (deduplicated.length < cookies.length) {
+      console.log(`[GeminiAPI] Filtered cookies: ${cookies.length} → ${deduplicated.length} (kept only essential auth cookies: ${deduplicated.map(c => c.name).join(', ')})`);
+    }
+
+    return deduplicated;
   }
 
   /**
@@ -415,6 +432,7 @@ class GeminiApiClient {
         await this.close();
 
         // Launch headless browser — needed for Playwright's APIRequestContext TLS stack
+        console.log('[GeminiAPI] 🚀 Launching headless browser for TLS session & cookies...');
         const chromeChannel = process.env.PLAYWRIGHT_CHROME_CHANNEL !== undefined ? (process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined) : 'chrome';
         this._browser = await chromium.launch({
           channel: chromeChannel,
@@ -430,12 +448,14 @@ class GeminiApiClient {
         this._browserCtx = browserContext;
 
         // Get SNlM0e and session metadata
+        console.log('[GeminiAPI] 🔑 Fetching session token (SNlM0e)...');
         await this._fetchAccessToken();
 
         // Warmup RPC calls (mirrors Python _init_rpc)
         await this._sendBardActivity();
 
         this._initialized = true;
+        console.log('[GeminiAPI] ✅ Gemini client initialized & authenticated successfully.');
         return;
       } catch (err) {
         const isAuthErr = isAuthenticationError(err.message);

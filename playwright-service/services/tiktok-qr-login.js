@@ -16,13 +16,42 @@ const { chromium } = require('playwright');
 const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
-const { saveAccount } = require('./tiktok-web-upload');
+const { saveAccount, listAccountsRaw } = require('./tiktok-web-upload');
 const { updateChannelCredential, getChannelForChat } = require('../utils/config-manager');
 const { syncShopToN8n } = require('./n8n-workflow-sync');
 const { runWithShop, getShopNameForChat } = require('../utils/shop-context');
 
 // Lưu trữ các phiên quét QR đang hoạt động: chatId -> session info
 const activeQrSessions = new Map();
+
+/**
+ * Tìm credential đã tồn tại cho cùng một tài khoản TikTok.
+ * Khớp theo userId (ưu tiên) hoặc username. Nếu có nhiều credential trùng:
+ * ưu tiên credential đang gắn với channel hiện tại, sau đó là credential cập nhật gần nhất.
+ * @param {object} accounts - nội dung tiktok-accounts.json
+ * @param {{userId?: string, username?: string}} identity
+ * @param {string} [preferredCredentialId]
+ * @returns {{credentialId: string, account: object}|null}
+ */
+function findExistingCredential(accounts, identity, preferredCredentialId) {
+  const userId = String(identity.userId || '').trim();
+  const username = String(identity.username || '').trim().toLowerCase();
+  if (!userId && !username) return null;
+
+  const matches = Object.entries(accounts || {})
+    .filter(([, acc]) => {
+      if (!acc) return false;
+      if (userId && String(acc.userId || '').trim() === userId) return true;
+      return !userId && username && String(acc.username || '').trim().toLowerCase() === username;
+    })
+    .map(([credentialId, account]) => ({ credentialId, account }));
+
+  if (matches.length === 0) return null;
+  const preferred = matches.find(m => m.credentialId === preferredCredentialId);
+  if (preferred) return preferred;
+  matches.sort((a, b) => String(b.account.updatedAt || '').localeCompare(String(a.account.updatedAt || '')));
+  return matches[0];
+}
 
 /**
  * Gọi API TikTok để lấy thông tin tài khoản (username, screen_name, user_id)
@@ -413,16 +442,34 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
           if (match) userId = match[1];
         }
 
-        // Tạo credentialId ngẫu nhiên 16 ký tự
-        const credentialId = crypto.randomBytes(8).toString('hex');
-
         // Lấy label hiện tại của channel
         const currentChannel = getChannelForChat(baseDir, key);
-        const channelLabel = currentChannel.label && currentChannel.label !== 'Shop Chính'
-          ? currentChannel.label
-          : `Shop @${username}`;
 
-        const accountLabel = `${channelLabel} (@${username})`;
+        // Nếu tài khoản TikTok này đã tồn tại (cùng userId/username) → dùng lại credentialId cũ
+        // để cập nhật cookie vào credential hiện có (cả tiktok-accounts.json lẫn n8n)
+        const existingMatch = findExistingCredential(
+          listAccountsRaw(),
+          { userId, username },
+          currentChannel.tiktokCredentialId
+        );
+        const reusedCredential = Boolean(existingMatch);
+        const credentialId = reusedCredential
+          ? existingMatch.credentialId
+          : crypto.randomBytes(8).toString('hex'); // tài khoản mới: credentialId ngẫu nhiên
+
+        let channelLabel;
+        let accountLabel;
+        if (reusedCredential) {
+          // Giữ nguyên tên credential cũ để không đổi tên node/credential trong n8n
+          accountLabel = existingMatch.account.label || currentChannel.label || `Shop @${username}`;
+          channelLabel = accountLabel;
+          console.log(`[TikTokQR] ♻️ Account @${username} (${userId}) already exists → updating credential ${credentialId} ("${accountLabel}")`);
+        } else {
+          channelLabel = currentChannel.label && currentChannel.label !== 'Shop Chính'
+            ? currentChannel.label
+            : `Shop @${username}`;
+          accountLabel = `${channelLabel} (@${username})`;
+        }
 
         const accountData = {
           label: accountLabel,
@@ -433,7 +480,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
           updatedAt: new Date().toISOString()
         };
 
-        // Lưu vào tiktok-accounts.json
+        // Lưu vào tiktok-accounts.json (ghi đè hoàn toàn cookie cũ nếu credential đã tồn tại)
         saveAccount(credentialId, accountData);
 
         // Cập nhật mapping trong config.json
@@ -456,6 +503,7 @@ async function startTikTokQrLoginSession(chatId, callbacks = {}, baseDir = path.
           screenName,
           credentialId,
           label: channelLabel,
+          reused: reusedCredential,
           n8nSync: n8nSyncResult
         };
 

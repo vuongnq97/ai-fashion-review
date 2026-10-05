@@ -1,10 +1,12 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { writeTempFiles } = require('../utils/helpers');
-const { getContext, ensureBearerToken, getRecaptchaToken, PROJECT_URL, PROJECT_ID } = require('./browser');
+const { getContext, ensureBearerToken, getRecaptchaToken, extractProjectIdFromPage, PROJECT_URL, PROJECT_ID } = require('./browser');
 const { findImageUUID, uploadImages, switchToMode, uploadImageDirect } = require('./image');
 const { processVideoBase64 } = require('./video-resize');
+const { ensureWorkWindow } = require('../utils/window-config');
 
 // ═══════════════════════════════════════════════════════════════
 // Video model mapping
@@ -26,14 +28,14 @@ const RAW_VIDEO_MODEL_ALIASES = {
   'abra_i2v_4s': 'abra_i2v_4s',
   'abra-t2v-8s': 'abra_t2v_8s_360p',
   'abra_t2v_8s_360p': 'abra_t2v_8s_360p',
-  'abra_r2v_8s': 'abra_r2v_8s',
-  'abra-r2v-8s': 'abra_r2v_8s',
-  'r2v_8s': 'abra_r2v_8s',
-  'r2v-8s': 'abra_r2v_8s',
-  'abra_r2v_4s': 'abra_r2v_4s',
-  'abra-r2v-4s': 'abra_r2v_4s',
-  'r2v_4s': 'abra_r2v_4s',
-  'r2v-4s': 'abra_r2v_4s',
+  'abra_r2v_8s': 'abra_i2v_8s',   // r2v alias → correct i2v model name (confirmed from Flow UI)
+  'abra-r2v-8s': 'abra_i2v_8s',
+  'r2v_8s': 'abra_i2v_8s',
+  'r2v-8s': 'abra_i2v_8s',
+  'abra_r2v_4s': 'abra_i2v_4s',   // r2v alias → correct i2v model name
+  'abra-r2v-4s': 'abra_i2v_4s',
+  'r2v_4s': 'abra_i2v_4s',
+  'r2v-4s': 'abra_i2v_4s',
   // Veo models
   'default': 'veo_3_1_i2v_lite_low_priority',
   'quality': 'veo_3_1_i2v_lite_low_priority',
@@ -54,6 +56,18 @@ const RAW_VIDEO_MODEL_ALIASES = {
   'veo-3.1-4s': 'veo_3_1_i2v_s_lite_4s_low_priority',
   'veo-3.1-4s-low-priority': 'veo_3_1_i2v_s_lite_4s_low_priority',
   'veo_3_1_i2v_s_lite_4s_low_priority': 'veo_3_1_i2v_s_lite_4s_low_priority',
+  // 6-second video models (Food Review / Veo 3 standard i2v lite)
+  '6s': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-6s': 'veo_3_1_i2v_lite_low_priority',
+  'veo_3_1_i2v_s_lite_6s_low_priority': 'veo_3_1_i2v_lite_low_priority',
+  'abra_r2v_6s': 'abra_r2v_4s',
+  'abra-r2v-6s': 'abra_r2v_4s',
+  'r2v_6s': 'abra_r2v_4s',
+  // 8-second video models (tproduct Live Commerce / Veo 3)
+  '8s': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-8s': 'veo_3_1_i2v_lite_low_priority',
+  'veo-3.1-8s-low-priority': 'veo_3_1_i2v_lite_low_priority',
+  'veo_3_1_i2v_s_lite_8s_low_priority': 'veo_3_1_i2v_lite_low_priority',
 };
 
 const VIDEO_ASPECT_MAP = {
@@ -120,13 +134,15 @@ async function startVideoGeneration(page, context, {
     startImage.cropCoordinates = cropCoordinates;
   }
 
+  const targetProjectId = (page ? extractProjectIdFromPage(page) : PROJECT_ID);
+
   const requestBody = {
     mediaGenerationContext: {
       batchId: batchId,
       audioFailurePreference: 'BLOCK_SILENCED_VIDEOS'
     },
     clientContext: {
-      projectId: PROJECT_ID,
+      projectId: targetProjectId,
       tool: 'PINHOLE',
       userPaygateTier: 'PAYGATE_TIER_TWO',
       sessionId: sessionId,
@@ -385,157 +401,1468 @@ function findMediaNameInBatchResult(obj, inputIds = []) {
   return foundUuid;
 }
 
-async function startMultiImageVideoGeneration(page, context, {
-  prompt,
-  imageMediaIds = [],
-  aspectRatio = '9:16',
-  videoModelKey = 'abra_r2v_8s',
-  voiceId = null
-}) {
-  const bearerToken = await ensureBearerToken(page);
-  const recaptchaToken = await getRecaptchaToken(page, 'VIDEO_GENERATION');
-  console.log(`[VideoGen-Multi] reCAPTCHA token: ${recaptchaToken.substring(0, 30)}... (${recaptchaToken.length} chars)`);
+/**
+ * Extract video media UUID from a successful eb1hJf batchexecute response.
+ * eb1hJf response structure (success):
+ *   [null, <credits>, [[ <sceneUUID>, null, null, [title, time, null, null, <videoUUID>], <projectId> ]], [[ <videoUUID>, <projectId>, <sceneUUID> ]]]
+ * CRITICAL:
+ *   - parsed[3][0][0] is the VIDEO MEDIA UUID (what jwpduf and as29s expect)
+ *   - parsed[2][0][3][4] is also the VIDEO MEDIA UUID
+ *   - WARNING: parsed[2][0][0] is the SCENE/SESSION UUID! Polling parsed[2][0][0] causes "Media not found."!
+ */
+function findMediaNameInEb1hJfResult(parsed, inputIds = []) {
+  if (!parsed) return null;
+  const inputSet = new Set((inputIds || []).map(id => String(id).toLowerCase().trim()));
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  const wiz = await page.evaluate(() => {
-    const w = window.WIZ_global_data || {};
-    return {
-      at: w.SNlM0e || '',
-      fsid: w.FdrFJe || '',
-      bl: w.cfb2h || 'boq_labs-ai-sandbox-frontend_20260903.13_p1'
-    };
-  });
-
-  const clientGuid1 = crypto.randomUUID().toUpperCase();
-  const clientGuid2 = crypto.randomUUID().toUpperCase();
-  const clientGuid3 = crypto.randomUUID().toUpperCase();
-
-  const modelKey = videoModelKey || 'abra_r2v_8s';
-  const requestItem = [
-    [
-      null,
-      null,
-      [
-        [
-          [
-            prompt
-          ]
-        ]
-      ]
-    ],
-    imageMediaIds.map(id => [null, id]),
-    modelKey,
-    1,
-    null,
-    [
-      null,
-      null,
-      null,
-      null,
-      clientGuid1,
-      clientGuid2
-    ]
-  ];
-
-  if (voiceId) {
-    requestItem.push(null);
-    requestItem.push([[String(voiceId)]]);
-    console.log(`[VideoGen-Multi]   audio/voice ID attached: "${voiceId}"`);
+  // PRIORITY 1: parsed[3][0][0] — array of generated video objects [[videoMediaId, projectId, sceneId, ...]]
+  if (Array.isArray(parsed[3]) && Array.isArray(parsed[3][0])) {
+    const candidate = parsed[3][0][0];
+    if (typeof candidate === 'string' && uuidRegex.test(candidate) && !inputSet.has(candidate.toLowerCase())) {
+      console.log(`[VideoGen-UI] 🎯 Extracted videoMediaId from eb1hJf parsed[3][0][0]: ${candidate}`);
+      return candidate;
+    }
   }
 
-  const innerPayload = [
-    [
-      requestItem
-    ],
-    [
-      null,
-      22,
-      null,
-      null,
-      null,
-      PROJECT_ID,
-      null,
-      null,
-      null,
-      null,
-      [
-        recaptchaToken,
-        1
-      ]
-    ],
-    [
-      clientGuid3,
-      2
-    ]
-  ];
-
-  const reqId = Math.floor(Math.random() * 900000) + 100000;
-  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=MZZa6b&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz.bl)}&f.sid=${encodeURIComponent(wiz.fsid)}&hl=vi&_reqid=${reqId}&rt=c`;
-
-  const fReq = JSON.stringify([[["MZZa6b", JSON.stringify(innerPayload), null, "generic"]]]);
-  const bodyParams = new URLSearchParams();
-  bodyParams.set('f.req', fReq);
-  if (wiz.at) {
-    bodyParams.set('at', wiz.at);
+  // PRIORITY 2: parsed[2][0][3][4] — direct videoMediaId in scene metadata
+  if (Array.isArray(parsed[2]) && Array.isArray(parsed[2][0])) {
+    const directVideoId = parsed[2][0]?.[3]?.[4];
+    if (typeof directVideoId === 'string' && uuidRegex.test(directVideoId) && !inputSet.has(directVideoId.toLowerCase())) {
+      console.log(`[VideoGen-UI] 🎯 Extracted videoMediaId from eb1hJf parsed[2][0][3][4]: ${directVideoId}`);
+      return directVideoId;
+    }
   }
-  const bodyString = bodyParams.toString();
 
-  console.log(`[VideoGen-Multi] Sending MZZa6b batchexecute with ${imageMediaIds.length} reference images (model: ${modelKey})...`);
-  console.log(`[VideoGen-Multi]   prompt: "${prompt.substring(0, 80)}..."`);
-  console.log(`[VideoGen-Multi]   imageMediaIds: ${imageMediaIds.join(', ')}`);
+  // PRIORITY 3: Fallback using standard findMediaNameInBatchResult
+  const batchCandidate = findMediaNameInBatchResult(parsed, inputIds);
+  if (batchCandidate) {
+    console.log(`[VideoGen-UI] 🎯 Extracted videoMediaId via findMediaNameInBatchResult: ${batchCandidate}`);
+    return batchCandidate;
+  }
 
-  const maxRetries = 3;
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 1) {
-        console.log(`[VideoGen-Multi] 🔄 Retrying MZZa6b batchexecute (Attempt ${attempt}/${maxRetries})...`);
-      }
-
-      const responseText = await page.evaluate(async ({ url, body }) => {
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-            'x-same-domain': '1',
-          },
-          body: body
-        });
-        if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error(`HTTP ${resp.status}: ${t.substring(0, 300)}`);
+  // PRIORITY 4: Any UUID in parsed[3]
+  if (Array.isArray(parsed[3])) {
+    for (const sub of parsed[3]) {
+      if (Array.isArray(sub)) {
+        for (const item of sub) {
+          if (typeof item === 'string' && uuidRegex.test(item) && !inputSet.has(item.toLowerCase())) {
+            return item;
+          }
         }
-        return await resp.text();
-      }, { url: rpcUrl, body: bodyString });
-
-      const parsed = parseBatchExecuteResponse(responseText, 'MZZa6b');
-      if (!parsed) {
-        throw new Error(`Could not parse MZZa6b response: ${responseText.substring(0, 500)}`);
-      }
-
-      const mediaName = findMediaNameInBatchResult(parsed, imageMediaIds);
-      if (!mediaName) {
-        console.warn('[VideoGen-Multi] Could not find media name in parsed MZZa6b result:', JSON.stringify(parsed).substring(0, 500));
-        throw new Error('No media name returned in MZZa6b response');
-      }
-
-      console.log(`[VideoGen-Multi] ✅ Video generation started via MZZa6b! Media: ${mediaName}`);
-      return { media: [{ name: mediaName }], wiz };
-    } catch (err) {
-      console.warn(`[VideoGen-Multi] ⚠️ Attempt ${attempt} failed: ${err.message}`);
-      lastError = err;
-      if (attempt < maxRetries) {
-        await page.waitForTimeout(3000);
       }
     }
   }
 
-  throw new Error(`[VideoGen-Multi] Failed to start video generation via MZZa6b: ${lastError?.message || 'Unknown error'}`);
+  return null;
 }
 
-async function fetchFlowVideoUrlViaAs29s(context, mediaName, wiz) {
+async function startVideoGenerationViaUI({
+  page,
+  prompt,
+  imageMediaIds = [],
+  imageBuffer = null,    // raw Buffer of the panel image for UI file-input upload
+  imageName = 'panel.png',
+  aspectRatio = '9:16',
+  videoModelKey = 'abra_r2v_4s',
+  targetProjectId,
+  outputCount = 1
+}) {
+  if (!page || page.isClosed()) return null;
+
+  console.log(`[VideoGen-UI] 🚀 Triggering video generation directly via Flow UI (natural human events)...`);
+
+  // Ensure desktop-width window (>=1280) so Flow UI does not collapse into mobile drawer layout.
+  // Dùng cửa sổ thật thay vì giả lập viewport lớn hơn cửa sổ (gây cắt mất phần dưới composer).
+  await ensureWorkWindow(page, { minW: 1280, minH: 800 });
+  await page.waitForTimeout(300);
+
+  // 0. Ensure all popovers/dialogs are closed before starting
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(400);
+
+  // 1. Route interceptor + response listener for eb1hJf
+  //
+  // WHY route interception: Our image is uploaded via maseQ from Playwright code, not through
+  // Flow UI. So Angular's state doesn't contain our imageMediaId when it builds the eb1hJf
+  // payload — the request goes out WITHOUT a start frame image.
+  //
+  // FIX: Intercept the outgoing eb1hJf request, inject our imageMediaId into item[4]
+  // (the start frame slot), then let it through. Recaptcha is still Flow-generated (good score).
+  let mediaName = null;
+  let routeCleanedUp = false;
+
+  const cleanupRoute = async () => {
+    if (!routeCleanedUp) {
+      routeCleanedUp = true;
+      await page.unroute('**eb1hJf**').catch(() => {});
+      await page.unroute('**MZZa6b**').catch(() => {});
+      await page.unroute('**/batchexecute?rpcids=eb1hJf**').catch(() => {});
+      await page.unroute('**/batchexecute?rpcids=MZZa6b**').catch(() => {});
+    }
+  };
+
+  // Pre-clean any stale interceptors from previous attempts
+  await page.unroute('**eb1hJf**').catch(() => {});
+  await page.unroute('**MZZa6b**').catch(() => {});
+  await page.unroute('**/batchexecute?rpcids=eb1hJf**').catch(() => {});
+  await page.unroute('**/batchexecute?rpcids=MZZa6b**').catch(() => {});
+
+  // Install route interceptors to inject imageMediaId into start frame & force i2v model
+  if (imageMediaIds && imageMediaIds.length > 0) {
+    const targetImageId = imageMediaIds[0];
+    const isPortrait = aspectRatio === '9:16';
+    const defaultCrop = isPortrait
+      ? [0.3701416015625, null, 0.6298583984375, 1]
+      : [0.1049382716049383, null, 0.8950617283950617, 1];
+    const fallbackModel = String(videoModelKey || '').includes('8s') ? 'abra_i2v_8s' : 'abra_i2v_4s';
+    console.log(`[VideoGen-UI] 🔀 Installing eb1hJf+MZZa6b route interceptors — targetImageId: ${targetImageId}, aspectRatio: ${aspectRatio}, model: ${fallbackModel}`);
+
+    // Generic inject handler for eb1hJf
+    const makeVideoInterceptor = (rpcId) => async (route) => {
+      try {
+        const postData = route.request().postData() || '';
+        if (postData.includes('f.req=')) {
+          const params = new URLSearchParams(postData);
+          const fReqStr = params.get('f.req');
+          if (fReqStr) {
+            const fReq = JSON.parse(fReqStr);
+            let rpcEntry = null;
+            if (Array.isArray(fReq)) {
+              for (const batch of fReq) {
+                if (Array.isArray(batch)) {
+                  for (const entry of batch) {
+                    if (Array.isArray(entry) && entry[0] === rpcId && entry[1]) {
+                      rpcEntry = entry;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+
+            if (rpcEntry && rpcEntry[1]) {
+              const inner = JSON.parse(rpcEntry[1]);
+              console.log(`[VideoGen-UI] 📦 ${rpcId} raw inner snippet: ${JSON.stringify(inner).substring(0, 400)}`);
+              const items = inner[0];
+              if (Array.isArray(items) && items.length > 0) {
+                let injectedCount = 0;
+                items.forEach((item0) => {
+                  if (Array.isArray(item0)) {
+                    // 1. Force Image-to-Video model (convert _t2v_ -> _i2v_)
+                    // CRITICAL: When Flow UI sends _t2v_, Google Veo backend strictly ignores start frame slot!
+                    if (typeof item0[1] === 'string') {
+                      if (item0[1].includes('_t2v_')) {
+                        item0[1] = item0[1].replace('_t2v_', '_i2v_');
+                      } else if (!item0[1].includes('_i2v_')) {
+                        item0[1] = fallbackModel;
+                      }
+                    } else {
+                      item0[1] = fallbackModel;
+                    }
+
+                    // 2. Ensure aspect ratio integer: 1 for 9:16 (Portrait), 2 for 16:9 (Landscape)
+                    const targetRatioInt = (aspectRatio === '16:9') ? 2 : 1;
+                    item0[2] = targetRatioInt;
+
+                    const activeCrop = (targetRatioInt === 1)
+                      ? [0.3701416015625, null, 0.6298583984375, 1]
+                      : [0.1049382716049383, null, 0.8950617283950617, 1];
+
+                    // 3. Inject start frame into item0[4]
+                    const prevFrame = item0[4];
+                    if (Array.isArray(prevFrame)) {
+                      prevFrame[1] = targetImageId;
+                      if (!prevFrame[5]) {
+                        prevFrame[5] = activeCrop; // Only set default crop if none exists
+                      }
+                    } else {
+                      item0[4] = [null, targetImageId, null, null, null, activeCrop];
+                    }
+
+                    injectedCount++;
+                  }
+                });
+
+                if (injectedCount > 0) {
+                  rpcEntry[1] = JSON.stringify(inner);
+                  params.set('f.req', JSON.stringify(fReq));
+                  const loggedRatioInt = (aspectRatio === '16:9') ? 2 : 1;
+                  console.log(`[VideoGen-UI] ✅ Successfully injected imageId & i2v model into ${rpcId} for ${injectedCount} candidate(s): model=${items[0]?.[1]}, ratioInt=${loggedRatioInt} (${aspectRatio}), imageId=${targetImageId}`);
+                  await route.continue({ postData: params.toString() });
+                  return;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[VideoGen-UI] ⚠️ ${rpcId} route intercept error: ${err.message}`);
+      }
+      await route.continue();
+    };
+
+    await page.route('**eb1hJf**', makeVideoInterceptor('eb1hJf')).catch(() => {});
+    await page.route('**MZZa6b**', async (route) => {
+      try {
+        const postData = route.request().postData() || '';
+        if (postData.includes('f.req=')) {
+          const params = new URLSearchParams(postData);
+          const fReqStr = params.get('f.req');
+          if (fReqStr) {
+            const fReq = JSON.parse(fReqStr);
+            let rpcEntry = null;
+            if (Array.isArray(fReq)) {
+              for (const batch of fReq) {
+                if (Array.isArray(batch)) {
+                  for (const entry of batch) {
+                    if (Array.isArray(entry) && entry[0] === 'MZZa6b' && entry[1]) {
+                      rpcEntry = entry;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+
+            if (rpcEntry && rpcEntry[1]) {
+              const inner = JSON.parse(rpcEntry[1]);
+              const items = inner[0];
+              console.log(`[VideoGen-UI] 📦 MZZa6b items[0] full: ${JSON.stringify(items?.[0] || []).substring(0, 600)}`);
+              if (Array.isArray(items) && items.length > 0) {
+                let injectedCount = 0;
+                items.forEach((item0) => {
+                  if (Array.isArray(item0)) {
+                    const targetRatioInt = (aspectRatio === '16:9') ? 2 : 1;
+                    if (item0[2] !== undefined) {
+                      item0[2] = targetRatioInt;
+                    }
+                    const startFrameArr = item0[1];
+                    if (Array.isArray(startFrameArr) && Array.isArray(startFrameArr[0])) {
+                      startFrameArr[0][1] = targetImageId;
+                      injectedCount++;
+                    } else {
+                      item0[1] = [[null, targetImageId, null, null, null, defaultCrop]];
+                      injectedCount++;
+                    }
+                  }
+                });
+                if (injectedCount > 0) {
+                  rpcEntry[1] = JSON.stringify(inner);
+                  params.set('f.req', JSON.stringify(fReq));
+                  console.log(`[VideoGen-UI] ✅ MZZa6b injected startFrame for ${injectedCount} candidate(s): ${targetImageId}`);
+                  await route.continue({ postData: params.toString() });
+                  return;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[VideoGen-UI] ⚠️ MZZa6b intercept error: ${err.message}`);
+      }
+      await route.continue();
+    }).catch(() => {});
+  }
+
+  const rpcPromise = new Promise((resolve) => {
+    const onResponse = async (res) => {
+      const url = res.url();
+      const isEb1hJf = url.includes('eb1hJf');
+      const isMZZa6b = url.includes('MZZa6b');
+      const isYhhmEf = url.includes('YhhmEf');
+      if (!isEb1hJf && !isMZZa6b && !isYhhmEf) return;
+
+      const rpcid = isEb1hJf ? 'eb1hJf' : (isMZZa6b ? 'MZZa6b' : 'YhhmEf');
+      const status = res.status();
+      console.log(`[VideoGen-UI] 📡 ${rpcid} response received (status ${status})!`);
+
+      try {
+        const text = await res.text().catch(() => '');
+        console.log(`[VideoGen-UI] ${rpcid} length: ${text.length}, snippet: ${text.substring(0, 200)}`);
+
+        if (text.includes('PUBLIC_ERROR_UNUSUAL_ACTIVITY')) {
+          console.warn(`[VideoGen-UI] ⚠️ ${rpcid} blocked: PUBLIC_ERROR_UNUSUAL_ACTIVITY`);
+          return;
+        }
+
+        const parsed = parseBatchExecuteResponse(text, rpcid);
+        console.log(`[VideoGen-UI] Parsed ${rpcid}: ${parsed ? 'YES' : 'NULL'}`);
+
+        let foundName = null;
+        if (isEb1hJf) {
+          foundName = findMediaNameInEb1hJfResult(parsed, imageMediaIds);
+        } else {
+          foundName = findMediaNameInBatchResult(parsed, imageMediaIds);
+        }
+        console.log(`[VideoGen-UI] Found mediaName via ${rpcid}: ${foundName}`);
+
+        if (foundName) {
+          mediaName = foundName;
+          page.off('response', onResponse);
+          await cleanupRoute();
+          resolve(mediaName);
+        }
+      } catch (pErr) {
+        console.log(`[VideoGen-UI] ⚠️ Parse error: ${pErr.message}`);
+      }
+    };
+    page.on('response', onResponse);
+    setTimeout(async () => {
+      page.off('response', onResponse);
+      await cleanupRoute();
+      resolve(mediaName);
+    }, 60000);
+  });
+
+
+  // 2. Open Settings -> Select Video -> duration -> ratio
+  console.log('[VideoGen-UI] ⚙️ Checking video settings...');
+  const settingsBtn = await page.$('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Video ·")');
+  if (settingsBtn) {
+    const settingsBtnText = await settingsBtn.textContent().catch(() => '?');
+    console.log(`[VideoGen-UI] ⚙️ Settings button found: "${settingsBtnText.trim().substring(0,35)}"`);
+    await settingsBtn.click({ force: true, timeout: 3000 }).catch(() => {});
+
+    // Always wait for settings panel to render
+    await page.waitForSelector('mat-button-toggle', { timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(400);
+
+    // If already in Video mode (button text has "Video ·"), toggles may not appear — don't warn
+    const alreadyVideo = String(settingsBtnText).includes('Video ·');
+    if (!alreadyVideo) {
+      const allToggles = await page.evaluate(() => {
+        const els = document.querySelectorAll('mat-button-toggle');
+        return [...els].map(el => ({ text: el.textContent.trim().substring(0,30), value: el.getAttribute('value') || '', ariaLabel: el.getAttribute('aria-label') || '' }));
+      }).catch(() => []);
+      console.log(`[VideoGen-UI] 🔍 Settings panel toggles: ${JSON.stringify(allToggles)}`);
+
+      // Click Video tab via DOM
+      const videoTabClicked = await page.evaluate(() => {
+        const toggles = document.querySelectorAll('mat-button-toggle');
+        for (const toggle of toggles) {
+          const txt = toggle.textContent || '';
+          if (txt.toLowerCase().includes('video')) {
+            const btn = toggle.querySelector('button');
+            if (btn) { btn.click(); return toggle.textContent.trim().substring(0, 30); }
+          }
+        }
+        return null;
+      }).catch(() => null);
+      if (videoTabClicked) {
+        console.log(`[VideoGen-UI] ✅ Video tab clicked via DOM eval: "${videoTabClicked}"`);
+      } else {
+        console.warn('[VideoGen-UI] ⚠️ Video tab NOT found via DOM eval!');
+      }
+      await page.waitForTimeout(600);
+    } else {
+      // Already in Video mode — no need to click Video tab, just let settings panel open
+      console.log('[VideoGen-UI] ℹ️ Already in Video mode — skipping Video tab click');
+      await page.waitForTimeout(300);
+    }
+
+    // ── Ratio Selection (9:16 or 16:9) ──
+    const targetRatio = aspectRatio === '16:9' ? '16:9' : '9:16';
+    const isPortraitTarget = targetRatio === '9:16';
+    console.log(`[VideoGen-UI] 📐 Selecting video aspect ratio: ${targetRatio}...`);
+
+    let ratioClicked = false;
+    const ratioLocators = [
+      `mat-button-toggle:has-text("${targetRatio}") button`,
+      `mat-button-toggle[value*="${isPortraitTarget ? 'PORTRAIT' : 'LANDSCAPE'}"] button`,
+      `mat-button-toggle:has-text("${targetRatio}")`,
+      `button:text-is("${targetRatio}")`,
+      `button:has-text("${targetRatio}")`,
+      `[role="radio"]:has-text("${targetRatio}")`
+    ];
+
+    for (const locStr of ratioLocators) {
+      const loc = page.locator(locStr).first();
+      if (await loc.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await loc.click({ force: true, timeout: 3000 }).catch(() => {});
+        ratioClicked = true;
+        console.log(`[VideoGen-UI] ✅ Clicked ratio button via locator: ${locStr}`);
+        await page.waitForTimeout(300);
+        break;
+      }
+    }
+
+    if (!ratioClicked) {
+      ratioClicked = await page.evaluate((target) => {
+        const isPortrait = target === '9:16';
+        const toggles = Array.from(document.querySelectorAll('mat-button-toggle, [role="radio"], button'));
+        for (const el of toggles) {
+          const txt = (el.textContent || '').trim();
+          const val = (el.getAttribute('value') || '').toUpperCase();
+          const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+          if (
+            txt === target ||
+            txt.includes(target) ||
+            (isPortrait && (val.includes('PORTRAIT') || aria.includes('9:16') || aria.includes('dọc'))) ||
+            (!isPortrait && (val.includes('LANDSCAPE') || aria.includes('16:9') || aria.includes('ngang')))
+          ) {
+            const btn = el.querySelector('button') || el;
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      }, targetRatio).catch(() => false);
+
+      if (ratioClicked) {
+        console.log(`[VideoGen-UI] ✅ Clicked ratio button via DOM eval: ${targetRatio}`);
+        await page.waitForTimeout(300);
+      } else {
+        console.warn(`[VideoGen-UI] ⚠️ Could not find ratio button for: ${targetRatio}`);
+      }
+    }
+
+    // Verify and enforce ratio toggle state in settings DOM
+    const ratioStatus = await page.evaluate((target) => {
+      const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
+      const ratioToggles = toggles.filter(t => (t.textContent || '').includes('16:9') || (t.textContent || '').includes('9:16'));
+      let checkedRatio = null;
+      let targetToggle = null;
+      for (const t of ratioToggles) {
+        const isChecked = t.classList.contains('mat-button-toggle-checked') ||
+                          t.getAttribute('aria-checked') === 'true' ||
+                          t.querySelector('button')?.getAttribute('aria-pressed') === 'true';
+        const text = (t.textContent || '').trim();
+        if (isChecked) checkedRatio = text.includes('9:16') ? '9:16' : (text.includes('16:9') ? '16:9' : text);
+        if (text.includes(target)) targetToggle = t;
+      }
+      if (checkedRatio !== target && targetToggle) {
+        const btn = targetToggle.querySelector('button') || targetToggle;
+        btn.click();
+        return { corrected: true, previous: checkedRatio, now: target };
+      }
+      return { corrected: false, current: checkedRatio };
+    }, targetRatio).catch(() => null);
+    console.log(`[VideoGen-UI] 🔍 Ratio DOM verification result: ${JSON.stringify(ratioStatus)}`);
+    await page.waitForTimeout(300);
+
+    // ── Duration Selection (4s or 8s) ──
+    const is4s = String(videoModelKey || '').includes('4s') || String(prompt || '').includes('4 giây');
+    const durLabel = is4s ? '4 giây' : '8 giây';
+    const durAlt = is4s ? '4s' : '8s';
+    console.log(`[VideoGen-UI] ⏱️ Selecting video duration: ${durLabel}...`);
+
+    let durClicked = false;
+    const durLocators = [
+      `mat-button-toggle:has-text("${durLabel}") button`,
+      `mat-button-toggle:has-text("${durAlt}") button`,
+      `button:has-text("${durLabel}")`,
+      `button:has-text("${durAlt}")`,
+      `mat-button-toggle:has-text("${durLabel}")`
+    ];
+
+    for (const locStr of durLocators) {
+      const loc = page.locator(locStr).first();
+      if (await loc.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await loc.click({ force: true, timeout: 3000 }).catch(() => {});
+        durClicked = true;
+        console.log(`[VideoGen-UI] ✅ Clicked duration button via locator: ${locStr}`);
+        await page.waitForTimeout(300);
+        break;
+      }
+    }
+
+    if (!durClicked) {
+      durClicked = await page.evaluate(({ label, alt }) => {
+        const toggles = Array.from(document.querySelectorAll('mat-button-toggle, [role="radio"], button'));
+        for (const el of toggles) {
+          const txt = (el.textContent || '').trim().toLowerCase();
+          if (txt.includes(label.toLowerCase()) || txt === alt.toLowerCase()) {
+            const btn = el.querySelector('button') || el;
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      }, { label: durLabel, alt: durAlt }).catch(() => false);
+
+      if (durClicked) {
+        console.log(`[VideoGen-UI] ✅ Clicked duration button via DOM eval: ${durLabel}`);
+        await page.waitForTimeout(300);
+      } else {
+        console.warn(`[VideoGen-UI] ⚠️ Could not find duration button for: ${durLabel}`);
+      }
+    }
+
+    // Candidate count (x1, x2, x3, x4) — ALWAYS select x1 for panel videos (1 video candidate = 7 credits, NOT x3/x4 = 21/28 credits)
+    const targetCount = Math.min(Math.max(Number(outputCount) || 1, 1), 4);
+    const countLabel = `x${targetCount}`;
+    console.log(`[VideoGen-UI] 🔢 Setting video output count to ${countLabel}...`);
+
+    let countClicked = false;
+    const countBtn = page.locator(`mat-button-toggle:has-text("${countLabel}") button, button:text-is("${countLabel}")`).first();
+    if (await countBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await countBtn.click({ force: true, timeout: 3000 }).catch(() => {});
+      countClicked = true;
+      console.log(`[VideoGen-UI] ✅ Clicked count button via locator: ${countLabel}`);
+      await page.waitForTimeout(300);
+    }
+
+    if (!countClicked) {
+      countClicked = await page.evaluate((target) => {
+        const elements = document.querySelectorAll('mat-button-toggle, [role="tab"], [role="radio"], button');
+        for (const el of elements) {
+          const txt = (el.textContent || '').trim().toLowerCase();
+          if (txt === target.toLowerCase()) {
+            const btn = el.querySelector('button') || el;
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      }, countLabel).catch(() => false);
+      if (countClicked) {
+        console.log(`[VideoGen-UI] ✅ Clicked count button via DOM eval: ${countLabel}`);
+        await page.waitForTimeout(300);
+      } else {
+        console.warn(`[VideoGen-UI] ⚠️ Could not find count button for: ${countLabel}`);
+      }
+    }
+
+    // Sub-mode: ALWAYS select "Khung hình" (Frames mode / Start-End Frame mode) LAST
+    console.log('[VideoGen-UI] 🎬 Ensuring "Khung hình" (Frames) mode...');
+    const ensureFramesModeInDialog = async () => {
+      return await page.evaluate(() => {
+        const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
+        let framesToggle = null;
+        let componentsToggle = null;
+
+        for (const t of toggles) {
+          const txt = (t.textContent || '').trim().toLowerCase();
+          const val = (t.getAttribute('value') || '').toUpperCase();
+          if (txt.includes('khung hình') || txt.includes('khung hinh') || txt.includes('frames') || val.includes('FRAME')) {
+            framesToggle = t;
+          }
+          if (txt.includes('thành phần') || txt.includes('thanh phan') || txt.includes('ingredient') || txt.includes('component') || val.includes('INGREDIENT') || val.includes('COMPONENT')) {
+            componentsToggle = t;
+          }
+        }
+
+        if (framesToggle) {
+          const isFramesChecked = framesToggle.classList.contains('mat-button-toggle-checked') ||
+                                  framesToggle.getAttribute('aria-checked') === 'true' ||
+                                  framesToggle.querySelector('button')?.getAttribute('aria-pressed') === 'true';
+          if (!isFramesChecked) {
+            const btn = framesToggle.querySelector('button') || framesToggle;
+            btn.click();
+            return { action: 'clicked_frames', checkedNow: true };
+          }
+          return { action: 'already_checked', checkedNow: true };
+        }
+        return { action: 'frames_not_found', checkedNow: false };
+      }).catch(() => ({ action: 'eval_error', checkedNow: false }));
+    };
+
+    let frameRes = await ensureFramesModeInDialog();
+    console.log(`[VideoGen-UI] 🎬 "Khung hình" toggle initial check: ${JSON.stringify(frameRes)}`);
+    await page.waitForTimeout(300);
+
+    // If still not checked, try direct locator click
+    if (!frameRes.checkedNow) {
+      const frameModeBtn = page.locator('mat-button-toggle:has-text("Khung hình") button, mat-button-toggle[value*="FRAME"] button, button:has-text("Khung hình")').first();
+      if (await frameModeBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await frameModeBtn.click({ force: true, timeout: 3000 }).catch(() => {});
+        console.log('[VideoGen-UI] ✅ Clicked "Khung hình" toggle button via locator');
+        await page.waitForTimeout(300);
+      }
+    }
+
+    // Comprehensive Settings Audit inside Dialog DOM before closing
+    const preCloseAudit = await page.evaluate((targetRatio) => {
+      const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
+      let fixLog = [];
+
+      for (const t of toggles) {
+        const txt = (t.textContent || '').trim().toLowerCase();
+        const val = (t.getAttribute('value') || '').toUpperCase();
+        const isChecked = t.classList.contains('mat-button-toggle-checked') ||
+                          t.getAttribute('aria-checked') === 'true' ||
+                          t.querySelector('button')?.getAttribute('aria-pressed') === 'true';
+
+        // 1. Force Video tab if not checked
+        if (txt.includes('video') && !isChecked) {
+          (t.querySelector('button') || t).click();
+          fixLog.push('force_video');
+        }
+        // 2. Force Ratio if not checked
+        const isTargetRatio = txt.includes(targetRatio) || (targetRatio === '9:16' && val.includes('PORTRAIT')) || (targetRatio === '16:9' && val.includes('LANDSCAPE'));
+        if (isTargetRatio && !isChecked) {
+          (t.querySelector('button') || t).click();
+          fixLog.push('force_ratio_' + targetRatio);
+        }
+        // 3. Force "Khung hình" (Frames) mode if not checked
+        const isFrames = txt.includes('khung hình') || txt.includes('khung hinh') || txt.includes('frames') || val.includes('FRAME');
+        if (isFrames && !isChecked) {
+          (t.querySelector('button') || t).click();
+          fixLog.push('force_frames_mode');
+        }
+      }
+      return fixLog;
+    }, targetRatio).catch(() => []);
+    if (preCloseAudit && preCloseAudit.length > 0) {
+      console.log(`[VideoGen-UI] 🔧 Pre-close settings corrections applied: ${preCloseAudit.join(', ')}`);
+      await page.waitForTimeout(300);
+    }
+
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(500);
+
+    // Verify mode & ratio on trigger button
+    const newSettingsBtn = await page.$('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Video ·"), button:has-text("Nano Banana")');
+    const newText = newSettingsBtn ? (await newSettingsBtn.textContent().catch(() => '?')) : '(not found)';
+    const isVideoMode = String(newText).toLowerCase().includes('video');
+    console.log(`[VideoGen-UI] 🔍 Trigger button after settings: "${newText.trim().substring(0,60)}" → ${isVideoMode ? '✅ VIDEO' : '⚠️ NOT VIDEO'}`);
+
+    // Verify presence of Start Frame slot on main page
+    const checkStartSlotVisible = async () => {
+      const slot = page.locator('div.frame-trigger button.empty-chip, button.empty-chip, div.frame-trigger, [data-scroll-state="START"]').first();
+      return await slot.isVisible({ timeout: 1000 }).catch(() => false);
+    };
+
+    let startSlotReady = await checkStartSlotVisible();
+    const wrongRatioDetected = isPortraitTarget
+      ? (newText.includes('16:9') || newText.includes('crop_16_9'))
+      : (newText.includes('9:16') || newText.includes('crop_portrait'));
+
+    // If either ratio is wrong OR Start Frame slot is missing ("Thành phần" active), re-open settings and enforce both!
+    if ((wrongRatioDetected || !startSlotReady) && newSettingsBtn) {
+      console.warn(`[VideoGen-UI] ⚠️ Re-opening settings: wrongRatio=${wrongRatioDetected}, startSlotReady=${startSlotReady}...`);
+      await newSettingsBtn.click({ force: true, timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(500);
+
+      // Re-apply ratio & frames mode inside opened dialog
+      await page.evaluate((targetRatio) => {
+        const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
+        // Click ratio toggle
+        for (const t of toggles) {
+          const txt = (t.textContent || '').trim().toLowerCase();
+          const val = (t.getAttribute('value') || '').toUpperCase();
+          const isTarget = txt.includes(targetRatio) || (targetRatio === '9:16' && val.includes('PORTRAIT')) || (targetRatio === '16:9' && val.includes('LANDSCAPE'));
+          if (isTarget) {
+            (t.querySelector('button') || t).click();
+            break;
+          }
+        }
+        // Click "Khung hình" toggle LAST
+        for (const t of toggles) {
+          const txt = (t.textContent || '').trim().toLowerCase();
+          const val = (t.getAttribute('value') || '').toUpperCase();
+          if (txt.includes('khung hình') || txt.includes('khung hinh') || txt.includes('frames') || val.includes('FRAME')) {
+            const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
+            if (!isChecked) {
+              (t.querySelector('button') || t).click();
+            }
+            break;
+          }
+        }
+      }, targetRatio).catch(() => {});
+      await page.waitForTimeout(400);
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+
+      startSlotReady = await checkStartSlotVisible();
+      console.log(`[VideoGen-UI] 🔍 Start slot ready after retry: ${startSlotReady}`);
+    }
+
+    // Safety fallback: If trigger button text still shows an unwanted count like x2, x3, or x4, re-open and force select target count
+    if (newText.includes('x2') || newText.includes('x3') || newText.includes('x4')) {
+      if (!newText.includes(countLabel)) {
+        console.warn(`[VideoGen-UI] ⚠️ Trigger button still shows unexpected count: "${newText.trim()}" — re-opening to force ${countLabel}...`);
+        if (newSettingsBtn) {
+          await newSettingsBtn.click({ force: true, timeout: 3000 }).catch(() => {});
+          await page.waitForTimeout(500);
+          await page.evaluate((target) => {
+            const elements = document.querySelectorAll('mat-button-toggle, [role="tab"], button');
+            for (const el of elements) {
+              if ((el.textContent || '').trim().toLowerCase() === target.toLowerCase()) {
+                const btn = el.querySelector('button') || el;
+                btn.click();
+                return true;
+              }
+            }
+            return false;
+          }, countLabel).catch(() => false);
+          await page.waitForTimeout(300);
+          await page.keyboard.press('Escape').catch(() => {});
+          await page.waitForTimeout(500);
+          const finalBtnText = await newSettingsBtn.textContent().catch(() => '');
+          console.log(`[VideoGen-UI] 🔍 Trigger button after retry: "${finalBtnText.trim().substring(0,60)}"`);
+        }
+      }
+    }
+  } else {
+    console.warn('[VideoGen-UI] ⚠️ Settings button not found — cannot switch to video mode');
+  }
+
+
+  // 3. Attach reference image directly to [ Bắt đầu ] start frame slot in "Khung hình" mode
+  if (imageMediaIds && imageMediaIds.length > 0) {
+    const targetId = imageMediaIds[0];
+    const searchName = imageName || 'panel';
+    console.log(`[VideoGen-UI] 🖼️ Attaching reference image to [ Bắt đầu ] start frame slot (mediaId: ${targetId}, file: ${searchName})...`);
+
+    // Prepare temp file on disk if imageBuffer is available for direct file input upload
+    let tempFilePath = null;
+    if (imageBuffer && Buffer.isBuffer(imageBuffer)) {
+      try {
+        const scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+        tempFilePath = path.join(scratchDir, `start-frame-${Date.now()}.png`);
+        fs.writeFileSync(tempFilePath, imageBuffer);
+      } catch (err) {
+        console.warn(`[VideoGen-UI] ⚠️ Could not write temp start-frame file: ${err.message}`);
+      }
+    }
+
+    // Helper: check if start frame is physically attached in the DOM
+    const checkStartFrameAttached = async () => {
+      return await page.evaluate(() => {
+        // 1. Check div.frame-trigger (current Flow DOM: contains flow-image-ingredient-chip)
+        const frameTrigger = document.querySelector('div.frame-trigger');
+        if (frameTrigger) {
+          const chipImg = frameTrigger.querySelector('flow-image-ingredient-chip img, img.chip-image, img');
+          if (chipImg && (chipImg.src || chipImg.currentSrc)) {
+            const r = chipImg.getBoundingClientRect();
+            return { attached: true, reason: `frame_trigger_chip_img_${Math.round(r.width)}x${Math.round(r.height)}`, src: (chipImg.src || chipImg.currentSrc).substring(0, 80) };
+          }
+          const chip = frameTrigger.querySelector('flow-image-ingredient-chip');
+          if (chip) {
+            return { attached: true, reason: 'frame_trigger_chip_element' };
+          }
+        }
+
+        // 2. Check startSlot by data attribute or class
+        const startSlot = document.querySelector('[data-scroll-state="START"]') || document.querySelector('.start-frame-slot');
+        if (startSlot) {
+          const img = startSlot.querySelector('img');
+          if (img && (img.src || img.currentSrc)) {
+            const r = img.getBoundingClientRect();
+            if (r.width > 10 && r.height > 10) {
+              return { attached: true, reason: `img_visible_${Math.round(r.width)}x${Math.round(r.height)}` };
+            }
+            return { attached: true, reason: 'img_present' };
+          }
+          const closeBtn = startSlot.querySelector('button, [aria-label*="Xoá" i], [aria-label*="Clear" i], [aria-label*="remove" i], mat-icon');
+          if (closeBtn && (closeBtn.innerText.includes('close') || closeBtn.getAttribute('aria-label'))) {
+            return { attached: true, reason: 'remove_btn_present' };
+          }
+          const bg = window.getComputedStyle(startSlot).backgroundImage;
+          if (bg && bg !== 'none' && bg.includes('url')) {
+            return { attached: true, reason: 'bg_image_present' };
+          }
+        }
+
+        // 3. Check for any ingredient chip in the composer area
+        const composerChips = Array.from(document.querySelectorAll('flow-image-ingredient-chip img, img.chip-image'));
+        if (composerChips.length > 0) {
+          return { attached: true, reason: `composer_chip_count_${composerChips.length}` };
+        }
+
+        return { attached: false, reason: 'no_slot_or_img' };
+      }).catch(() => ({ attached: false, reason: 'eval_error' }));
+    };
+
+    // Step A: CRITICAL — Forcefully clear any stale frame chip from previous panel runs
+    // so we never reuse Panel 1's image for Panel 2, 3, or 4!
+    let isAttached = false;
+    console.log(`[VideoGen-UI] 🔄 Ensuring clean start frame slot for ${searchName}...`);
+
+    const slotHasChip = () => page.evaluate(() => {
+      const ft = document.querySelector('div.frame-trigger');
+      if (!ft) return false;
+      return !!(ft.querySelector('flow-image-ingredient-chip') || ft.querySelector('img'));
+    }).catch(() => false);
+
+    for (let clearTry = 1; clearTry <= 4; clearTry++) {
+      if (!(await slotHasChip())) {
+        if (clearTry > 1) console.log(`[VideoGen-UI] ✅ Start frame slot is now empty (after ${clearTry - 1} clear attempt(s))`);
+        break;
+      }
+      console.log(`[VideoGen-UI] 🗑️ Stale chip detected in start frame slot — clearing (try ${clearTry}/4)...`);
+
+      // Hover chip first so hover-only remove buttons appear
+      await page.locator('div.frame-trigger flow-image-ingredient-chip, div.frame-trigger').first().hover({ force: true, timeout: 1000 }).catch(() => {});
+      await page.waitForTimeout(150);
+
+      const cleared = await page.evaluate(() => {
+        const matchesRemove = (el) => {
+          const txt = (el.textContent || '').trim().toLowerCase();
+          const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+          const cls = (el.className || '').toString().toLowerCase();
+          return txt === 'close' || txt === 'clear' || txt === 'cancel' ||
+            aria.includes('xoá') || aria.includes('xóa') || aria.includes('remove') || aria.includes('clear') || aria.includes('delete') ||
+            cls.includes('remove') || cls.includes('delete') || cls.includes('close');
+        };
+        // 1. Inside the frame-trigger / chip
+        const ft = document.querySelector('div.frame-trigger');
+        if (ft) {
+          const els = Array.from(ft.querySelectorAll('button, [role="button"], mat-icon, i, span'));
+          for (const el of els) {
+            if (matchesRemove(el)) { (el.closest('button') || el).click(); return 'in-slot'; }
+          }
+        }
+        // 2. Composer-level clear (the × at the top-right of the prompt box)
+        const pm = document.querySelector('.ProseMirror');
+        let scope = pm ? (pm.closest('flow-prompt-input, form, .composer') || pm.parentElement?.parentElement?.parentElement) : null;
+        if (scope) {
+          const els = Array.from(scope.querySelectorAll('button, [role="button"]'));
+          for (const el of els) {
+            const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+            if (aria.includes('tạo') || aria.includes('generate')) continue;
+            if (matchesRemove(el)) { el.click(); return 'composer'; }
+          }
+        }
+        return null;
+      }).catch(() => null);
+
+      console.log(`[VideoGen-UI] 🗑️ Clear action result: ${cleared}`);
+      await page.waitForTimeout(500);
+    }
+
+    // Attachment loop (up to 3 attempts)
+    const MAX_ATTACH_RETRIES = 3;
+
+    for (let attachAttempt = 1; attachAttempt <= MAX_ATTACH_RETRIES && !isAttached; attachAttempt++) {
+      console.log(`[VideoGen-UI] 🎯 Start frame attachment attempt ${attachAttempt}/${MAX_ATTACH_RETRIES} for ${searchName}...`);
+
+      // ONLY on retry (attempt > 1) do we check if a previous attempt within this call succeeded!
+      // NEVER check on attempt 1, because attempt 1 must strictly attach THIS panel's new image!
+      if (attachAttempt > 1) {
+        const preCheck = await checkStartFrameAttached();
+        if (preCheck.attached) {
+          isAttached = true;
+          console.log(`[VideoGen-UI] ✅ Start frame verified attached on retry (${preCheck.reason})!`);
+          break;
+        }
+      }
+
+      // 1. Try direct file input upload if temp file exists
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          const fileInputs = page.locator('input[type="file"]');
+          const inputCount = await fileInputs.count().catch(() => 0);
+          if (inputCount > 0) {
+            console.log(`[VideoGen-UI] 📤 Trying direct file input upload via input[type="file"] (${inputCount} inputs found)...`);
+            await fileInputs.last().setInputFiles(tempFilePath, { timeout: 3000 }).catch(() => {});
+            await page.waitForTimeout(1000);
+            const checkDirect = await checkStartFrameAttached();
+            if (checkDirect.attached) {
+              isAttached = true;
+              console.log(`[VideoGen-UI] ✅ Start frame attached directly via file input (${checkDirect.reason})!`);
+              break;
+            }
+          }
+        } catch (fiErr) {
+          console.warn(`[VideoGen-UI] ⚠️ Direct file input note: ${fiErr.message}`);
+        }
+      }
+
+      // 2. Click [ Bắt đầu ] (Start frame slot) to open asset picker dialog
+      // STRICT: Must click div.frame-trigger button.empty-chip or button.empty-chip!
+      // Must NEVER click the Submit button (which has aria-label="Bắt đầu tạo")!
+      let slotClicked = false;
+
+      // Strategy A: click the EMPTY slot only. Clicking a filled chip opens no picker.
+      if (await slotHasChip()) {
+        console.log('[VideoGen-UI] ⚠️ Slot still holds a chip before click — clearing again');
+        await page.evaluate(() => {
+          const ft = document.querySelector('div.frame-trigger');
+          const els = ft ? Array.from(ft.querySelectorAll('button, [role="button"], mat-icon, i')) : [];
+          for (const el of els) {
+            const t = (el.textContent || '').trim().toLowerCase();
+            const a = (el.getAttribute('aria-label') || '').toLowerCase();
+            if (t === 'close' || a.includes('remove') || a.includes('xoá') || a.includes('xóa') || a.includes('clear')) {
+              (el.closest('button') || el).click();
+              return;
+            }
+          }
+        }).catch(() => {});
+        await page.waitForTimeout(500);
+      }
+      const slotLoc = page.locator('div.frame-trigger button.empty-chip, button.empty-chip, div.frame-trigger button:not(:has(img))').first();
+      if (await slotLoc.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await slotLoc.click({ force: true, timeout: 3000 }).catch(() => {});
+        slotClicked = true;
+        console.log('[VideoGen-UI] ✅ Clicked [ Bắt đầu ] slot via locator');
+        await page.waitForTimeout(800);
+      }
+
+      if (!slotClicked) {
+        const clickSlotResult = await page.evaluate(() => {
+          const isSubmitBtn = (el) => {
+            if (!el) return false;
+            const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+            if (aria.includes('tạo') || aria.includes('generate')) return true;
+            if (el.classList && (el.classList.contains('generate-icon-button') || el.classList.contains('submit-button'))) return true;
+            const text = (el.innerText || el.textContent || '').trim().toLowerCase().replace(/\s+/g, ' ');
+            if (text.includes('arrow_forward') || text.includes('bắt đầu tạo') || text.includes('generate')) return true;
+            return false;
+          };
+
+          // 1. div.frame-trigger button.empty-chip
+          const ftChip = document.querySelector('div.frame-trigger button.empty-chip, button.empty-chip');
+          if (ftChip && !isSubmitBtn(ftChip)) {
+            ftChip.click();
+            const r = ftChip.getBoundingClientRect();
+            return { clicked: true, method: 'frame-trigger-empty-chip', x: r.left + r.width / 2, y: r.top + r.height / 2 };
+          }
+
+          // 2. div.frame-trigger button
+          const ft = document.querySelector('div.frame-trigger');
+          if (ft) {
+            const btn = ft.querySelector('button:not(.chip-container), button, [role="button"]') || ft;
+            if (!isSubmitBtn(btn)) {
+              btn.click();
+              const r = btn.getBoundingClientRect();
+              return { clicked: true, method: 'frame-trigger-btn', x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            }
+          }
+
+          // 3. Button near ProseMirror with text "Bắt đầu"
+          const pm = document.querySelector('.ProseMirror');
+          if (pm) {
+            const composerArea = pm.closest('flow-prompt-input, .composer, form') || pm.parentElement?.parentElement;
+            if (composerArea) {
+              const buttons = Array.from(composerArea.querySelectorAll('button, [role="button"]'));
+              for (const b of buttons) {
+                if (isSubmitBtn(b)) continue;
+                const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
+                if (txt === 'bắt đầu' || txt === 'start') {
+                  b.click();
+                  const r = b.getBoundingClientRect();
+                  return { clicked: true, method: 'composer-btn-start', x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                }
+              }
+            }
+          }
+
+          return { clicked: false };
+        }).catch(() => ({ clicked: false }));
+
+        if (clickSlotResult.clicked) {
+          slotClicked = true;
+          console.log(`[VideoGen-UI] ✅ Clicked [ Bắt đầu ] slot via DOM (${clickSlotResult.method})`);
+          await page.waitForTimeout(800);
+        }
+      }
+
+      // Check if asset picker modal opened
+      let modalOpened = false;
+      for (let mWait = 0; mWait < 10; mWait++) {
+        modalOpened = await page.evaluate(() => {
+          const candidates = Array.from(document.querySelectorAll('body > div, [role="dialog"], mat-dialog-container, .cdk-overlay-pane'));
+          for (const el of candidates) {
+            const r = el.getBoundingClientRect();
+            if (r.width < 100 || r.height < 100) continue;
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') continue;
+            const txt = (el.textContent || '').toLowerCase();
+            if (
+              txt.includes('chọn một hình ảnh khung') ||
+              txt.includes('chọn một hình ảnh') ||
+              txt.includes('select a frame image') ||
+              txt.includes('thêm vào câu lệnh') ||
+              txt.includes('add to prompt') ||
+              txt.includes('tìm kiếm tài nguyên') ||
+              txt.includes('search assets') ||
+              txt.includes('search for assets') ||
+              txt.includes('được dùng nhiều nhất') ||
+              txt.includes('most used') ||
+              txt.includes('mới nhất') ||
+              txt.includes('newest')
+            ) {
+              return true;
+            }
+          }
+          return false;
+        }).catch(() => false);
+
+        if (modalOpened) break;
+
+        const addBtnCheck = page.locator('button:has-text("Thêm vào câu lệnh"), button:has-text("Add to prompt")').first();
+        if (await addBtnCheck.isVisible({ timeout: 200 }).catch(() => false)) {
+          modalOpened = true;
+          break;
+        }
+
+        await page.waitForTimeout(300);
+      }
+
+      console.log(`[VideoGen-UI] 🪟 Asset picker modal opened: ${modalOpened ? 'YES' : 'NO'}`);
+
+      // 3. Interact with modal
+      if (modalOpened) {
+        await page.waitForTimeout(500);
+
+        // A. Ensure filter is set to "Mới nhất" (Newest) so newly uploaded panel image is at index 0
+        try {
+          const filterBtn = page.locator(
+            '[role="dialog"] button, mat-dialog-container button, .cdk-overlay-pane button'
+          ).filter({ hasText: /Gần đây|Mới nhất|Cũ nhất|Dùng nhiều nhất|Yêu thích|Most used|Newest/i }).first();
+          if (await filterBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            const currentText = (await filterBtn.innerText().catch(() => '')).toLowerCase();
+            if (!currentText.includes('mới nhất') && !currentText.includes('newest')) {
+              await filterBtn.click({ force: true }).catch(() => {});
+              await page.waitForTimeout(400);
+              const newestOption = page.locator('[role="menuitem"], [role="option"], button').filter({ hasText: /Mới nhất|Newest/i }).last();
+              if (await newestOption.isVisible({ timeout: 1500 }).catch(() => false)) {
+                await newestOption.click({ force: true }).catch(() => {});
+                console.log('[VideoGen-UI] ⏱️ Switched asset filter to "Mới nhất" (Newest)');
+                await page.waitForTimeout(800);
+              } else {
+                await page.keyboard.press('Escape').catch(() => {});
+              }
+            }
+          }
+        } catch (_) {}
+
+        // B. Click the newest asset card in the list
+        let cardClicked = false;
+        try {
+          const cardLoc = page.locator(
+            '[role="dialog"] [role="option"], ' +
+            '[role="dialog"] [role="listitem"], ' +
+            'mat-dialog-container [role="option"], ' +
+            'mat-dialog-container [role="listitem"], ' +
+            '.cdk-overlay-pane [role="option"], ' +
+            '.cdk-overlay-pane [role="listitem"], ' +
+            '[role="dialog"] button:has(img), ' +
+            '[role="dialog"] .asset-item-container, ' +
+            '[data-testid="virtuoso-scroller"] [data-index="0"]'
+          ).first();
+
+          if (await cardLoc.isVisible({ timeout: 1500 }).catch(() => false)) {
+            await cardLoc.click({ force: true }).catch(() => {});
+            cardClicked = true;
+            console.log('[VideoGen-UI] 🃏 Clicked newest asset card via locator');
+            await page.waitForTimeout(600);
+          }
+        } catch (_) {}
+
+        if (!cardClicked) {
+          const assetCardResult = await page.evaluate(({ uuid }) => {
+            const candidates = Array.from(document.querySelectorAll('body > div, [role="dialog"], mat-dialog-container, .cdk-overlay-pane'));
+            let modal = null;
+            for (const el of candidates) {
+              const r = el.getBoundingClientRect();
+              if (r.width < 100 || r.height < 100) continue;
+              const txt = (el.textContent || '').toLowerCase();
+              if (txt.includes('hình ảnh') || txt.includes('frame') || txt.includes('thêm vào câu lệnh') || txt.includes('add to prompt') || txt.includes('chọn một hình ảnh') || txt.includes('select a frame')) {
+                modal = el;
+                break;
+              }
+            }
+            if (!modal) modal = document;
+
+            // 1. Try match uuid in tile outerHTML
+            if (uuid) {
+              const tiles = Array.from(modal.querySelectorAll('[role="option"], [role="listitem"], mat-grid-tile, button, img'));
+              for (const tile of tiles) {
+                if (tile.outerHTML && tile.outerHTML.includes(uuid)) {
+                  (tile.querySelector('img, button') || tile).click();
+                  return { clicked: true, method: 'matched-uuid' };
+                }
+              }
+            }
+
+            // 2. Click top thumbnail (first image in the newest list)
+            const firstTile = modal.querySelector('[role="option"] img, [role="listitem"] img, mat-grid-tile img, img.image, .asset-card img, .asset-item-container img, [role="listbox"] img, button img');
+            if (firstTile) {
+              (firstTile.closest('[role="option"], [role="listitem"], button') || firstTile).click();
+              return { clicked: true, method: 'top-item' };
+            }
+
+            return { clicked: false, note: 'preview_already_active' };
+          }, { uuid: targetId }).catch(() => ({ clicked: false }));
+
+          console.log(`[VideoGen-UI] 🃏 Asset card click result: ${JSON.stringify(assetCardResult)}`);
+          await page.waitForTimeout(600);
+        }
+
+        // Click "Add to prompt" / "Thêm vào câu lệnh"
+        console.log('[VideoGen-UI] 🔘 Waiting for and clicking "Thêm vào câu lệnh"...');
+        let addClicked = false;
+        const addBtnLoc = page.locator(
+          '[role="dialog"] button, mat-dialog-container button, .cdk-overlay-pane button, body button'
+        ).filter({ hasText: /Thêm vào câu lệnh|Add to prompt|Thêm vào lời nhắc|Thêm vào|Chọn|Select/i }).last();
+
+        if (await addBtnLoc.isVisible({ timeout: 4000 }).catch(() => false)) {
+          await addBtnLoc.click({ force: true, timeout: 3000 }).catch(() => {});
+          addClicked = true;
+          console.log('[VideoGen-UI] ✅ Clicked "Thêm vào câu lệnh" button via locator!');
+          await page.waitForTimeout(1000);
+        }
+
+        if (!addClicked) {
+          const addBtnResult = await page.evaluate(() => {
+            const btns = Array.from(document.querySelectorAll('button, [role="button"], .add-to-prompt-button'));
+            for (const b of btns) {
+              const t = (b.textContent || '').trim().toLowerCase().replace(/\s+/g, ' ');
+              if (
+                t === 'add to prompt' ||
+                t.includes('add to prompt') ||
+                t.includes('thêm vào câu lệnh') ||
+                t.includes('thêm vào lời nhắc') ||
+                t.includes('thêm vào') ||
+                t === 'chọn' ||
+                t === 'select'
+              ) {
+                b.click();
+                return t;
+              }
+            }
+            return null;
+          }).catch(() => null);
+
+          if (addBtnResult) {
+            addClicked = true;
+            console.log(`[VideoGen-UI] 🔘 Clicked "${addBtnResult}" button via DOM eval!`);
+            await page.waitForTimeout(1000);
+          }
+        }
+
+        // Wait for modal to close naturally
+        for (let waitClose = 0; waitClose < 8; waitClose++) {
+          const modalStillOpen = await page.evaluate(() => {
+            const candidates = Array.from(document.querySelectorAll('body > div, [role="dialog"], mat-dialog-container, .cdk-overlay-pane'));
+            for (const el of candidates) {
+              const r = el.getBoundingClientRect();
+              if (r.width < 100 || r.height < 100) continue;
+              const txt = (el.textContent || '').toLowerCase();
+              if (txt.includes('chọn một hình ảnh khung') || txt.includes('select a frame image') || txt.includes('thêm vào câu lệnh')) {
+                return true;
+              }
+            }
+            return false;
+          }).catch(() => false);
+
+          if (!modalStillOpen) break;
+          await page.waitForTimeout(300);
+        }
+
+        // Close via Escape if still open
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(400);
+      }
+
+      // Check start frame attachment in DOM
+      const check = await checkStartFrameAttached();
+      if (check.attached) {
+        isAttached = true;
+        console.log(`[VideoGen-UI] 🖼️ Start frame attachment verification: ✅ CONFIRMED ATTACHED (${check.reason})!`);
+        break;
+      }
+
+      console.warn(`[VideoGen-UI] ⚠️ Start frame not attached yet (${check.reason}) — retrying...`);
+      await page.waitForTimeout(1000);
+    }
+
+    // Clean up temp file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try { fs.unlinkSync(tempFilePath); } catch (_) {}
+    }
+
+    // STRICT ENFORCEMENT: If start frame is not attached, ABORT GENERATION!
+    if (!isAttached) {
+      console.error(`[VideoGen-UI] ❌ CRITICAL: Failed to attach Start Frame image (${searchName}) to [ Bắt đầu ] slot after all retries!`);
+      throw new Error(`[VideoGen-UI] Start frame image (${searchName}) could not be attached to [ Bắt đầu ] slot in Flow UI. Aborting to avoid generating Text-to-Video.`);
+    }
+  }
+
+  // 4. Fill prompt
+  console.log('[VideoGen-UI] ✍️ Typing video prompt...');
+  const promptEditorResult = await page.evaluate(async (promptText) => {
+    const isVisible = (el) => {
+      if (!el || !el.isConnected) return false;
+      const r = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+      return r.width > 20; // Don't require strict height or top inside compact/mini window
+    };
+
+    const candidates = Array.from(document.querySelectorAll(
+      '.ProseMirror, [data-slate-editor="true"], [contenteditable="true"], textarea'
+    )).filter(isVisible).filter(el => {
+      if (el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header')) return false; // Exclude top project header / title
+      const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+      const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+      if (ph.includes('search') || ph.includes('tìm') || aria.includes('search') || aria.includes('tìm')) return false;
+      return true;
+    });
+
+    if (candidates.length === 0) return { found: false };
+
+    // Closest to bottom of viewport = composer
+    candidates.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+    const editor = candidates[0];
+
+    editor.scrollIntoView({ block: 'nearest' });
+    editor.focus();
+
+    // Clear content
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand('delete', false);
+    } catch (_) {}
+
+    // Insert text via execCommand
+    try {
+      document.execCommand('insertText', false, promptText);
+    } catch (_) {}
+
+    // Trigger events for Angular / ProseMirror
+    editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+    const text = (editor.innerText || editor.textContent || editor.value || '').trim();
+    return {
+      found: true,
+      textLength: text.length,
+      textSnippet: text.substring(0, 50),
+      top: editor.getBoundingClientRect().top
+    };
+  }, prompt).catch(() => ({ found: false }));
+
+  console.log(`[VideoGen-UI] ✍️ DOM prompt insertion: found=${promptEditorResult?.found}, len=${promptEditorResult?.textLength || 0}, snippet="${promptEditorResult?.textSnippet || ''}"`);
+
+  // Fallback via Playwright locator if text didn't stick
+  const editorLocator = page.locator('.ProseMirror, [contenteditable="true"]').filter({
+    hasNot: page.locator('input[placeholder*="search" i]')
+  }).last();
+
+  if (await editorLocator.isVisible().catch(() => false)) {
+    if (!promptEditorResult?.textLength || promptEditorResult.textLength < 10) {
+      await editorLocator.scrollIntoViewIfNeeded().catch(() => {});
+      await editorLocator.click({ timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(200);
+      await page.keyboard.press('Meta+A').catch(() => {});
+      await page.keyboard.press('Backspace').catch(() => {});
+      await page.waitForTimeout(100);
+      try {
+        await page.keyboard.insertText(prompt);
+      } catch (_) {
+        try { await page.keyboard.type(prompt); } catch (__) {}
+      }
+      await page.waitForTimeout(400);
+    }
+  }
+
+  // Verify prompt is in the editor
+  const finalEditorText = await page.evaluate(() => {
+    const editors = Array.from(document.querySelectorAll('.ProseMirror, [contenteditable="true"], textarea'))
+      .filter(el => !el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'))
+      .filter(el => {
+        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        return !ph.includes('search') && !ph.includes('tìm');
+      });
+    for (const ed of editors) {
+      const txt = (ed.innerText || ed.textContent || ed.value || '').trim();
+      if (txt.length > 0) return txt;
+    }
+    if (editors.length === 0) return '';
+    editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+    return (editors[0].innerText || editors[0].textContent || editors[0].value || '').trim();
+  }).catch(() => '');
+  console.log(`[VideoGen-UI] ✍️ Final prompt in editor (${finalEditorText.length} chars): "${finalEditorText.substring(0, 60)}..."`);
+
+  // 5. Click generate button & submit
+  console.log('[VideoGen-UI] 🚀 Submitting video generation...');
+
+  // Wait for submit button to be enabled (up to 8s)
+  let submitClicked = false;
+  for (let c = 0; c < 16; c++) {
+    const status = await page.evaluate(() => {
+      const isVisible = (el) => {
+        if (!el || !el.isConnected) return false;
+        const style = window.getComputedStyle(el);
+        if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) return false;
+        const r = el.getBoundingClientRect();
+        return r.width >= 16 && r.height >= 16 && r.bottom > 0 && r.top < window.innerHeight;
+      };
+      const isEnabled = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true' && !el.classList.contains('disabled');
+
+      // Only search buttons in composer area (not in top header/nav)
+      const buttons = Array.from(document.querySelectorAll('button, [role="button"]'))
+        .filter(isVisible)
+        .filter(b => !b.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'));
+
+      // 1. Arrow forward button
+      for (const b of buttons) {
+        const icon = b.querySelector('.google-symbols, mat-icon, i, span');
+        const iconText = (icon?.textContent || '').trim().toLowerCase();
+        const bText = (b.textContent || '').trim().toLowerCase();
+        if (iconText === 'arrow_forward' || bText === 'arrow_forward' || bText.includes('arrow_forward')) {
+          if (isEnabled(b)) {
+            b.click();
+            return { found: true, enabled: true, clicked: true, type: 'arrow_forward' };
+          }
+          return { found: true, enabled: false, clicked: false, type: 'arrow_forward' };
+        }
+      }
+
+      // 2. Specific aria-label submit buttons (exact or tight match)
+      for (const b of buttons) {
+        const aria = (b.getAttribute('aria-label') || '').toLowerCase().trim();
+        if (aria === 'bắt đầu tạo' || aria === 'generate' || aria === 'tạo video' || aria === 'gửi' || aria === 'tạo') {
+          if (isEnabled(b)) {
+            b.click();
+            return { found: true, enabled: true, clicked: true, type: `aria:${aria}` };
+          }
+          return { found: true, enabled: false, clicked: false, type: `aria:${aria}` };
+        }
+      }
+
+      return { found: false };
+    }).catch(() => ({ found: false }));
+
+    if (status.clicked) {
+      submitClicked = true;
+      console.log(`[VideoGen-UI] ✅ Submit button clicked via DOM eval (${status.type})!`);
+      break;
+    }
+
+    if (status.found && !status.enabled) {
+      // Button found but not yet enabled — wait for Flow state to update
+      await page.waitForTimeout(500);
+      continue;
+    }
+
+    await page.waitForTimeout(500);
+  }
+
+  // Also try Playwright locator click on arrow button as backup
+  if (!submitClicked) {
+    const arrowLoc = page.locator('button:has(.google-symbols:has-text("arrow_forward")), button:has(i:has-text("arrow_forward")), button[aria-label="Bắt đầu tạo"], button.generate-icon-button').last();
+    if (await arrowLoc.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('[VideoGen-UI] 🖱️ Attempting locator click on arrow submit button...');
+      await arrowLoc.click({ force: true, timeout: 3000 }).catch(() => {});
+      submitClicked = true;
+    }
+  }
+
+  // Universal Flow submit shortcut: focus editor and press Enter
+  console.log('[VideoGen-UI] ⌨️ Pressing Enter on composer editor to trigger submission...');
+  await page.evaluate(() => {
+    const editors = Array.from(document.querySelectorAll('.ProseMirror, [contenteditable="true"], textarea'))
+      .filter(el => !el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'))
+      .filter(el => {
+        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        return !ph.includes('search') && !ph.includes('tìm');
+      });
+    if (editors.length > 0) {
+      editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+      editors[0].focus();
+    }
+  }).catch(() => {});
+  await page.waitForTimeout(100);
+  await page.keyboard.press('Enter').catch(() => {});
+
+  // Backup Enter press after 2s if response not received yet
+  setTimeout(async () => {
+    try {
+      if (!mediaName && !page.isClosed()) {
+        console.log('[VideoGen-UI] ⏳ Backup Enter press dispatched...');
+        await page.evaluate(() => {
+          const editors = Array.from(document.querySelectorAll('.ProseMirror, [contenteditable="true"], textarea'))
+            .filter(el => !el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'))
+            .filter(el => {
+              const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+              return !ph.includes('search') && !ph.includes('tìm');
+            });
+          if (editors.length > 0) {
+            editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+            editors[0].focus();
+          }
+        }).catch(() => {});
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+    } catch (_) {}
+  }, 2000);
+
+  console.log('[VideoGen-UI] ⏳ Submitted video prompt in Flow UI! Waiting for response...');
+  const resultMediaName = await rpcPromise;
+  if (resultMediaName) {
+    console.log(`[VideoGen-UI] ✅ Video generation dispatched via Flow UI! Media: ${resultMediaName}`);
+    const wiz = await page.evaluate(() => {
+      const w = window.WIZ_global_data || {};
+      return {
+        at: w.SNlM0e || '',
+        fsid: w.FdrFJe || '',
+        bl: w.cfb2h || 'boq_labs-ai-sandbox-frontend_20260917.00_p0',
+        projectId: w.PROJECT_ID || ''
+      };
+    }).catch(() => null);
+    return { media: [{ name: resultMediaName, projectId: targetProjectId }], wiz: { ...(wiz || {}), projectId: targetProjectId } };
+  }
+
+  return null;
+}
+
+async function startMultiImageVideoGeneration(page, context, {
+  prompt,
+  imageMediaIds = [],
+  imageBuffers = [],      // raw Buffer[] matching imageMediaIds order for UI file-input upload
+  imageNames = [],        // filenames for each buffer
+  aspectRatio = '9:16',
+  videoModelKey = 'abra_r2v_8s',
+  voiceId = null,
+  projectId = null,
+  outputCount = 1
+}) {
+  const targetProjectId = projectId || (page ? extractProjectIdFromPage(page) : PROJECT_ID);
+
+  // eb1hJf uses abra_i2v_4s / abra_i2v_8s (i2v = image-to-video)
+  const rawModel = String(videoModelKey || '').toLowerCase();
+  const modelKey = rawModel.includes('4s') ? 'abra_i2v_4s' : 'abra_i2v_8s';
+
+  console.log(`[VideoGen-Multi] 🎬 Starting video generation via Flow UI (model: ${modelKey}, outputCount: ${outputCount || 1})...`);
+  console.log(`[VideoGen-Multi]   prompt: "${prompt.substring(0, 80)}..."`);
+  console.log(`[VideoGen-Multi]   imageMediaIds: ${imageMediaIds.join(', ')}`);
+
+  // Google blocks ALL programmatic fetch() calls to eb1hJf/MZZa6b with PUBLIC_ERROR_UNUSUAL_ACTIVITY.
+  // The ONLY working approach: let Flow Angular app send eb1hJf natively via real UI interaction.
+  if (!page || page.isClosed()) {
+    throw new Error('[VideoGen-Multi] No Playwright page available — cannot use UI approach');
+  }
+
+  const uiResult = await startVideoGenerationViaUI({
+    page,
+    prompt,
+    imageMediaIds,
+    imageBuffer: imageBuffers[0] || null,
+    imageName: imageNames[0] || 'panel.png',
+    aspectRatio,
+    videoModelKey: modelKey,
+    targetProjectId,
+    outputCount: Number(outputCount) || 1
+  }).catch(err => {
+    console.warn(`[VideoGen-Multi] ⚠️ UI video generation threw: ${err.message}`);
+    return null;
+  });
+
+  if (uiResult && uiResult.media?.[0]?.name) {
+    console.log(`[VideoGen-Multi] ✅ Video generation started via Flow UI! Media: ${uiResult.media[0].name}`);
+    return uiResult;
+  }
+
+  throw new Error('[VideoGen-Multi] Flow UI video generation timed out — eb1hJf response not captured.');
+}
+
+
+async function fetchFlowVideoUrlViaAs29s(context, mediaName, wiz, customProjectId = null) {
+  const targetProjectId = customProjectId || wiz?.projectId || PROJECT_ID;
   const reqId = Math.floor(Math.random() * 900000) + 100000;
-  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=as29s&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
+  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=as29s&source-path=${encodeURIComponent('/project/' + targetProjectId)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
 
   const innerPayload = [mediaName];
   const fReq = JSON.stringify([[["as29s", JSON.stringify(innerPayload), null, "generic"]]]);
@@ -607,8 +1934,9 @@ async function pollFlowVideoStatusStandalone({ context, mediaName, wiz, options 
   for (let i = 0; i < maxPolls; i++) {
     await delay(5000);
 
-    const reqId = Math.floor(Math.random() * 900000) + 100000;
-    const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=jwpduf&source-path=${encodeURIComponent('/project/' + PROJECT_ID)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
+  const targetProjectId = options?.projectId || wiz?.projectId || PROJECT_ID;
+  const reqId = Math.floor(Math.random() * 900000) + 100000;
+  const rpcUrl = `https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=jwpduf&source-path=${encodeURIComponent('/project/' + targetProjectId)}&bl=${encodeURIComponent(wiz?.bl || 'boq_labs-ai-sandbox-frontend_20260903.13_p1')}&f.sid=${encodeURIComponent(wiz?.fsid || '')}&hl=vi&_reqid=${reqId}&rt=c`;
 
     const innerPayload = [null, null, [[mediaName]]];
     const fReq = JSON.stringify([[["jwpduf", JSON.stringify(innerPayload), null, "generic"]]]);
@@ -671,7 +1999,7 @@ async function pollFlowVideoStatusStandalone({ context, mediaName, wiz, options 
       if (statusCode === 3) {
         console.log(`[VideoGen] ✅ Flow video completed via jwpduf after ${(i + 1) * 5}s!`);
         const resolvedMediaName = (typeof item[0] === 'string' && item[0].length > 0) ? item[0] : mediaName;
-        const videoUrl = await fetchFlowVideoUrlViaAs29s(context, resolvedMediaName, wiz);
+        const videoUrl = await fetchFlowVideoUrlViaAs29s(context, resolvedMediaName, wiz, targetProjectId);
         console.log(`[VideoGen] Resolved Flow video URL: ${videoUrl.substring(0, 80)}...`);
         return {
           name: resolvedMediaName,
@@ -716,11 +2044,13 @@ async function pollVideoStatusStandalone(context, bearerToken, mediaName, option
   const debugPrefix = options.debugPrefix || '[VideoGen]';
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
+  const targetProjectId = options.projectId || PROJECT_ID;
+
   for (let i = 0; i < maxPolls; i++) {
     await delay(5000);
 
     const statusBody = {
-      media: [{ name: mediaName, projectId: PROJECT_ID }]
+      media: [{ name: mediaName, projectId: targetProjectId }]
     };
 
     try {
@@ -809,7 +2139,8 @@ async function extendVideo(page, context, {
   extendPrompt,
   videoMediaId,
   workflowId,
-  aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT'
+  aspectRatio = 'VIDEO_ASPECT_RATIO_PORTRAIT',
+  projectId = null
 }) {
   console.log(`[VideoGen] Extending video via API...`);
   console.log(`[VideoGen]   videoMediaId: ${videoMediaId}`);
@@ -828,13 +2159,15 @@ async function extendVideo(page, context, {
   const sessionId = `;${Date.now()}`;
   const batchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+  const targetProjectId = projectId || (page ? extractProjectIdFromPage(page) : PROJECT_ID);
+
   const requestBody = {
     mediaGenerationContext: {
       batchId: batchId,
       audioFailurePreference: 'BLOCK_SILENCED_VIDEOS'
     },
     clientContext: {
-      projectId: PROJECT_ID,
+      projectId: targetProjectId,
       tool: 'PINHOLE',
       userPaygateTier: 'PAYGATE_TIER_TWO',
       sessionId: sessionId,
@@ -1057,11 +2390,16 @@ async function concatenateVideos(page, context, mediaId1, mediaId2) {
 // ═══════════════════════════════════════════════════════════════
 async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, config, baseDir) {
   const { imageSelection } = config;
-  const context = getContext();
+  const context = getContext() || (page ? page.context() : null);
   if (!context) throw new Error('[VideoGen] Browser context not available');
 
-  console.log('[VideoGen] Step 1: Getting Bearer token...');
-  const bearerToken = await ensureBearerToken(page);
+  console.log('[VideoGen] Step 1: Getting Bearer token (optional for Flow native RPC)...');
+  let bearerToken = null;
+  try {
+    bearerToken = await ensureBearerToken(page, false, { optional: true, quick: true });
+  } catch (tErr) {
+    console.warn(`[VideoGen] ⚠️ Bearer token capture note: ${tErr.message} (will proceed with Flow native RPC)`);
+  }
 
   const isMulti = Boolean(
     config.multiImageMode ||
@@ -1071,8 +2409,10 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
   const MAX_RETRIES = 3;
   let mediaName = null;
 
+  const targetProjectId = config.projectId || (page ? extractProjectIdFromPage(page) : PROJECT_ID);
+
   if (isMulti) {
-    console.log(`[VideoGen-Multi] Preparing multi-image video generation with ${filePayloads.length} images...`);
+    console.log(`[VideoGen-Multi] Preparing multi-image video generation with ${filePayloads.length} images (project: ${targetProjectId})...`);
     const imageMediaIds = [];
     for (let i = 0; i < filePayloads.length; i++) {
       const f = filePayloads[i];
@@ -1081,7 +2421,7 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
         console.log(`[VideoGen-Multi] Using provided mediaId [${i + 1}/${filePayloads.length}]: ${f.mediaId} (${f.name || 'image'})`);
       } else if (f.buffer) {
         console.log(`[VideoGen-Multi] Uploading reference image [${i + 1}/${filePayloads.length}]: ${f.name || ('image-' + i)}...`);
-        const mid = await uploadImageDirect(context, bearerToken, f.buffer, page, baseDir);
+        const mid = await uploadImageDirect(context, bearerToken, f.buffer, page, baseDir, targetProjectId, f.name || `panel-${i + 1}.png`, f.mimeType || 'image/png');
         imageMediaIds.push(mid);
         console.log(`[VideoGen-Multi] ✅ Uploaded [${i + 1}/${filePayloads.length}]: ${mid}`);
       }
@@ -1091,6 +2431,10 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
       throw new Error('[VideoGen-Multi] No valid reference image IDs could be resolved or uploaded');
     }
 
+    // Build imageBuffers + imageNames from filePayloads for UI file-input upload
+    const imageBuffers = filePayloads.map(f => f.buffer || null).filter(Boolean);
+    const imageNames = filePayloads.map((f, i) => f.name || `panel-${i + 1}.png`);
+
     let wiz = null;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -1098,9 +2442,13 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
         const apiResult = await startMultiImageVideoGeneration(page, context, {
           prompt,
           imageMediaIds,
+          imageBuffers,
+          imageNames,
           aspectRatio: config.aspectRatio || '9:16',
           videoModelKey: config.videoModelKey || 'abra_r2v_8s',
-          voiceId: config.voiceId !== undefined ? config.voiceId : (config.hasVoice ? 'laomedeia' : null)
+          voiceId: config.voiceId !== undefined ? config.voiceId : (config.hasVoice ? 'laomedeia' : null),
+          projectId: targetProjectId,
+          outputCount: config.outputCount || 1,
         });
         mediaName = apiResult.media?.[0]?.name;
         wiz = apiResult.wiz;
@@ -1121,7 +2469,7 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
     let startImageMediaId = null;
     if (filePayloads && filePayloads.length > 0) {
       console.log(`[VideoGen] Step 2: Direct uploading start image: ${filePayloads[0].name}...`);
-      startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer, page, baseDir);
+      startImageMediaId = await uploadImageDirect(context, bearerToken, filePayloads[0].buffer, page, baseDir, targetProjectId, filePayloads[0].name || 'panel.png', filePayloads[0].mimeType || 'image/png');
       console.log(`[VideoGen] ✅ Direct upload success: ${startImageMediaId}`);
     } else {
       const selections = imageSelection;
@@ -1139,25 +2487,31 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES}...`);
-        const apiResult = await startVideoGeneration(page, context, {
-          prompt, startImageMediaId,
+        console.log(`[VideoGen] Start attempt ${attempt}/${MAX_RETRIES} (native Flow MZZa6b)...`);
+        const targetModel = config.videoModelKey || 'veo_3_1_i2v_lite_low_priority';
+        const flowResult = await startMultiImageVideoGeneration(page, context, {
+          prompt,
+          imageMediaIds: [startImageMediaId],
+          imageBuffers: filePayloads && filePayloads[0]?.buffer ? [filePayloads[0].buffer] : [],
+          imageNames: filePayloads && filePayloads[0]?.name ? [filePayloads[0].name] : ['panel.png'],
           aspectRatio: config.aspectRatio || '9:16',
-          videoModelKey: config.videoModelKey || null
+          videoModelKey: targetModel,
+          projectId: targetProjectId,
+          outputCount: config.outputCount || 1,
         });
-        mediaName = apiResult.media?.[0]?.name;
-        if (!mediaName) throw new Error('[VideoGen] No media name in API response');
-        console.log(`[VideoGen] ✅ Started! Media: ${mediaName}`);
-        break;
+        mediaName = flowResult.media?.[0]?.name;
+        const wiz = flowResult.wiz;
+        if (!mediaName) throw new Error('[VideoGen] No media name in MZZa6b response');
+        console.log(`[VideoGen] ✅ Started via MZZa6b! Media: ${mediaName}`);
+        console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
+        return { context, bearerToken, mediaName, prompt, extendPrompt, config, wiz, isFlowRpc: true };
       } catch (err) {
         console.log(`[VideoGen] ❌ Attempt ${attempt} failed: ${err.message}`);
         if (attempt >= MAX_RETRIES) throw err;
         await page.waitForTimeout(5000);
       }
     }
-
-    console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
-    return { context, bearerToken, mediaName, prompt, extendPrompt, config, isFlowRpc: false };
+    return { context, bearerToken, mediaName, prompt, extendPrompt, config, isFlowRpc: true };
   }
 }
 
@@ -1170,6 +2524,7 @@ async function executeVideoGeneration({ context, bearerToken, mediaName, config,
     requireVideoUrl: false,
     isFlowRpc,
     wiz,
+    projectId: config?.projectId || wiz?.projectId
   });
 
   // Extract video URL
@@ -1231,6 +2586,9 @@ module.exports = {
   pollVideoStatusStandalone,
   pollFlowVideoStatusStandalone,
   startMultiImageVideoGeneration,
+  startVideoGenerationViaUI,
+  parseBatchExecuteResponse,
+  findMediaNameInBatchResult,
   RAW_VIDEO_MODEL_ALIASES,
   VIDEO_MODEL_MAP,
   findFifeUrl,

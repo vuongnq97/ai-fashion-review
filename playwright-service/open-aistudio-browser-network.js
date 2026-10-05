@@ -33,7 +33,7 @@ function redactText(text = '') {
 }
 
 function shouldLog(rawUrl) {
-  return /gemini\.google\.com|content-push\.googleapis\.com|aistudio\.google\.com|ai\.studio|labs\.google|aisandbox-pa\.googleapis\.com|generativelanguage\.googleapis\.com|alkalimakersuite|MakerSuiteService|batchexecute|StreamGenerate|streamGenerate|run\.app|googleusercontent\.com/i.test(rawUrl);
+  return /flow\.google\.com|gemini\.google\.com|content-push\.googleapis\.com|aistudio\.google\.com|ai\.studio|labs\.google|aisandbox-pa\.googleapis\.com|generativelanguage\.googleapis\.com|alkalimakersuite|MakerSuiteService|batchexecute|video|veo|StreamGenerate|streamGenerate|run\.app|googleusercontent\.com/i.test(rawUrl);
 }
 
 function append(file, entry) {
@@ -44,9 +44,22 @@ function append(file, entry) {
   fs.mkdirSync(outDir, { recursive: true });
   const logFile = path.join(outDir, `network-${Date.now()}.jsonl`);
 
+  // Clean up stale singleton lock files
+  try {
+    if (fs.existsSync(userDataDir)) {
+      const files = fs.readdirSync(userDataDir);
+      for (const f of files) {
+        if (f.startsWith('Singleton')) {
+          try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+
   const winConfig = getWindowLaunchConfig(__dirname);
   ensureProfileWindowPlacement(userDataDir, winConfig);
   const context = await chromium.launchPersistentContext(userDataDir, {
+    channel: 'chrome',
     headless: false,
     viewport: null,
     args: [

@@ -42,7 +42,9 @@ Script `setup.sh` / `setup.bat` → [`playwright-service/setup.js`](playwright-s
    - Tạo/khởi động container `n8n` (dùng lại container cũ nếu đã có, ngược lại `docker compose up -d n8n`).
    - Cài community node `n8n-nodes-social-tiktok` và restart n8n.
    - Import workflow `workflows/TIKTOK UPLOAD ONLY.json` (bỏ qua nếu đã có).
-   - Việc làm tay 1 lần trên `http://localhost:5678`: tạo owner → gắn credential TikTok → bật **Active** workflow.
+   - Đẩy `playwright-service/tiktok-accounts.json` + `TELEGRAM_BOT_TOKEN` vào n8n credentials (ID trùng với ID workflow dùng). Chỉ tự chạy khi n8n **chưa có** credential TikTok, tránh ghi đè cookie mới hơn; ép đồng bộ: `node setup.js --sync-credentials`.
+   - **Publish (Active)** workflow → webhook `POST /webhook/tiktok-task` sẵn sàng.
+   - Việc làm tay duy nhất: tạo tài khoản owner trên `http://localhost:5678` (lần đầu).
 8. Mở trình duyệt để đăng nhập Google lần đầu và tự xuất cookie.
 
 > Setup an toàn để chạy lại nhiều lần — các bước đã xong sẽ được giữ nguyên.

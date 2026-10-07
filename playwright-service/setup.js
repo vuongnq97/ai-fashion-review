@@ -10,6 +10,8 @@ const ENV_EXAMPLE_PATH = path.join(BASE_DIR, '.env.example');
 
 // --yes / -y: chạy không tương tác (tự chọn mặc định, bỏ qua bước nhập token/đăng nhập)
 const NON_INTERACTIVE = process.argv.includes('--yes') || process.argv.includes('-y') || !process.stdin.isTTY;
+// --sync-credentials: luôn ghi đè credentials n8n bằng tiktok-accounts.json + TELEGRAM_BOT_TOKEN
+const FORCE_SYNC_CREDS = process.argv.includes('--sync-credentials');
 
 function askQuestion(query) {
   if (NON_INTERACTIVE) {
@@ -181,10 +183,70 @@ async function setupN8nDocker() {
     }
   }
 
-  console.log('  👉 Việc còn lại làm 1 lần trên UI http://localhost:5678:');
+  // 6. Đẩy credentials (tiktok-accounts.json + TELEGRAM_BOT_TOKEN) vào n8n
+  //    ID trong tiktok-accounts.json trùng với credential ID mà workflow tham chiếu.
+  const accountsFile = path.join(BASE_DIR, 'tiktok-accounts.json');
+  let needRestart = false;
+  let credsImported = false;
+  if (fs.existsSync(accountsFile)) {
+    let existingTiktokCreds = -1;
+    try {
+      existingTiktokCreds = Number(sh(`docker exec ${N8N_CONTAINER} node -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/home/node/.n8n/database.sqlite',{readOnly:true});console.log(db.prepare(\\"SELECT count(*) c FROM credentials_entity WHERE type='tiktokApi'\\").get().c)"`).split('\n').pop());
+    } catch (_) { }
+
+    let doImport = FORCE_SYNC_CREDS || existingTiktokCreds === 0;
+    if (!doImport && existingTiktokCreds > 0) {
+      console.log(`  ℹ️  n8n đã có ${existingTiktokCreds} credential TikTok.`);
+      const ans = await askQuestion('   Ghi đè bằng dữ liệu trong tiktok-accounts.json? (y/n, mặc định n): ');
+      doImport = ans.toLowerCase().startsWith('y');
+      if (!doImport) console.log('  ⏭️  Giữ nguyên credentials hiện có (ép đồng bộ: node setup.js --sync-credentials).');
+    }
+    if (doImport) {
+      console.log('  ⏳ Đẩy tiktok-accounts.json + Telegram token vào n8n credentials...');
+      try {
+        execSync('node import-credentials-to-n8n.js', {
+          cwd: BASE_DIR,
+          stdio: 'inherit',
+          env: { ...process.env, N8N_CONTAINER_NAME: N8N_CONTAINER },
+        });
+        credsImported = true; // script đã tự restart n8n
+      } catch (e) {
+        console.warn('  ⚠️  Import credentials thất bại:', e.message);
+      }
+    }
+  } else {
+    console.log('  ℹ️  Không có playwright-service/tiktok-accounts.json → bỏ qua đẩy credentials.');
+  }
+
+  // 7. Publish (Active) workflow
+  if (fs.existsSync(wfPath)) {
+    try {
+      const wfId = JSON.parse(fs.readFileSync(wfPath, 'utf8')).id;
+      let isActive = false;
+      try {
+        isActive = sh(`docker exec ${N8N_CONTAINER} node -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/home/node/.n8n/database.sqlite',{readOnly:true});const r=db.prepare('SELECT active FROM workflow_entity WHERE id=?').get('${wfId}');console.log(r&&r.active?1:0)"`).split('\n').pop() === '1';
+      } catch (_) { }
+      if (isActive) {
+        console.log(`  ✅ Workflow "${N8N_WORKFLOW_NAME}" đã được publish (Active).`);
+      } else {
+        sh(`docker exec ${N8N_CONTAINER} n8n publish:workflow --id=${wfId}`);
+        needRestart = true;
+        console.log(`  ✅ Đã publish workflow "${N8N_WORKFLOW_NAME}" (id: ${wfId}).`);
+      }
+    } catch (e) {
+      console.warn('  ⚠️  Publish workflow thất bại (bật Active thủ công trên UI):', (e.stderr || e.message || '').toString().split('\n')[0]);
+    }
+  }
+
+  if (needRestart) {
+    console.log('  🔄 Restart n8n để áp dụng...');
+    try { sh(`docker restart ${N8N_CONTAINER}`); } catch (_) { }
+  }
+
+  console.log('  👉 Kiểm tra lại 1 lần trên UI http://localhost:5678:');
   console.log('     1. Tạo tài khoản owner (nếu là lần đầu).');
-  console.log('     2. Tạo/gắn credential TikTok cho node "TikTok Upload With Product" (hoặc: node import-credentials-to-n8n.js).');
-  console.log(`     3. Mở workflow "${N8N_WORKFLOW_NAME}" → bật Active.`);
+  if (!credsImported) console.log('     2. Credential TikTok/Telegram đã đúng (hoặc chạy: node setup.js --sync-credentials).');
+  console.log(`     ${credsImported ? 2 : 3}. Workflow "${N8N_WORKFLOW_NAME}" đang Active.`);
 }
 
 function ensureDir(dirPath) {

@@ -48,6 +48,145 @@ function findChrome() {
   return candidates.find(p => p && fs.existsSync(p)) || null;
 }
 
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function sh(cmd, opts = {}) {
+  return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
+}
+
+function dockerDaemonUp() {
+  try { sh('docker info --format "{{.ServerVersion}}"'); return true; } catch (_) { return false; }
+}
+
+const N8N_CONTAINER = process.env.N8N_CONTAINER_NAME || 'n8n';
+const N8N_TIKTOK_NODE = 'n8n-nodes-social-tiktok';
+const N8N_WORKFLOW_FILE = 'TIKTOK UPLOAD ONLY.json';
+const N8N_WORKFLOW_NAME = 'TikTok Upload Only';
+
+/**
+ * Thiết lập n8n hoàn chỉnh qua Docker (idempotent, không bao giờ làm fail setup):
+ *  1. Cài Docker (macOS qua Homebrew, có hỏi xác nhận) nếu chưa có
+ *  2. Bật Docker daemon nếu đang tắt
+ *  3. Khởi động container n8n (tái sử dụng container cũ nếu có, ngược lại docker compose)
+ *  4. Cài community node n8n-nodes-social-tiktok
+ *  5. Import workflow "TIKTOK UPLOAD ONLY" (bỏ qua nếu đã có)
+ */
+async function setupN8nDocker() {
+  // 1. Docker CLI
+  if (!hasCommand('docker')) {
+    console.log('  ℹ️  Máy chưa cài Docker (chỉ cần cho n8n upload TikTok; bot tạo video không cần).');
+    if (process.platform === 'darwin' && hasCommand('brew') && !NON_INTERACTIVE) {
+      const ans = await askQuestion('   Cài Docker Desktop qua Homebrew ngay? (y/n, mặc định n): ');
+      if (ans.toLowerCase().startsWith('y')) {
+        try {
+          execSync('brew install --cask docker', { stdio: 'inherit' });
+        } catch (e) {
+          console.warn('  ⚠️  Cài Docker thất bại:', e.message);
+        }
+      }
+    }
+    if (!hasCommand('docker')) {
+      console.log('  👉 Cài Docker Desktop tại https://www.docker.com/products/docker-desktop/ rồi chạy lại setup.');
+      return;
+    }
+  }
+
+  // 2. Docker daemon
+  if (!dockerDaemonUp()) {
+    console.log('  ⏳ Docker daemon đang tắt → đang khởi động Docker Desktop...');
+    try {
+      if (process.platform === 'darwin') sh('open -a Docker');
+      else if (process.platform === 'win32') sh('start "" "Docker Desktop"', { shell: 'cmd.exe' });
+      else sh('sudo -n systemctl start docker');
+    } catch (_) { }
+    for (let i = 0; i < 45 && !dockerDaemonUp(); i++) await sleep(2000);
+    if (!dockerDaemonUp()) {
+      console.warn('  ⚠️  Docker daemon chưa sẵn sàng sau 90s. Mở Docker Desktop thủ công rồi chạy lại setup.');
+      return;
+    }
+  }
+  console.log('  ✅ Docker daemon đang chạy.');
+
+  // 3. Container n8n
+  let state = '';
+  try { state = sh(`docker inspect -f "{{.State.Status}}" ${N8N_CONTAINER}`); } catch (_) { }
+  try {
+    if (state === 'running') {
+      console.log(`  ✅ Container "${N8N_CONTAINER}" đang chạy.`);
+    } else if (state) {
+      console.log(`  ⏳ Container "${N8N_CONTAINER}" đang ở trạng thái "${state}" → docker start...`);
+      sh(`docker start ${N8N_CONTAINER}`);
+    } else if (fs.existsSync(path.join(ROOT_DIR, 'docker-compose.yml'))) {
+      console.log('  ⏳ Tạo container n8n bằng docker compose...');
+      const composeCmd = (() => { try { sh('docker compose version'); return 'docker compose'; } catch (_) { return 'docker-compose'; } })();
+      execSync(`${composeCmd} up -d n8n`, { cwd: ROOT_DIR, stdio: 'inherit' });
+    } else {
+      console.warn('  ⚠️  Không tìm thấy docker-compose.yml ở thư mục gốc. Bỏ qua n8n.');
+      return;
+    }
+  } catch (e) {
+    console.warn('  ⚠️  Không khởi động được container n8n:', e.message);
+    return;
+  }
+
+  // Chờ n8n trả lời HTTP
+  let healthy = false;
+  for (let i = 0; i < 30 && !healthy; i++) {
+    try {
+      const code = sh('curl -s -o /dev/null -w "%{http_code}" http://localhost:5678/healthz');
+      healthy = code === '200';
+    } catch (_) { }
+    if (!healthy) await sleep(2000);
+  }
+  console.log(healthy ? '  ✅ n8n sẵn sàng tại http://localhost:5678' : '  ⚠️  n8n chưa trả lời /healthz (vẫn tiếp tục).');
+
+  // 4. Community node TikTok
+  try {
+    let installed = false;
+    try {
+      sh(`docker exec ${N8N_CONTAINER} test -f /home/node/.n8n/nodes/node_modules/${N8N_TIKTOK_NODE}/package.json`);
+      installed = true;
+    } catch (_) { }
+    if (installed) {
+      console.log(`  ✅ Community node ${N8N_TIKTOK_NODE} đã cài.`);
+    } else {
+      console.log(`  ⏳ Cài community node ${N8N_TIKTOK_NODE} vào n8n...`);
+      execSync(`docker exec ${N8N_CONTAINER} sh -c "mkdir -p /home/node/.n8n/nodes && cd /home/node/.n8n/nodes && ([ -f package.json ] || echo '{\\"name\\":\\"installed-nodes\\",\\"private\\":true}' > package.json) && npm install ${N8N_TIKTOK_NODE} --audit=false --fund=false --bin-links=false --install-strategy=shallow --ignore-scripts=true --package-lock=false --omit=dev"`, { stdio: 'inherit' });
+      console.log('  🔄 Restart n8n để nạp node mới...');
+      sh(`docker restart ${N8N_CONTAINER}`);
+      await sleep(8000);
+      console.log(`  ✅ Đã cài ${N8N_TIKTOK_NODE}.`);
+    }
+  } catch (e) {
+    console.warn(`  ⚠️  Cài ${N8N_TIKTOK_NODE} thất bại (cài tay trong n8n → Settings → Community Nodes):`, e.message);
+  }
+
+  // 5. Import workflow
+  const wfPath = path.join(ROOT_DIR, 'workflows', N8N_WORKFLOW_FILE);
+  if (fs.existsSync(wfPath)) {
+    try {
+      let existing = '';
+      try { existing = sh(`docker exec ${N8N_CONTAINER} n8n list:workflow`); } catch (_) { }
+      if (existing.split('\n').some(l => l.includes(`|${N8N_WORKFLOW_NAME}`))) {
+        console.log(`  ✅ Workflow "${N8N_WORKFLOW_NAME}" đã có trong n8n.`);
+      } else {
+        sh(`docker cp "${wfPath}" ${N8N_CONTAINER}:/tmp/tiktok-upload-only.json`);
+        sh(`docker exec ${N8N_CONTAINER} n8n import:workflow --input=/tmp/tiktok-upload-only.json`);
+        console.log(`  ✅ Đã import workflow "${N8N_WORKFLOW_NAME}".`);
+      }
+    } catch (e) {
+      console.warn('  ⚠️  Import workflow tự động thất bại (thường do n8n chưa tạo owner). Import tay qua UI:', (e.stderr || e.message || '').toString().split('\n')[0]);
+    }
+  }
+
+  console.log('  👉 Việc còn lại làm 1 lần trên UI http://localhost:5678:');
+  console.log('     1. Tạo tài khoản owner (nếu là lần đầu).');
+  console.log('     2. Tạo/gắn credential TikTok cho node "TikTok Upload With Product" (hoặc: node import-credentials-to-n8n.js).');
+  console.log(`     3. Mở workflow "${N8N_WORKFLOW_NAME}" → bật Active.`);
+}
+
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -196,29 +335,8 @@ async function main() {
   }
 
   // 5f. n8n qua Docker (dùng cho upload TikTok + gắn giỏ hàng)
-  console.log('\n🐳 Kiểm tra n8n (upload TikTok qua workflow)...');
-  if (hasCommand('docker')) {
-    let n8nRunning = false;
-    try {
-      n8nRunning = execSync('docker ps --filter name=^/n8n$ --format "{{.Names}}"', { encoding: 'utf8' }).trim() === 'n8n';
-    } catch (_) { }
-    if (n8nRunning) {
-      console.log('  ✅ Container n8n đang chạy tại http://localhost:5678');
-    } else if (fs.existsSync(path.join(ROOT_DIR, 'docker-compose.yml'))) {
-      const ans = await askQuestion('   Khởi động n8n bằng docker compose ngay? (y/n, mặc định y): ');
-      if (!ans || ans.toLowerCase().startsWith('y')) {
-        try {
-          execSync('docker compose up -d n8n', { cwd: ROOT_DIR, stdio: 'inherit' });
-          console.log('  ✅ n8n đã khởi động tại http://localhost:5678');
-          console.log('     👉 Lần đầu: tạo owner, Import workflow "workflows/TIKTOK UPLOAD ONLY.json", rồi bật Active.');
-        } catch (e) {
-          console.warn('  ⚠️  Không khởi động được n8n (có thể container "n8n" cũ đang dừng → chạy: docker start n8n):', e.message);
-        }
-      }
-    }
-  } else {
-    console.log('  ℹ️  Chưa cài Docker → bỏ qua n8n. Bot vẫn tạo video bình thường; chỉ upload TikTok qua n8n là cần Docker.');
-  }
+  console.log('\n🐳 Thiết lập n8n qua Docker (upload TikTok qua workflow)...');
+  await setupN8nDocker();
 
   // 6. Đăng nhập Google (Google Labs / Flow / Gemini)
   console.log('\n5️⃣  Đăng nhập tài khoản Google (Google Flow & Gemini)...');

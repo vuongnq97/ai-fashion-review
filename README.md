@@ -37,7 +37,12 @@ Script `setup.sh` / `setup.bat` → [`playwright-service/setup.js`](playwright-s
 4. Tạo `.env` từ `.env.example`, hỏi `TELEGRAM_BOT_TOKEN`, cảnh báo nếu thiếu `GEMINI_API_KEY`.
 5. Kiểm tra Google Chrome thật, ffmpeg, proxy list (tuỳ chọn).
 6. Cài `flow-captcha-worker` nếu thư mục này có trên máy (tuỳ chọn).
-7. Khởi động **n8n** bằng `docker compose` nếu có Docker (tuỳ chọn).
+7. **Docker + n8n** (tuỳ chọn, tự bỏ qua nếu không có Docker):
+   - macOS: đề nghị cài Docker Desktop qua Homebrew nếu chưa có; tự bật Docker daemon nếu đang tắt.
+   - Tạo/khởi động container `n8n` (dùng lại container cũ nếu đã có, ngược lại `docker compose up -d n8n`).
+   - Cài community node `n8n-nodes-social-tiktok` và restart n8n.
+   - Import workflow `workflows/TIKTOK UPLOAD ONLY.json` (bỏ qua nếu đã có).
+   - Việc làm tay 1 lần trên `http://localhost:5678`: tạo owner → gắn credential TikTok → bật **Active** workflow.
 8. Mở trình duyệt để đăng nhập Google lần đầu và tự xuất cookie.
 
 > Setup an toàn để chạy lại nhiều lần — các bước đã xong sẽ được giữ nguyên.

@@ -20,6 +20,8 @@ function normalizeTemplateName(name) {
   if (s === 'tmom' || s === 'template_mom' || s === 'templatemom') return 'template_mom';
   // Template Food — Food & Beverage Review 24s Interactive Storyboard (4x 6s)
   if (s === 'tfood' || s === 'template_food' || s === 'templatefood') return 'template_food';
+  // Template Testing — Pure Flow2API Gateway (100% Template Pro workflow)
+  if (s === 'testing' || s === 'template_testing' || s === 'ttest') return 'testing';
   // Template Product — Live-Commerce Presenter Template Pro 40s Native-Voice (5x 8s)
   if (s === 'tproduct' || s === 'template_product' || s === 'templateproduct' || s === 'tpro40nv') return 'template_product';
   return s;
@@ -171,6 +173,20 @@ function buildTemplateOptions(rawTemplate) {
       preserveBorder: true,
     };
   }
+  // Template Testing — Pure Flow2API Gateway (100% Template Pro workflow, no Playwright)
+  if (template === 'testing' || template === 'template_testing' || template === 'ttest') {
+    return {
+      template: 'testing',
+      panelCount: 4,
+      noText: true,
+      hasVoice: true,
+      videoModelKey: 'veo-3.1-lite-i2v-6s-portrait',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
+    };
+  }
+
   return {};
 }
 

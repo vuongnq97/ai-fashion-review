@@ -400,7 +400,7 @@ router.post('/jobs/:jobId/change-template', async (req, res) => {
 // Body: { shortlink, chatId, template }
 // ═══════════════════════════════════════════════════════════════
 router.post('/internal/trigger-shortlink', async (req, res) => {
-  const { shortlink, chatId, template } = req.body || {};
+  const { shortlink, chatId, template, isAuto } = req.body || {};
   if (!shortlink) return res.status(400).json({ success: false, error: 'shortlink required' });
   const effectiveChatId = chatId || process.env.DEFAULT_TELEGRAM_CHAT_ID || '-5348767040';
   const effectiveTemplate = template || 'tpro';
@@ -415,7 +415,7 @@ router.post('/internal/trigger-shortlink', async (req, res) => {
         console.error('[Internal/trigger-shortlink] handleTikTokDirectFlow not exported');
         return;
       }
-      fn(process.env.TELEGRAM_BOT_TOKEN || '', effectiveChatId, null, shortlink, effectiveTemplate)
+      fn(process.env.TELEGRAM_BOT_TOKEN || '', effectiveChatId, null, shortlink, effectiveTemplate, !!isAuto)
         .catch(err => console.error('[Internal/trigger-shortlink] Error:', err.message));
     } catch (err) {
       console.error('[Internal/trigger-shortlink] Sync error:', err.message);

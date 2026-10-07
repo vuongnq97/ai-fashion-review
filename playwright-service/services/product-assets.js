@@ -421,6 +421,11 @@ async function extractProductImagesFromBrowser(page) {
   // 2. Try window state via evaluate (works after JS execution)
   try {
     const fromWindow = await page.evaluate(() => {
+      function isCaptchaElement(el) {
+        if (!el) return false;
+        return Boolean(el.closest('#captcha-verify-image, .captcha_verify_img--wrapper, .secsdk-captcha-drag-icon, .secsdk_captcha_modal, .captcha-verify-container, [id*="captcha-verify"], [class*="captcha_verify"]'));
+      }
+
       const res = [];
       const seenHash = new Set(); // dedupe by URL hash (image ID), not full URL
 
@@ -436,6 +441,9 @@ async function extractProductImagesFromBrowser(page) {
         if (u.startsWith('//')) u = 'https:' + u;
         if (!u.startsWith('https://')) return;
         if (!/(ibyteimg|tiktokcdn|byteimg)/i.test(u)) return;
+        // Chặn hoàn toàn ảnh captcha, puzzle, verification
+        if (/captcha|secsdk|verify|challenge|puzzle/i.test(u)) return;
+
         const hash = extractHash(u);
         if (seenHash.has(hash)) return;
         seenHash.add(hash);
@@ -444,15 +452,19 @@ async function extractProductImagesFromBrowser(page) {
         res.push({ url: u, width: w || null, height: h || null, priority });
       }
 
-      // Priority 1: Product gallery carousel images (.slick-slide)
-      const slickImgs = document.querySelectorAll('.slick-slide img[src], .slick-track img[src], [data-index] img[src]');
-      slickImgs.forEach(img => {
+      // Priority 1: Product gallery carousel images (new Tailwind UI, .slick-slide, [data-index])
+      const galleryEls = document.querySelectorAll(
+        'img[class*="cursor-zoom-in"], [class*="cursor-zoom-in"] img, [class*="w-66"] img, [class*="h-66"] img, .slick-slide img[src], .slick-track img[src], [data-index] img[src]'
+      );
+      galleryEls.forEach(img => {
+        if (isCaptchaElement(img)) return;
         const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
         addUrl(src, img.naturalWidth || null, img.naturalHeight || null, 1);
       });
 
       // Priority 2: Main product picture elements (source srcset)
       document.querySelectorAll('picture source[srcset]').forEach(src => {
+        if (src.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="captcha"], [id*="captcha"]')) return;
         const s = src.getAttribute('srcset') || '';
         const url = s.split(',')[0].trim().split(' ')[0];
         addUrl(url, null, null, 2);
@@ -460,22 +472,27 @@ async function extractProductImagesFromBrowser(page) {
 
       // Priority 3: Thumbnail strip images
       document.querySelectorAll('img[title][src]').forEach(img => {
+        if (img.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="captcha"], [id*="captcha"]')) return;
         const src = img.getAttribute('src') || '';
         if (/(ibyteimg|tiktokcdn)/i.test(src)) addUrl(src, null, null, 3);
       });
 
       // Priority 4: data-fmp main display images
       document.querySelectorAll('img[data-fmp][src]').forEach(img => {
+        if (img.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="captcha"], [id*="captcha"]')) return;
         const src = img.getAttribute('src') || '';
         addUrl(src, null, null, 4);
       });
 
       // Priority 5: All remaining CDN images (product description photos etc)
-      // Only if gallery found < 3 images
+      // Only if gallery found < 3 images AND not inside any modal/dialog/captcha
       if (res.length < 3) {
         document.querySelectorAll('img[src]').forEach(img => {
+          if (img.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="captcha"], [id*="captcha"], [class*="verify"]')) return;
           const src = img.getAttribute('src') || '';
-          if (/(ibyteimg|tiktokcdn|byteimg)/i.test(src)) addUrl(src, null, null, 5);
+          if (/(ibyteimg|tiktokcdn|byteimg)/i.test(src) && !/captcha|secsdk|verify|puzzle/i.test(src)) {
+            addUrl(src, null, null, 5);
+          }
         });
       }
 
@@ -490,6 +507,25 @@ async function extractProductImagesFromBrowser(page) {
   return collected;
 }
 
+function getTikTokCookiesForScraping() {
+  try {
+    const accPath = path.resolve(__dirname, '..', 'tiktok-accounts.json');
+    if (!fs.existsSync(accPath)) return [];
+    const accounts = JSON.parse(fs.readFileSync(accPath, 'utf8'));
+    const validAcc = Object.values(accounts).find(a => a && typeof a === 'object' && (a.sessionid || a.msToken || a.ttwid));
+    if (!validAcc) return [];
+    const cookies = [];
+    for (const [key, val] of Object.entries(validAcc)) {
+      if (typeof val === 'string' && !['label', 'updatedAt', 'userId'].includes(key)) {
+        cookies.push({ name: key, value: val, domain: '.tiktok.com', path: '/' });
+      }
+    }
+    return cookies;
+  } catch (_) {
+    return [];
+  }
+}
+
 /**
  * Scrapes full product gallery and title using an isolated headless Chromium page.
  * Fast (~4s), safe, and completely decoupled from Google Flow session.
@@ -498,21 +534,34 @@ async function scrapeTikTokWithBrowser(productUrl) {
   if (!productUrl || !productUrl.startsWith('http')) {
     return { title: '', productImages: [] };
   }
+
+  // Chuẩn hóa clean URL: xóa sạch các query tracking nhạy cảm (encode_params, chain_key...) gây kích hoạt Captcha bot detection
+  let targetUrl = productUrl;
+  const pdpMatch = productUrl.match(/(https?:\/\/[^\/]+(?:\/[^\/]+)?\/pdp\/\d+)/i);
+  if (pdpMatch) {
+    targetUrl = pdpMatch[1];
+  }
+
   const { chromium } = require('playwright');
   let browser = null;
   try {
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({
+    const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       viewport: { width: 1280, height: 800 }
     });
-    await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    const cookies = getTikTokCookiesForScraping();
+    if (cookies.length > 0) {
+      await context.addCookies(cookies).catch(() => {});
+    }
+    const page = await context.newPage();
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(3500);
 
     const productImages = await extractProductImagesFromBrowser(page);
     let title = '';
     const rawTitle = await page.title().catch(() => '');
-    if (rawTitle && !rawTitle.toLowerCase().includes('security check')) {
+    if (rawTitle && !rawTitle.toLowerCase().includes('security check') && !rawTitle.toLowerCase().includes('captcha')) {
       title = rawTitle.replace(/\s+-\s+TikTok Shop.*$/i, '').trim();
     }
     return { title, productImages };

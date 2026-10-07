@@ -112,51 +112,49 @@ async function autoExportCookies(baseDir = path.resolve(__dirname, '..')) {
 
     // Luôn tạo tab mới riêng biệt để làm mới session, tránh chiếm tab làm việc đang mở của user
     page = await context.newPage();
-    // Điều hướng nhanh đến Gemini & Labs Flow để làm mới session/timestamp cookie
+
+    // 1. Điều hướng đến Google Flow trước để kích hoạt và làm mới session SSO trên toàn bộ hệ thống Google
     let isLoggedOut = false;
     try {
-      await page.goto('https://gemini.google.com/app', { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await page.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 15000 });
       await page.waitForTimeout(2000);
-      const geminiUrl = page.url() || '';
+      const flowUrl = page.url() || '';
       if (
-        geminiUrl.includes('accounts.google.com/signin') ||
-        geminiUrl.includes('accounts.google.com/ServiceLogin') ||
-        geminiUrl.includes('accounts.google.com/InteractiveLogin') ||
-        geminiUrl.includes('accounts.google.com/v3/signin')
+        flowUrl.includes('accounts.google.com/signin') ||
+        flowUrl.includes('accounts.google.com/v3/signin') ||
+        flowUrl.includes('accounts.google.com/InteractiveLogin')
       ) {
         isLoggedOut = true;
-      } else {
-        // Chỉ coi là logged out nếu có nút/link đăng nhập rõ ràng (tránh nhầm SignOutOptions)
-        const signInBtn = await page.$(
-          'a[href*="ServiceLogin"], a[href*="/signin/challenge"], button:has-text("Sign in"), button:has-text("Đăng nhập")'
-        ).catch(() => null);
-        if (signInBtn) isLoggedOut = true;
       }
     } catch (_) {}
 
     if (isLoggedOut) {
-      console.warn(`⚠️ [AutoCookie] Tài khoản Google đang ở trạng thái ĐĂNG XUẤT. Cần chạy "node login.js" để đăng nhập lại!`);
+      console.warn(`⚠️ [AutoCookie] Google Flow yêu cầu đăng nhập. Cần chạy "node login.js" để đăng nhập lại!`);
       if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
       if (!isSharedContext && context) try { await context.close(); } catch (_) {}
       return false;
     }
 
+    // 2. Tiếp theo điều hướng đến Gemini để lấy session token SNlM0e & cập nhật cookie Gemini
+    let geminiAuthed = false;
     try {
-      await page.goto('https://labs.google/fx/tools/flow', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.goto('https://gemini.google.com/app', { waitUntil: 'domcontentloaded', timeout: 15000 });
       await page.waitForTimeout(2000);
-    } catch (_) {}
+      const geminiUrl = page.url() || '';
+      
+      const authInfo = await page.evaluate(() => {
+        const snlm0e = window.WIZ_global_data?.SNlM0e;
+        const profile = document.querySelector('a[aria-label*="Google Account"], img[alt*="Google Account"], a[href*="SignOutOptions"], button[aria-label*="Google Account"]');
+        return {
+          hasSnlm0e: Boolean(snlm0e),
+          hasProfile: Boolean(profile)
+        };
+      }).catch(() => ({ hasSnlm0e: false, hasProfile: false }));
 
-    const currentUrl = page.url() || '';
-    if (
-      currentUrl.includes('accounts.google.com/signin') ||
-      currentUrl.includes('accounts.google.com/ServiceLogin') ||
-      currentUrl.includes('accounts.google.com/InteractiveLogin')
-    ) {
-      console.warn(`⚠️ [AutoCookie] Google đang yêu cầu đăng nhập (${currentUrl}). KHÔNG ghi đè cookie cũ!`);
-      if (page && !page.isClosed()) try { await page.close(); } catch (_) {}
-      if (!isSharedContext && context) try { await context.close(); } catch (_) {}
-      return false;
-    }
+      if (authInfo.hasSnlm0e || authInfo.hasProfile || geminiUrl.includes('/app')) {
+        geminiAuthed = true;
+      }
+    } catch (_) {}
 
     // Lấy toàn bộ cookies trong context để không bỏ sót các domain .google.com
     const cookies = await context.cookies();

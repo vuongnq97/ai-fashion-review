@@ -86,12 +86,13 @@ const RESERVED_COMMANDS = new Set([
   'template6', 't1', 't2', 't3', 't4', 't5', 't6',
   't51', 't52', 't53', 't5_1', 't5_2', 't5_3',
   'template_pro', 'templatepro', 'tpro',
+  'testing', 'template_testing', 'ttest',
   'template_mom', 'templatemom', 'tmom',
   'template_food', 'templatefood', 'tfood',
   'template_product', 'templateproduct', 'tproduct', 'tpro40nv',
   'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4', 'remake_all',
   'again', 'redo',
-  'tq', 'cancel',
+  'tq', 'cancel', 'login',
 ]);
 
 function classifyTelegramCommand(text = '') {
@@ -99,7 +100,8 @@ function classifyTelegramCommand(text = '') {
   if (/^\/upload(?:@\w+)?(?:\s|$)/i.test(value)) return 'upload';
   if (/^\/remake(?:[_@\s]|$)/i.test(value)) return 'remake';
   if (/^\/register(?:@\w+)?(?:\s|$)/i.test(value)) return 'register';
-  if (/^\/(?:template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product|templateproduct|tproduct|tpro40nv)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
+  if (/^\/login(?:@\w+)?(?:\s|$)/i.test(value)) return 'login';
+  if (/^\/(?:template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product|templateproduct|tproduct|tpro40nv)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
   if (/^\/(start|help|menu)(?:@\w+)?(?:\s|$)/i.test(value)) return 'start';
   if (/^\/status(?:@\w+)?(?:\s|$)/i.test(value)) return 'status';
   if (/^\/dailyvlog(?:@\w+)?(?:\s|$)/i.test(value)) return 'dailyvlog';
@@ -305,6 +307,19 @@ async function handleTemplateProCommand(botToken, chatId) {
 
   pendingTemplateByChat.set(chatId, 'template_pro');
   await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/tpro', 'Review Pro tương tác storyboard (remake từng panel trước khi chốt).'));
+}
+
+async function handleTestingCommand(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'testing';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /testing cho album ảnh đang gom: Review Pro Direct Network (Gọi trực tiếp Network trong Browser + Captcha mới, không click UI).');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'testing');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/testing', 'Review Pro Direct Network (Gọi trực tiếp Network RPC trong Browser Playwright + New Captcha Worker, workflow chuẩn Template Pro).'));
 }
 
 async function handleTemplateMomCommand(botToken, chatId) {
@@ -929,7 +944,7 @@ async function forwardToN8nWebhook(payload) {
   return false;
 }
 
-async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, template = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3') {
+async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, template = process.env.DEFAULT_STORYBOARD_TEMPLATE || 'template3', isAuto = false) {
   const tracker = new FlowStepTracker(chatId, { title: 'Đang tải thông tin sản phẩm...' });
   try {
     await tracker.start(1, 'Đang đọc link TikTok Shop...');
@@ -955,11 +970,12 @@ async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, te
       try {
         const { scrapeTikTokWithBrowser } = require('./product-assets');
         const browserData = await scrapeTikTokWithBrowser(productUrl);
-        if (browserData.productImages && browserData.productImages.length > assets.productImages.length) {
-          console.log(`[Telegram Bot] Browser lấy được ${browserData.productImages.length} ảnh vs ${assets.productImages.length} từ HTTP`);
-          assets.productImages = browserData.productImages;
+        const validBrowserImages = (browserData.productImages || []).filter(img => !/captcha|secsdk|verify|puzzle/i.test(img.url || ''));
+        if (validBrowserImages.length > assets.productImages.length) {
+          console.log(`[Telegram Bot] Browser lấy được ${validBrowserImages.length} ảnh hợp lệ vs ${assets.productImages.length} từ HTTP`);
+          assets.productImages = validBrowserImages;
         }
-        if (!assets.title && browserData.title) {
+        if (!assets.title && browserData.title && !/security check|captcha/i.test(browserData.title)) {
           assets.title = browserData.title;
           await tracker.setTitle(assets.title);
         }
@@ -993,6 +1009,7 @@ async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, te
       productDescription: assets.productDescription,
       productImages: assets.productImages.slice(0, 16),
       stepTracker: tracker,
+      isAuto: !!isAuto,
     });
   } catch (err) {
     console.error('[Telegram Bot] Direct TikTok flow error:', err.message);
@@ -1001,7 +1018,17 @@ async function handleTikTokDirectFlow(botToken, chatId, messageId, shortlink, te
 }
 
 async function handleUploadDirectCommand(botToken, chatId, targetJobId, uploadMsgId) {
-  const job = targetJobId ? generationJobService.getJob(targetJobId) : generationJobService.getLatestCompletedJob(String(chatId));
+  let job = targetJobId ? generationJobService.getJob(targetJobId) : null;
+  if (!job && targetJobId) {
+    const rawId = String(targetJobId).replace(/^(testing|ttest|tpro|tfood|tmom|tproduct)-/, '');
+    job = generationJobService.getJob(rawId)
+      || generationJobService.getJob(`testing-${rawId}`)
+      || generationJobService.getJob(`ttest-${rawId}`)
+      || generationJobService.getJob(`tpro-${rawId}`);
+  }
+  if (!job) {
+    job = generationJobService.getLatestCompletedJob(String(chatId));
+  }
   if (!job || job.status !== 'completed') {
     await sendTelegramMessage(botToken, chatId, '⚠️ Không tìm thấy video đã hoàn tất gần đây của bạn. Vui lòng gửi link TikTok Shop để tạo video trước.');
     return;
@@ -1108,7 +1135,7 @@ async function handleUploadDirectCommand(botToken, chatId, targetJobId, uploadMs
         job.uploadMessageId,
         `❌ <b>CHƯA THỂ ĐĂNG LÊN TIKTOK:</b>\n\n` +
         `Chi tiết lỗi: <code>${err.message}</code>\n\n` +
-        `👉 Vui lòng kiểm tra lại container n8n (<code>docker start n8n</code>) hoặc quét lại mã QR liên kết TikTok (<code>/register</code>)!`,
+        `👉 Vui lòng kiểm tra lại container n8n (<code>docker start n8n</code>) hoặc quét lại mã QR liên kết TikTok (<code>/login</code>)!`,
         { parse_mode: 'HTML' }
       );
     } else {
@@ -1428,6 +1455,181 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const parts = data.split(':');
     const runId = parts[1];
     await handleDownloadPanelsCallback(botToken, chatId, queryId, 'tpro', runId, baseDir);
+    return;
+  }
+
+  // ── /testing interactive storyboard callbacks (Playwright Direct Network RPCs) ─────
+  if (data.startsWith('ttest_remake:')) {
+    const parts = data.split(':');
+    const pIdx = parseInt(parts[1], 10);
+    const runId = parts[2];
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang remake Cảnh ${pIdx} qua Network trình duyệt...`);
+
+    const { executeDirectRemakePanel, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(3, `Đang remake Cảnh ${pIdx} qua Network trình duyệt...`);
+    if (session && typeof saveDirectSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveDirectSession(session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake Cảnh ${pIdx} (/testing - ${runId})`,
+      execute: async () => {
+        if (typeof executeDirectRemakePanel === 'function') {
+          await executeDirectRemakePanel(chatId, baseDir, runId, pIdx, { stepTracker: tracker });
+        }
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake panel error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('ttest_remake_all:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang tạo lại toàn bộ Storyboard qua Network trình duyệt...');
+
+    const { executeDirectRemakeAll, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(3, 'Đang tạo lại toàn bộ 4 cảnh qua Network trình duyệt...');
+    if (session && typeof saveDirectSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveDirectSession(session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake All (/testing - ${runId})`,
+      execute: async () => {
+        if (typeof executeDirectRemakeAll === 'function') {
+          await executeDirectRemakeAll(chatId, baseDir, runId, { stepTracker: tracker });
+        }
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake all error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('ttest_ok:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '✅ Đã duyệt Storyboard! Đang tạo 4 Video qua Network trình duyệt...');
+
+    const { finalizeDirectStoryboardAndGenerateVideos, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(4, 'Đang sinh 4 video qua Network trình duyệt...');
+    if (session && typeof saveDirectSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveDirectSession(session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Generate Videos (/testing - ${runId})`,
+      execute: async () => {
+        await finalizeDirectStoryboardAndGenerateVideos(chatId, baseDir, runId, {
+          botToken,
+          lastRunByChat,
+          stepTracker: tracker,
+        });
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Generate videos error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('ttest_remake_video:')) {
+    const parts = data.split(':');
+    const target = parseInt(parts[1], 10) || 1;
+    const runId = parts[2];
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang tạo lại Video Cảnh ${target} qua Network trình duyệt...`);
+
+    const { executeDirectRemakeSingleVideo, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { FlowStepTracker } = require('./flow-step-tracker');
+    const { deleteTelegramMessage } = require('./telegram-send');
+    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+
+    if (session?.stepTrackerMessageId) {
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      session.stepTrackerMessageId = null;
+    }
+
+    const tracker = new FlowStepTracker(chatId, {
+      title: session?.productTitle || 'Sản phẩm review',
+    });
+    await tracker.start(4, `Đang tạo lại Video Cảnh ${target} qua Network trình duyệt...`);
+    if (session && typeof saveDirectSession === 'function') {
+      session.stepTrackerMessageId = tracker.messageId;
+      saveDirectSession(session);
+    }
+
+    flowQueue.enqueue({
+      chatId: String(chatId),
+      photos: [],
+      baseDir,
+      label: `Remake Video Cảnh ${target} (/testing - ${runId})`,
+      execute: async () => {
+        await executeDirectRemakeSingleVideo(chatId, baseDir, runId, target, {
+          botToken,
+          stepTracker: tracker,
+          lastRunByChat,
+        });
+      }
+    }).catch(err => {
+      console.error(`[Telegram Bot] Remake video scene error for chat ${chatId}:`, err.message);
+    });
+    return;
+  }
+
+  if (data.startsWith('ttest_upload:')) {
+    const parts = data.split(':');
+    const runId = parts[1];
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang chuẩn bị tải video lên TikTok...');
+    await handleUploadDirectCommand(botToken, chatId, `testing-${runId}`);
     return;
   }
 
@@ -1989,6 +2191,19 @@ async function handleCallbackQuery(botToken, callbackQuery) {
   // Quét mã QR TikTok
   if (data.startsWith('qr_login')) {
     await answerCallbackQuery(botToken, queryId, '⏳ Đang khởi tạo mã QR...');
+    await startQrLoginFlow(botToken, chatId, baseDir);
+    return;
+  }
+}
+
+/**
+ * Khởi chạy luồng đăng nhập TikTok bằng QR cho một chat.
+ * Dùng chung cho nút callback `qr_login` và lệnh /login.
+ * Nếu quét bằng tài khoản TikTok đã tồn tại (trùng userId/username) → cập nhật lại
+ * cookie vào chính credential cũ (tiktok-accounts.json + n8n), không tạo credential mới.
+ */
+async function startQrLoginFlow(botToken, chatId, baseDir) {
+  {
     await sendTelegramMessage(botToken, chatId, '⏳ <b>Đang mở trang đăng nhập TikTok và tạo mã QR...</b> Vui lòng đợi vài giây!', { parse_mode: 'HTML' });
 
     startTikTokQrLoginSession(chatId, {
@@ -2074,7 +2289,6 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       },
       baseDir
     });
-    return;
   }
 }
 
@@ -2148,7 +2362,7 @@ async function handleUpdate(botToken, update) {
         return;
       }
       if (!isChatWaitingForOtp(chatId)) {
-        await sendTelegramMessage(botToken, chatId, '⚠️ Hiện tại không có phiên TikTok nào đang chờ mã OTP. Bạn hãy gõ <b>/register</b> để quét mã QR.', { parse_mode: 'HTML' });
+        await sendTelegramMessage(botToken, chatId, '⚠️ Hiện tại không có phiên TikTok nào đang chờ mã OTP. Bạn hãy gõ <b>/login</b> để quét mã QR.', { parse_mode: 'HTML' });
         return;
       }
       await sendTelegramMessage(botToken, chatId, `⏳ <b>Đang nhập mã OTP <code>${code}</code> vào TikTok...</b>`, { parse_mode: 'HTML' });
@@ -2292,6 +2506,38 @@ async function handleUpdate(botToken, update) {
       console.log(`[Telegram Bot] Received /${commandKind} command from chat ${chatId}: ${text}`);
       const baseDir = path.resolve(__dirname, '..');
       await autoSchedulers[commandKind].handleCommand(botToken, chatId, text, baseDir);
+      return;
+    }
+
+    // ── /login — Đăng nhập (lại) TikTok bằng QR cho shop của group ─────────
+    if (commandKind === 'login') {
+      const baseDir = path.resolve(__dirname, '..');
+      const existingChannel = getRawChannelForChat(baseDir, chatId);
+      if (!existingChannel) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '⚠️ <b>Group này chưa đăng ký shop.</b>\n\n' +
+          '👉 Vui lòng đăng ký trước bằng lệnh <code>/register [Tên Shop]</code>, sau đó gõ <b>/login</b> để quét QR.',
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const currentAccount = existingChannel.tiktokCredentialName || existingChannel.tiktokCredentialId;
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `🔐 <b>ĐĂNG NHẬP TIKTOK</b>\n\n` +
+        `🏪 Shop: <b>${existingChannel.label}</b>\n` +
+        (currentAccount
+          ? `👤 Tài khoản đang liên kết: <b>${currentAccount}</b>\n\n` +
+            `♻️ <i>Quét bằng <b>đúng tài khoản này</b> để làm mới phiên đăng nhập (cập nhật credential cũ). ` +
+            `Quét bằng tài khoản khác sẽ chuyển shop sang tài khoản đó.</i>`
+          : `📌 <i>Shop chưa liên kết tài khoản TikTok — quét QR để liên kết.</i>`),
+        { parse_mode: 'HTML' }
+      );
+      await startQrLoginFlow(botToken, chatId, baseDir);
       return;
     }
 
@@ -2457,7 +2703,7 @@ async function handleUpdate(botToken, update) {
     if (urlMatch || isUploadCmd) {
       console.log(`[Telegram Bot] Received TikTok / Upload command from chat ${chatId}: ${text}`);
       let template = getChatTemplate(chatId);
-      const templateMatch = text.match(/\/(template[0-9_.]+|t[0-9_.]+)/i);
+      const templateMatch = text.match(/\/(template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product|templateproduct|tproduct|tpro40nv)/i);
       if (templateMatch) {
         template = normalizeTemplateName(templateMatch[1]);
         saveChatTemplate(chatId, template);
@@ -2544,6 +2790,7 @@ async function handleUpdate(botToken, update) {
         '• /tproduct (hoặc /template_product) — Live-Commerce Presenter 40s (5x 8s Veo, Native Voice, MC cố định)\n\n' +
         '⚡ <b>CÁC LỆNH ĐIỀU KHIỂN & HỖ TRỢ:</b>\n' +
         '• /register [Tên Shop] — Đăng ký TikTok Shop\n' +
+        '• /login — Đăng nhập / làm mới phiên TikTok bằng QR (cập nhật credential cũ nếu cùng tài khoản)\n' +
         '• /upload — Ghép các cảnh video thành video 9:16 và đăng lên TikTok\n' +
         '• /remake [số_cảnh] — Tạo lại cảnh video chưa ưng ý (VD: /remake 1 hoặc /remake_2)\n' +
         '• /status — Xem trạng thái hàng đợi xử lý\n' +
@@ -2635,6 +2882,13 @@ async function handleUpdate(botToken, update) {
     if (/^\/(template_pro|templatepro|tpro)(?:@\w+)?(?:\s|$)/i.test(text)) {
       console.log(`[Telegram Bot] Received Template Pro command (${text}) from chat ${chatId}`);
       await handleTemplateProCommand(botToken, chatId);
+      return;
+    }
+
+    // ── Testing command (Template Pro via Pure Flow2API Gateway) ──────────────
+    if (/^\/(testing|template_testing|ttest)(?:@\w+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received Testing command (${text}) from chat ${chatId}`);
+      await handleTestingCommand(botToken, chatId);
       return;
     }
 
@@ -2791,6 +3045,8 @@ async function handleUpdate(botToken, update) {
         templateMessage = ' theo /template5_3 spam đa ngành hàng 4 cảnh (4 video 4s, model Veo) (KHÔNG CHỮ + CÓ VOICE REVIEW faceless)';
       } else if (batch.template === 'template_pro' || batch.template === 'templatepro' || batch.template === 'tpro') {
         templateMessage = ' theo /tpro review Pro tương tác storyboard (remake từng panel)';
+      } else if (batch.template === 'testing' || batch.template === 'template_testing' || batch.template === 'ttest') {
+        templateMessage = ' theo /testing Review Pro hoàn toàn qua API (Flow2API Gateway, không chạy browser)';
       } else if (batch.template === 'template_mom' || batch.template === 'templatemom' || batch.template === 'tmom') {
         templateMessage = ' theo /tmom Kênh Mẹ & Bé tương tác storyboard (mẹ bỉm sữa)';
       } else if (batch.template === 'template_food' || batch.template === 'templatefood' || batch.template === 'tfood') {
@@ -2834,7 +3090,7 @@ async function handleUpdate(botToken, update) {
 
           await tracker.completeAll();
 
-          if (!res?.isInteractiveStoryboard && batch.template !== 'template_pro' && batch.template !== 'tpro' && batch.template !== 'template_mom' && batch.template !== 'tmom' && batch.template !== 'template_food' && batch.template !== 'tfood' && batch.template !== 'template_product' && batch.template !== 'tproduct' && batch.template !== 'tpro40nv') {
+          if (!res?.isInteractiveStoryboard && batch.template !== 'template_pro' && batch.template !== 'tpro' && batch.template !== 'testing' && batch.template !== 'template_testing' && batch.template !== 'ttest' && batch.template !== 'template_mom' && batch.template !== 'tmom' && batch.template !== 'template_food' && batch.template !== 'tfood' && batch.template !== 'template_product' && batch.template !== 'tproduct' && batch.template !== 'tpro40nv') {
             // 1. Gửi tin nhắn CHỈ CHỨA TITLE VÀ HASHTAG (để user dễ dàng copy thủ công nếu muốn tự đăng tay)
             const analyzedTitle = res.analysis?.productName || res.analysis?.product_name || 'Sản phẩm review';
             const defaultTags = ['#review', '#sanphamchinhhang', '#trending', '#xuhuong', '#tiktokshop'];
@@ -2877,6 +3133,7 @@ function buildTelegramCommands() {
     { command: 'tq', description: '🎬 Tạo video từ ảnh + prompt (chọn 4s/6s/8s/10s)' },
     { command: 'cancel', description: '❌ Huỷ phiên /tq đang chờ' },
     { command: 'register', description: '📝 Đăng ký Shop' },
+    { command: 'login', description: '🔐 Đăng nhập / làm mới phiên TikTok bằng QR' },
     { command: 'auto_t3', description: '🤖 Bật auto Template 3 theo lịch' },
     { command: 'auto_t3_run', description: '▶️ Chạy thử ngay 1 video Template 3' },
     { command: 'auto_t3_off', description: '⏸️ Tắt tự động chạy Template 3' },

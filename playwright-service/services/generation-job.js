@@ -386,6 +386,7 @@ async function executeJob(job) {
     setStep(job, 'product_analyzed', 'Đang phân tích sản phẩm bằng Gemini...', { progressPercent: 25 });
 
     const result = await runStoryboardFullFlow(job.chatId, filePayloads, job.baseDir, {
+      template: job.template,
       ...job.templateOptions,
       runId: job.jobId,
       cleanupUploads: false,
@@ -435,21 +436,32 @@ async function executeJob(job) {
       }
     } catch (_) { }
 
-    const isInteractive = job.template === 'template_pro' || job.template === 'tpro' || !!job.templateOptions?.interactiveStoryboard || !!result?.isInteractiveStoryboard;
+    const isInteractive = job.template === 'template_pro' || job.template === 'tpro' || job.template === 'testing' || job.template === 'template_testing' || job.template === 'ttest' || !!job.templateOptions?.interactiveStoryboard || !!result?.isInteractiveStoryboard;
     if (isInteractive) {
       const effectiveRunId = result?.runId || (result?.reviewArchive?.root ? path.basename(result.reviewArchive.root).split('-flow-').pop() : null) || job.jobId;
       job.proRunId = effectiveRunId;
 
       if (job.isAuto) {
+        const isTesting = job.template === 'testing' || job.template === 'template_testing' || job.template === 'ttest';
         const isMom = job.template === 'template_mom' || job.template === 'templatemom' || job.template === 'tmom';
         const isFood = job.template === 'template_food' || job.template === 'templatefood' || job.template === 'tfood';
         const isProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv';
-        const prefix = isProduct ? 'tproduct' : (isFood ? 'tfood' : (isMom ? 'tmom' : 'tpro'));
+        const prefix = isTesting ? 'ttest' : (isProduct ? 'tproduct' : (isFood ? 'tfood' : (isMom ? 'tmom' : 'tpro')));
         console.log(`[Job ${job.jobId}] 🤖 Auto mode enabled: skipping user review, proceeding directly to video generation and TikTok upload (runId: ${effectiveRunId})!`);
         const { lastRunByChat, handleUploadDirectCommand } = require('./telegram-bot');
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-        if (isProduct) {
+        if (isTesting) {
+          const { finalizeTestingStoryboardAndGenerateVideos } = require('./flow2api-adapter/template-testing-storyboard');
+          await finalizeTestingStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
+            stepTracker: tracker,
+            lastRunByChat,
+            isAuto: true,
+          });
+          console.log(`[Job ${job.jobId}] 🚀 Auto mode: Triggering automatic TikTok upload for ttest-${effectiveRunId}...`);
+          await handleUploadDirectCommand(botToken, job.chatId, `ttest-${effectiveRunId}`);
+          latestCompletedByChat.set(String(job.chatId), `ttest-${effectiveRunId}`);
+        } else if (isProduct) {
           const { finalizeProductStoryboardAndGenerateVideos } = require('./template-product-storyboard');
           await finalizeProductStoryboardAndGenerateVideos(job.chatId, job.baseDir, effectiveRunId, {
             stepTracker: tracker,
@@ -708,8 +720,9 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
     if (videoFiles.length === 0) return null;
 
     const runId = session.runId || path.basename(runDir).split('-').pop();
+    const isTesting = session.template === 'testing' || session.template === 'template_testing' || session.template === 'ttest';
     const isProd = session.template === 'template_product' || session.template === 'templateproduct' || session.template === 'tproduct' || session.template === 'tpro40nv';
-    const templatePrefix = isProd ? 'tproduct' : (session.template === 'template_food' ? 'tfood' : (session.template === 'template_mom' ? 'tmom' : 'tpro'));
+    const templatePrefix = isTesting ? 'ttest' : (isProd ? 'tproduct' : (session.template === 'template_food' ? 'tfood' : (session.template === 'template_mom' ? 'tmom' : 'tpro')));
     const jobId = `${templatePrefix}-${runId}`;
     const panelsDir = path.join(runDir, 'panels');
     const panelFiles = fs.existsSync(panelsDir)
@@ -725,10 +738,18 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
     if (!fs.existsSync(finalVideoPath) || fs.statSync(finalVideoPath).size <= 1000) {
       const altVideoPath = path.join(videosDir, 'final_video.mp4');
       const rootFinalVideoPath = path.join(runDir, 'final_video.mp4');
+      const sessionFinal = session.finalVideoPath;
+      const uploadsVideoPath = session.shortId
+        ? path.join(baseDir, 'uploads', 'final-videos', `testing-${session.shortId}.mp4`)
+        : null;
       if (fs.existsSync(altVideoPath) && fs.statSync(altVideoPath).size > 1000) {
         finalVideoPath = altVideoPath;
       } else if (fs.existsSync(rootFinalVideoPath) && fs.statSync(rootFinalVideoPath).size > 1000) {
         finalVideoPath = rootFinalVideoPath;
+      } else if (sessionFinal && fs.existsSync(sessionFinal) && fs.statSync(sessionFinal).size > 1000) {
+        finalVideoPath = sessionFinal;
+      } else if (uploadsVideoPath && fs.existsSync(uploadsVideoPath) && fs.statSync(uploadsVideoPath).size > 1000) {
+        finalVideoPath = uploadsVideoPath;
       }
     }
     const hasFinalVideo = fs.existsSync(finalVideoPath) && fs.statSync(finalVideoPath).size > 1000;
@@ -774,6 +795,15 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
     jobs.set(runId, restoredJob);
     if (session.jobId) {
       jobs.set(String(session.jobId), restoredJob);
+    }
+    if (session.shortId) {
+      jobs.set(String(session.shortId), restoredJob);
+      jobs.set(`testing-${session.shortId}`, restoredJob);
+      jobs.set(`ttest-${session.shortId}`, restoredJob);
+    }
+    if (isTesting) {
+      jobs.set(`testing-${runId}`, restoredJob);
+      jobs.set(`ttest-${runId}`, restoredJob);
     }
     if (session.chatId) {
       latestCompletedByChat.set(String(session.chatId), jobId);
@@ -826,11 +856,11 @@ function findJobOnDiskById(jobId, baseDir = path.resolve(__dirname, '..')) {
   try {
     const reviewRunsDir = path.join(baseDir, 'storyboard-review-runs');
     if (!fs.existsSync(reviewRunsDir)) return null;
-    const cleanId = String(jobId).replace(/^(tpro|tfood|tmom|tproduct|tpro40nv)-/, '');
+    const cleanId = String(jobId).replace(/^(tpro|tfood|tmom|tproduct|tpro40nv|testing|ttest)-/, '');
 
     const entries = fs.readdirSync(reviewRunsDir);
     for (const name of entries) {
-      if (name.includes(cleanId) || name.includes(jobId)) {
+      if (name.includes(cleanId) || name.includes(jobId) || (cleanId.length >= 8 && name.endsWith(cleanId))) {
         const fullPath = path.join(reviewRunsDir, name);
         const job = restoreJobFromRunDir(fullPath, baseDir);
         if (job) return job;
@@ -1009,8 +1039,10 @@ function markUpload(jobId, data = {}) {
 function cleanupJob(jobId) {
   const job = getJob(jobId);
   if (!job) return false;
-  if (job.jobDir && fs.existsSync(job.jobDir)) {
+  if (process.env.PURGE_JOB_DIR === 'true' && job.jobDir && fs.existsSync(job.jobDir)) {
     fs.rmSync(job.jobDir, { recursive: true, force: true });
+  } else if (job.jobDir) {
+    console.log(`[GenerationJob] 📁 Preserving output folder for inspection: ${job.jobDir}`);
   }
   jobs.delete(job.jobId);
   if (latestCompletedByChat.get(String(job.chatId)) === job.jobId) {

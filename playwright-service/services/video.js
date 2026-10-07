@@ -7,6 +7,7 @@ const { getContext, ensureBearerToken, getRecaptchaToken, extractProjectIdFromPa
 const { findImageUUID, uploadImages, switchToMode, uploadImageDirect } = require('./image');
 const { processVideoBase64 } = require('./video-resize');
 const { ensureWorkWindow } = require('../utils/window-config');
+const { rotateProxy, getActiveProxy } = require('./proxy-bridge');
 
 // ═══════════════════════════════════════════════════════════════
 // Video model mapping
@@ -476,11 +477,35 @@ async function startVideoGenerationViaUI({
   await ensureWorkWindow(page, { minW: 1280, minH: 800 });
   await page.waitForTimeout(300);
 
-  // 0. Ensure all popovers/dialogs are closed before starting
-  await page.keyboard.press('Escape').catch(() => {});
-  await page.waitForTimeout(300);
-  await page.keyboard.press('Escape').catch(() => {});
-  await page.waitForTimeout(400);
+  // Helper to aggressively dismiss all modal popups/change-log dialogs in Flow UI
+  const dismissModals = async () => {
+    try {
+      for (let i = 0; i < 3; i++) {
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(100);
+      }
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll(
+          '.change-log-modal-actions button, mat-dialog-actions button, mat-dialog-container button, [role="dialog"] button, .cdk-overlay-pane button'
+        ));
+        for (const btn of buttons) {
+          const txt = (btn.textContent || '').trim().toLowerCase();
+          if (txt.includes('got it') || txt.includes('đã hiểu') || txt.includes('đóng') || txt.includes('close') || txt.includes('dismiss') || txt.includes('bắt đầu') || txt.includes('hoàn tất')) {
+            btn.click();
+          }
+        }
+        const overlays = document.querySelectorAll('.change-log-modal-actions, .cdk-overlay-backdrop');
+        overlays.forEach(o => {
+          const container = o.closest('mat-dialog-container, .cdk-overlay-pane');
+          if (container) container.remove();
+          o.remove();
+        });
+      }).catch(() => {});
+      await page.waitForTimeout(200);
+    } catch (_) {}
+  };
+
+  await dismissModals();
 
   // 1. Route interceptor + response listener for eb1hJf
   //
@@ -666,8 +691,41 @@ async function startVideoGenerationViaUI({
     }).catch(() => {});
   }
 
-  const rpcPromise = new Promise((resolve) => {
+  const rpcPromise = new Promise((resolve, reject) => {
+    let resolved = false;
+    let pollInterval = null;
+    let timeoutTimer = null;
+
+    const cleanup = async () => {
+      if (resolved) return;
+      resolved = true;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = null;
+      }
+      page.off('response', onResponse);
+      await cleanupRoute();
+    };
+
+    const triggerUnusualActivity = async (source) => {
+      if (resolved) return;
+      console.warn(`[VideoGen-UI] ⚠️ Google Flow UNUSUAL_ACTIVITY detected via ${source}!`);
+      try {
+        const nextP = rotateProxy();
+        console.log(`[VideoGen-UI] 🔄 Auto-switched to proxy #${nextP.index + 1}/${nextP.total} (${nextP.host}:${nextP.port})`);
+      } catch (e) {
+        console.warn(`[VideoGen-UI] ⚠️ Proxy rotation error: ${e.message}`);
+      }
+      await cleanup();
+      reject(new Error('Google Flow UNUSUAL_ACTIVITY: Video bot score throttled.'));
+    };
+
     const onResponse = async (res) => {
+      if (resolved) return;
       const url = res.url();
       const isEb1hJf = url.includes('eb1hJf');
       const isMZZa6b = url.includes('MZZa6b');
@@ -682,8 +740,9 @@ async function startVideoGenerationViaUI({
         const text = await res.text().catch(() => '');
         console.log(`[VideoGen-UI] ${rpcid} length: ${text.length}, snippet: ${text.substring(0, 200)}`);
 
-        if (text.includes('PUBLIC_ERROR_UNUSUAL_ACTIVITY')) {
+        if (text.includes('PUBLIC_ERROR_UNUSUAL_ACTIVITY') || text.includes('unusual activity') || text.includes('UNUSUAL_ACTIVITY')) {
           console.warn(`[VideoGen-UI] ⚠️ ${rpcid} blocked: PUBLIC_ERROR_UNUSUAL_ACTIVITY`);
+          await triggerUnusualActivity(`RPC response ${rpcid}`);
           return;
         }
 
@@ -700,8 +759,7 @@ async function startVideoGenerationViaUI({
 
         if (foundName) {
           mediaName = foundName;
-          page.off('response', onResponse);
-          await cleanupRoute();
+          await cleanup();
           resolve(mediaName);
         }
       } catch (pErr) {
@@ -709,12 +767,36 @@ async function startVideoGenerationViaUI({
       }
     };
     page.on('response', onResponse);
-    setTimeout(async () => {
-      page.off('response', onResponse);
-      await cleanupRoute();
+
+    // Fast-poll DOM UI (mỗi 1.2s) để bắt ngay thông báo lỗi nếu Google hiện toast/dialog
+    pollInterval = setInterval(async () => {
+      try {
+        if (resolved || !page || page.isClosed()) return;
+        const hasUiError = await page.evaluate(() => {
+          const alerts = Array.from(document.querySelectorAll(
+            'mat-snack-bar-container, .mat-mdc-snack-bar-container, [role="alert"], [role="alertdialog"]'
+          ));
+          for (const el of alerts) {
+            const t = (el.innerText || el.textContent || '').toLowerCase();
+            if (t.includes('unusual activity') || t.includes('hoạt động bất thường')) {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (hasUiError) {
+          await triggerUnusualActivity('DOM alert');
+        }
+      } catch (_) {}
+    }, 1200);
+
+    timeoutTimer = setTimeout(async () => {
+      await cleanup();
       resolve(mediaName);
     }, 60000);
   });
+  // Prevent unhandled rejection crash if error occurs before rpcPromise is awaited
+  rpcPromise.catch(() => {});
 
 
   // 2. Open Settings -> Select Video -> duration -> ratio
@@ -1845,9 +1927,6 @@ async function startMultiImageVideoGeneration(page, context, {
     videoModelKey: modelKey,
     targetProjectId,
     outputCount: Number(outputCount) || 1
-  }).catch(err => {
-    console.warn(`[VideoGen-Multi] ⚠️ UI video generation threw: ${err.message}`);
-    return null;
   });
 
   if (uiResult && uiResult.media?.[0]?.name) {
@@ -2406,7 +2485,7 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
     (filePayloads && filePayloads.length > 1) ||
     (config.videoModelKey && (config.videoModelKey.includes('r2v') || config.videoModelKey.includes('abra')))
   );
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = 11;
   let mediaName = null;
 
   const targetProjectId = config.projectId || (page ? extractProjectIdFromPage(page) : PROJECT_ID);
@@ -2450,15 +2529,36 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
           projectId: targetProjectId,
           outputCount: config.outputCount || 1,
         });
-        mediaName = apiResult.media?.[0]?.name;
-        wiz = apiResult.wiz;
-        if (!mediaName) throw new Error('[VideoGen-Multi] No media name in MZZa6b response');
+        mediaName = apiResult?.media?.[0]?.name;
+        wiz = apiResult?.wiz;
+        if (!mediaName) throw new Error('[VideoGen-Multi] No media name in MZZa6b/eb1hJf response');
         console.log(`[VideoGen-Multi] ✅ Started! Media: ${mediaName}`);
         break;
       } catch (err) {
-        console.log(`[VideoGen-Multi] ❌ Attempt ${attempt} failed: ${err.message}`);
+        console.log(`[VideoGen-Multi] ❌ Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`);
         if (attempt >= MAX_RETRIES) throw err;
-        await page.waitForTimeout(5000);
+
+        try {
+          const nextP = rotateProxy();
+          console.log(`[VideoGen-Multi] 🔄 Auto-switched to proxy #${nextP.index + 1}/${nextP.total} (${nextP.host}:${nextP.port})`);
+        } catch (_) {}
+
+        console.log(`[VideoGen-Multi] ⏳ Cooldown 3s & reloading Flow project page (${targetProjectId}) for new proxy session...`);
+        await new Promise(r => setTimeout(r, 3000));
+        if (page && !page.isClosed()) {
+          try {
+            const projectUrl = `https://flow.google.com/project/${targetProjectId}`;
+            const currentUrl = page.url();
+            if (currentUrl.includes(`/project/${targetProjectId}`)) {
+              await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
+            } else {
+              await page.goto(projectUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+            }
+            await page.waitForTimeout(3000);
+          } catch (rErr) {
+            console.warn(`[VideoGen-Multi] ⚠️ Page reload warning: ${rErr.message}`);
+          }
+        }
       }
     }
 
@@ -2499,16 +2599,32 @@ async function prepareVideoGeneration(page, prompt, extendPrompt, filePayloads, 
           projectId: targetProjectId,
           outputCount: config.outputCount || 1,
         });
-        mediaName = flowResult.media?.[0]?.name;
-        const wiz = flowResult.wiz;
+        mediaName = flowResult?.media?.[0]?.name;
+        const wiz = flowResult?.wiz;
         if (!mediaName) throw new Error('[VideoGen] No media name in MZZa6b response');
         console.log(`[VideoGen] ✅ Started via MZZa6b! Media: ${mediaName}`);
         console.log(`[VideoGen] ✅ Setup complete — releasing browser lock.`);
         return { context, bearerToken, mediaName, prompt, extendPrompt, config, wiz, isFlowRpc: true };
       } catch (err) {
-        console.log(`[VideoGen] ❌ Attempt ${attempt} failed: ${err.message}`);
+        console.log(`[VideoGen] ❌ Attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`);
         if (attempt >= MAX_RETRIES) throw err;
-        await page.waitForTimeout(5000);
+
+        console.log(`[VideoGen] ⏳ Cooldown 3s & reloading Flow project page (${targetProjectId}) for new proxy session...`);
+        await new Promise(r => setTimeout(r, 3000));
+        if (page && !page.isClosed()) {
+          try {
+            const projectUrl = `https://flow.google.com/project/${targetProjectId}`;
+            const currentUrl = page.url();
+            if (currentUrl.includes(`/project/${targetProjectId}`)) {
+              await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
+            } else {
+              await page.goto(projectUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+            }
+            await page.waitForTimeout(3000);
+          } catch (rErr) {
+            console.warn(`[VideoGen] ⚠️ Page reload warning: ${rErr.message}`);
+          }
+        }
       }
     }
     return { context, bearerToken, mediaName, prompt, extendPrompt, config, isFlowRpc: true };

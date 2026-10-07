@@ -46,7 +46,7 @@ async function sliceStoryboardIntoPanels(storyboardBuffer) {
   try {
     await new Promise((resolve, reject) => {
       ffmpeg(tmpSbPath)
-        .videoFilters(['crop=iw/2:ih:0:0', 'scale=1080:1920:flags=lanczos'])
+        .videoFilters(['crop=trunc(iw/2/2)*2:trunc(ih/2)*2:0:0'])
         .output(panel1Path)
         .on('end', resolve)
         .on('error', reject)
@@ -55,7 +55,7 @@ async function sliceStoryboardIntoPanels(storyboardBuffer) {
 
     await new Promise((resolve, reject) => {
       ffmpeg(tmpSbPath)
-        .videoFilters(['crop=iw/2:ih:iw/2:0', 'scale=1080:1920:flags=lanczos'])
+        .videoFilters(['crop=trunc(iw/2/2)*2:trunc(ih/2)*2:trunc(iw/2/2)*2:0'])
         .output(panel2Path)
         .on('end', resolve)
         .on('error', reject)

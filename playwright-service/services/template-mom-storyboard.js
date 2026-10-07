@@ -1678,7 +1678,7 @@ function sliceMasterStoryboardMom(storyboardBuffer) {
   try {
     for (let i = 0; i < 4; i++) {
       const outPath = path.join(tmpDir, `tmom_slice_${runId}_${i + 1}.png`);
-      execSync(`"${ffmpegPath}" -y -i "${inPath}" -filter_complex "[0:v]crop=iw/4:ih:iw/4*${i}:0,scale=480:1080[out]" -map "[out]" "${outPath}"`, { stdio: 'ignore' });
+      execSync(`"${ffmpegPath}" -y -i "${inPath}" -filter_complex "[0:v]crop=trunc(iw/4/2)*2:trunc(ih/2)*2:trunc(iw/4/2)*2*${i}:0[out]" -map "[out]" "${outPath}"`, { stdio: 'ignore' });
       if (fs.existsSync(outPath)) {
         panels.push(fs.readFileSync(outPath));
         try { fs.unlinkSync(outPath); } catch (_) {}

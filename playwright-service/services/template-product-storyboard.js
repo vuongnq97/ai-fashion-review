@@ -63,10 +63,8 @@ const CANONICAL_MODEL_FILENAMES = [
   'model3.png',
   'model4.png',
   'model5.png',
-  'model6.png',
   'model7.png',
   'model8.png',
-  'model9.png',
   'model10.png',
   'model11.png',
   'model12.png',
@@ -97,7 +95,7 @@ function getCanonicalPresenterBuffer(options = {}) {
       if (buf && buf.length > 1000) {
         return { path: explicitPath, filename: path.basename(explicitPath), buffer: buf };
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // 2. Nếu có chỉ định tên file model cụ thể
@@ -112,7 +110,7 @@ function getCanonicalPresenterBuffer(options = {}) {
           if (buf && buf.length > 1000) {
             return { path: candidate, filename: targetFile, buffer: buf };
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -131,7 +129,7 @@ function getCanonicalPresenterBuffer(options = {}) {
               console.log(`[TemplateProduct] 👨 Selected male presenter model: ${fn} from ${candidate}`);
               return { path: candidate, filename: fn, buffer: buf };
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       }
     }
@@ -149,7 +147,7 @@ function getCanonicalPresenterBuffer(options = {}) {
             availableModels.push({ path: p, filename, size: stat.size });
             break;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -176,7 +174,7 @@ function getCanonicalPresenterBuffer(options = {}) {
       if (buf && buf.length > 1000) {
         return { path: fallbackPath, filename: 'presenter.png', buffer: buf };
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   return null;
@@ -208,7 +206,7 @@ function normalizeFallbackImage(buffer, ffmpegBin) {
     }
   } catch (_) {
   } finally {
-    [inPath, outPath].forEach(p => { try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {} });
+    [inPath, outPath].forEach(p => { try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { } });
   }
   return buffer;
 }
@@ -295,7 +293,7 @@ function createProductInputCollage(productPayloads) {
     const rawBuf = Buffer.isBuffer(first?.buffer) ? first.buffer : (first?.path && fs.existsSync(first.path) ? fs.readFileSync(first.path) : null);
     return normalizeFallbackImage(rawBuf, ffmpegBin);
   } finally {
-    [...inputPaths, outPath].forEach(p => { try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) {} });
+    [...inputPaths, outPath].forEach(p => { try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch (_) { } });
   }
 }
 
@@ -408,7 +406,7 @@ function buildDynamicVoiceBible(channelProfile = {}, options = {}) {
 
 const DEFAULT_GLOBAL_VISUAL_BIBLE = {
   presenterIdentity: 'canonical uploaded model (model.png)',
-  wardrobe: 'same across all clips, neat professional live-commerce host outfit',
+  wardrobe: 'exact same outfit, clothing pieces, colors and style as shown in the canonical model reference photo (model.png)',
   hair: 'same across all clips, neat and stylish',
   environmentType: 'product_factory_or_warehouse',
   lighting: 'bright clean commercial live-commerce lighting',
@@ -535,8 +533,8 @@ function selectVerifiedHook(options = {}) {
   const noProfit = facts.noProfit === true && facts.noProfitVerified === true;
   const eligible = h => h.requires === 'verified_price' ? price :
     h.requires === 'verified_price_and_shipping' ? price && shipping :
-    h.requires === 'verified_gift_and_subsidy' ? gift && subsidy :
-    h.requires === 'verified_zero_price_and_no_profit' ? zero && noProfit : false;
+      h.requires === 'verified_gift_and_subsidy' ? gift && subsidy :
+        h.requires === 'verified_zero_price_and_no_profit' ? zero && noProfit : false;
   const verifiedPool = HOOK_LIBRARY.filter(eligible);
   const pool = verifiedPool.length ? verifiedPool : HOOK_LIBRARY;
 
@@ -622,25 +620,29 @@ function safeWarehouseClip(clip, index) {
     ...clip, clipIndex: index + 1,
     phase: index === 3 ? 'PRODUCT_DETAIL_SHOWCASE' : clip.phase,
     visualBeats: [
-      {time:'0-4s',action:'Natural speech, blinking and subtle facial expression; product remains stationary.'},
-      {time:'4-8s',action:'Subtle head movement and tiny camera push-in; preserve the entire original scene.'}
+      { time: '0-4s', action: 'Natural speech, blinking and subtle facial expression; product remains stationary.' },
+      { time: '4-8s', action: 'Subtle head movement and tiny camera push-in; preserve the entire original scene.' }
     ],
     startFramePlan: {
-      presenterPose:'Stable natural presenter pose; face and wardrobe identical to canonical model.',
-      handPose:'Hands already in a stable resting/holding pose; no changing grip or manipulating parts.',
+      presenterPose: 'Stable natural presenter pose; face and wardrobe identical to canonical model.',
+      handPose: 'Hands already in a stable resting/holding pose; no changing grip or manipulating parts.',
       productPlacement: views[index],
       framing: index === 3 ? 'Vertical 9:16 product close-up' : 'Vertical 9:16 medium shot',
       environment: WAREHOUSE_BIBLE.architecture + ' ' + WAREHOUSE_BIBLE.inventory,
       environmentId: WAREHOUSE_ID
     },
-    actionRunway:{valid:true,motion:'Blinking, speech lip sync, micro facial movement only.'},
-    requiresProductOperation:false,
-    introducesUnverifiedProps:false
+    actionRunway: { valid: true, motion: 'Blinking, speech lip sync, micro facial movement only.' },
+    requiresProductOperation: false,
+    introducesUnverifiedProps: false
   };
 }
 function normalizeWarehouseStoryboard(data) {
-  const result = { ...data, analysis: { ...(data.analysis || {}), sourcingSetting:'product_warehouse', warehouseBible:WAREHOUSE_BIBLE,
-    visualBible:{...DEFAULT_GLOBAL_VISUAL_BIBLE,environmentType:'product_warehouse',warehouseBible:WAREHOUSE_BIBLE} } };
+  const result = {
+    ...data, analysis: {
+      ...(data.analysis || {}), sourcingSetting: 'product_warehouse', warehouseBible: WAREHOUSE_BIBLE,
+      visualBible: { ...DEFAULT_GLOBAL_VISUAL_BIBLE, environmentType: 'product_warehouse', warehouseBible: WAREHOUSE_BIBLE }
+    }
+  };
   result.script = (data.script || []).map(safeWarehouseClip);
   return result;
 }
@@ -696,24 +698,24 @@ function validateWarehouseStoryboard(data) {
   return validateProductEnvironmentStoryboard(data);
 }
 
-function validateOfferClaims(script, options={}) {
-  const facts=options.verifiedOffer || options.productContext?.verifiedOffer || {};
-  const all=(script||[]).map(s=>s.dialogue||'').join(' ');
-  const errors=[];
-  if(!facts.priceVerified && /(?:\d+[.,]?\d*\s*(?:k|nghìn|ngàn|triệu|đồng|đ)|giá\s*(?:chỉ|còn)\s*\d)/i.test(all)) errors.push('Unverified numeric price');
-  if(!facts.freeShippingVerified && /(?:free\s*ship|freeship|miễn phí (?:vận chuyển|ship))/i.test(all)) errors.push('Unverified free shipping');
-  if(!facts.subsidyVerified && /(?:trợ giá|giảm thẳng|voucher|mã giảm|ưu đãi độc quyền|giảm sâu)/i.test(all)) errors.push('Unverified subsidy/discount');
-  if(!facts.zeroPriceVerified && /(?:không đồng|0\s*đ|0\s*đồng)/i.test(all)) errors.push('Unverified zero price');
-  if(!facts.noProfitVerified && /(?:không (?:lấy|lời) (?:một )?đồng|không lợi nhuận)/i.test(all)) errors.push('Unverified no-profit claim');
-  if(!facts.giftVerified && /(?:em tặng|người ta cho|là cho chứ)/i.test(all)) errors.push('Unverified gift claim');
-  return {valid:errors.length===0,errors};
+function validateOfferClaims(script, options = {}) {
+  const facts = options.verifiedOffer || options.productContext?.verifiedOffer || {};
+  const all = (script || []).map(s => s.dialogue || '').join(' ');
+  const errors = [];
+  if (!facts.priceVerified && /(?:\d+[.,]?\d*\s*(?:k|nghìn|ngàn|triệu|đồng|đ)|giá\s*(?:chỉ|còn)\s*\d)/i.test(all)) errors.push('Unverified numeric price');
+  if (!facts.freeShippingVerified && /(?:free\s*ship|freeship|miễn phí (?:vận chuyển|ship))/i.test(all)) errors.push('Unverified free shipping');
+  if (!facts.subsidyVerified && /(?:trợ giá|giảm thẳng|voucher|mã giảm|ưu đãi độc quyền|giảm sâu)/i.test(all)) errors.push('Unverified subsidy/discount');
+  if (!facts.zeroPriceVerified && /(?:không đồng|0\s*đ|0\s*đồng)/i.test(all)) errors.push('Unverified zero price');
+  if (!facts.noProfitVerified && /(?:không (?:lấy|lời) (?:một )?đồng|không lợi nhuận)/i.test(all)) errors.push('Unverified no-profit claim');
+  if (!facts.giftVerified && /(?:em tặng|người ta cho|là cho chứ)/i.test(all)) errors.push('Unverified gift claim');
+  return { valid: errors.length === 0, errors };
 }
 
 /**
  * Strip unverified commercial claims from dialogue text.
  * Called when validateOfferClaims returns errors — auto-cleans instead of hard-failing.
  */
-function stripUnverifiedClaims(script, options={}) {
+function stripUnverifiedClaims(script, options = {}) {
   const facts = options.verifiedOffer || options.productContext?.verifiedOffer || {};
   return (script || []).map(clip => {
     let d = clip.dialogue || '';
@@ -1453,13 +1455,13 @@ function buildDynamic5ClipPlan(analysis, categoryInfo, affordances, setting) {
 
   const clip1Beats = handheld
     ? [
-        { time: '0-4s', action: `Presenter cầm chắc ${prodName} ngang ngực nhìn thẳng ống kính, móc nối hook trực diện vào sản phẩm` },
-        { time: '4-8s', action: `Presenter giữ vững ${prodName} trước ngực nổi bật sắc nét, biểu cảm tự tin cuốn hút` },
-      ]
+      { time: '0-4s', action: `Presenter cầm chắc ${prodName} ngang ngực nhìn thẳng ống kính, móc nối hook trực diện vào sản phẩm` },
+      { time: '4-8s', action: `Presenter giữ vững ${prodName} trước ngực nổi bật sắc nét, biểu cảm tự tin cuốn hút` },
+    ]
     : [
-        { time: '0-4s', action: `Presenter đứng cạnh bàn kiểm hàng, ${prodName} đặt trang trọng chính giữa bàn trước mặt, nhìn thẳng ống kính mở hook trực diện` },
-        { time: '4-8s', action: `Presenter hướng cử chỉ tay tự nhiên về ${prodName} trên bàn, tạo sự tập trung tuyệt đối vào sản phẩm` },
-      ];
+      { time: '0-4s', action: `Presenter đứng cạnh bàn kiểm hàng, ${prodName} đặt trang trọng chính giữa bàn trước mặt, nhìn thẳng ống kính mở hook trực diện` },
+      { time: '4-8s', action: `Presenter hướng cử chỉ tay tự nhiên về ${prodName} trên bàn, tạo sự tập trung tuyệt đối vào sản phẩm` },
+    ];
 
   return [
     {
@@ -1569,7 +1571,7 @@ function buildProduct5ClipStateMachine(clips = []) {
     issues,
     lockedAnchors: {
       presenterFace: 'Canonical Model (model.png)',
-      wardrobe: 'Consistent neat live-commerce presenter outfit',
+      wardrobe: 'Exact same outfit and wardrobe as canonical model reference (model.png)',
       productFidelity: 'Locked color, model, texture across all 5 clips',
     }
   };
@@ -2045,7 +2047,7 @@ function buildTemplateProductMasterPrompt(analysis = {}, options = {}) {
   return [
     'LAYOUT — MANDATORY: The output image contains exactly 5 panels as 5 equal-width vertical columns arranged left to right. Column 1 | Column 2 | Column 3 | Column 4 | Column 5. Each column occupies exactly 1/5 (20%) of the total image width and the full image height. There are NO borders, NO dividers, NO gaps, NO decorative frames, NO film strip holes, NO black bands, NO vignettes between or around columns. NO phone frames, NO mobile device bezels, NO home indicators, NO bottom navigation bars, NO black bars at the bottom of panels. Each column is a seamless photographic scene. DO NOT use any other layout — NOT a 1-large + multiple-small arrangement, NOT a 2×2 or 2×3 grid.',
     'MODEL REFERENCE & IDENTITY LOCK — CRITICAL IDENTITY REQUIREMENT: use the supplied canonical reviewer model (model.png) in EVERY SINGLE COLUMN 1,2,3,4,5. Same recognizable face, hairstyle, age, wardrobe and body proportions. NO product-only column. NO empty column without presenter.',
-    'PRESENTER ATTIRE & SAFETY: neat, modest, professional live-commerce host outfit (conservative neckline, polo shirt, modest buttoned shirt or sleek tailored live-commerce host outfit with NO deep cleavage, NO bare shoulders, NO tube top, NO off-shoulder, NO plunging neckline, knee-length or modest pants/skirt with NO high slit, NO surgical hairnet on presenter, NO blue medical smock on presenter, NO clipboard, NO holding paperwork). Clean, energetic commercial look suitable for factory-direct live presentation.',
+    'PRESENTER ATTIRE & WARDROBE LOCK — EXACT OUTFIT MATCH: The presenter in EVERY SINGLE PANEL must wear the EXACT SAME OUTFIT, clothing pieces, fabric color, collar style, neckline, cut, and accessories shown on the canonical model reference photo (model.png). DO NOT redesign, alter, change, or invent new clothes. Preserve 100% wardrobe continuity and authentic clothing fidelity from model.png across all 5 panels (NO surgical hairnet on presenter, NO blue medical smock on presenter, NO clipboard, NO holding paperwork).',
     `PRODUCT REFERENCE & APPEARANCE LOCK: use the supplied authentic ${refText} as the absolute ground truth reference for the exact physical item "${prodName}". Match the exact shape, silhouette, lid/handle/body geometry, proportions, color, materials, surface finish (${surfaceFinish}), and visible branding only when ${evidenceText}. No invented product features, no altered colors, and no imaginary labels.`,
     `ENVIRONMENT TYPE: ${env.setting} — ${env.title}.`,
     `PRODUCT-SPECIFIC BACKGROUND: ${env.promptFragment}`,
@@ -2067,7 +2069,7 @@ function buildTemplateProductMasterPrompt(analysis = {}, options = {}) {
     '',
     'Factory-first rule: The setting is an authentic FACTORY-DIRECT LIVE-COMMERCE (bán hàng tại xưởng xuất xưởng) environment. DIRECTLY BEHIND THE PRESENTER is an active automated manufacturing and packaging conveyor belt line (băng chuyền sản xuất tự động). Along this conveyor belt, continuous, neatly spaced identical units of the EXACT SAME product "' + prodName + '" (matching the authentic product reference photos ' + refText + ') are moving through automated machinery stations (such as filling, capping, labeling, or boxing). In the foreground, the reviewer is the primary host presenting the product behind a clean demonstration / QC table. There are ABSOLUTELY NO glass separation walls or partitions blocking the conveyor belt. There are NO wall vitrines or decorative shelves. Never show workers sitting in crowded manual rows. Background workers (if any) are strictly limited to 1-2 people in the far background in soft focus wearing category-appropriate clean uniforms, never wearing blue hospital smocks or surgical hairnets.',
     '',
-    `STRICT NEGATIVE PROMPT: deep cleavage, plunging neckline, revealing low-cut top, exposed lingerie, bare shoulders, tube top, strapless top, off-shoulder dress, high slit skirt, miniskirt, seductive pose, NSFW, racy outfit, product-only shot, missing presenter, different reviewer woman, changed face, second presenter, hairnet on presenter, blue medical gowns, blue ESD lab coats, blue cleanroom smocks, surgical gowns, surgical hairnets, hospital scrubs, crowded manual rows of seated workers, workers crowding presenter, glass partition wall, glass separation room, showroom vitrines, wall display cabinets, boutique showroom, retail store, home kitchen, living room, residential room, unrelated inventory, fantasy machinery, fake brand labels, text, typography, subtitles, captions, panel numbers, watermark, UI, shopping cart icon, buttons, stickers, borders, split screen inside a panel, smartphone mockups, phone frames, mobile device bezels, home indicator bar, bottom navigation bar, black bars at top or bottom, letterboxing, pillarboxing, distant full-body shot, full-body distant view, showing legs, showing feet, distorted hands, extra fingers, extra limbs, waving empty hands, waving hello without product, holding clipboard, holding binder, holding notepad, holding paperwork, empty hands in panel 1, product missing from presenter hands in panel 1, product missing from table in panel 1, product tiny or out of focus, hands in pockets, hands behind back, ${placement.negativeRule}.`
+    `STRICT NEGATIVE PROMPT: different clothes, changed outfit, mismatched wardrobe from model reference photo, clothing color change, redesigned dress, altered neckline, polo shirt when model reference wears blazer or dress, exposed lingerie, seductive pose, NSFW, racy outfit, product-only shot, missing presenter, different reviewer woman, changed face, second presenter, hairnet on presenter, blue medical gowns, blue ESD lab coats, blue cleanroom smocks, surgical gowns, surgical hairnets, hospital scrubs, crowded manual rows of seated workers, workers crowding presenter, glass partition wall, glass separation room, showroom vitrines, wall display cabinets, boutique showroom, retail store, home kitchen, living room, residential room, unrelated inventory, fantasy machinery, fake brand labels, text, typography, subtitles, captions, panel numbers, watermark, UI, shopping cart icon, buttons, stickers, borders, split screen inside a panel, smartphone mockups, phone frames, mobile device bezels, home indicator bar, bottom navigation bar, black bars at top or bottom, letterboxing, pillarboxing, distant full-body shot, full-body distant view, showing legs, showing feet, distorted hands, extra fingers, extra limbs, waving empty hands, waving hello without product, holding clipboard, holding binder, holding notepad, holding paperwork, empty hands in panel 1, product missing from presenter hands in panel 1, product missing from table in panel 1, product tiny or out of focus, hands in pockets, hands behind back, ${placement.negativeRule}.`
   ].join('\n');
 }
 
@@ -2138,7 +2140,7 @@ function buildTemplateProductRemakeVideoJobs(runDir, targetIndices, customInstru
   const sessionPath = path.join(runDir, 'session.json');
   let session = {};
   if (fs.existsSync(sessionPath)) {
-    try { session = JSON.parse(fs.readFileSync(sessionPath, 'utf8')); } catch (_) {}
+    try { session = JSON.parse(fs.readFileSync(sessionPath, 'utf8')); } catch (_) { }
   }
   const fullAnalysis = analysis || session.analysis?.analysis || session.analysis || {};
   const scriptList = session.analysis?.script || [];
@@ -2204,13 +2206,13 @@ function buildTemplateProductRemakePrompt(analysis = {}, targetPanelIndex = 1, c
 
   let prompt = [
     `Single vertical 9:16 start frame panel (Scene ${pIdx} of 5) for a live-commerce presenter video.`,
-    `CRITICAL IDENTITY: The presenter MUST be the EXACT SAME person as shown in the canonical model reference (model.png). Same facial features, neat hair, professional presenter outfit (no clipboard, no blue medical smocks, no bare shoulders).`,
+    `CRITICAL IDENTITY & WARDROBE: The presenter MUST be the EXACT SAME person wearing the EXACT SAME OUTFIT as shown in the canonical model reference (model.png). Same facial features, hair, and identical clothing items, colors, collar style, and fabric from model.png without alteration (no clipboard, no blue medical smocks).`,
     `CRITICAL PRODUCT: The product MUST be the EXACT SAME model, color, and finish as shown in the product references: "${prodName}" (${category}).`,
     `ENVIRONMENT: ${sourcingPrompt}`,
     `PRODUCT HERO FOCUS & PLACEMENT: ${placement.panelGeneralInstruction}`,
     `SCENE ${pIdx} SPECIFIC FRAMING: ${panelDescriptions[pIdx]}`,
     `Camera: Smartphone vertical 9:16 aspect ratio, realistic commercial LED lighting, high resolution, no black bars, no blur.`,
-    `NEGATIVE PROMPT: text, typography, words, subtitles, panel labels, scene titles, captions, lettering, shopping cart, shopping cart icon, cart symbol, trolley icon, UI buttons, UI overlays, price tags, stickers, badges, watermarks, split screens, distorted hands, extra limbs, second person, glass partition wall, glass separation room, showroom vitrines, wall display cabinets, boutique store, retail shop, residential room, crowded manual rows of seated workers, STRICTLY NO black bars, NO pillarboxing, NO letterboxing, NO side borders. NO product operation or demonstrations. Same facility as all other panels, ${placement.negativeRule}.`
+    `NEGATIVE PROMPT: different clothes, changed outfit, mismatched wardrobe from model reference photo, clothing color change, text, typography, words, subtitles, panel labels, scene titles, captions, lettering, shopping cart, shopping cart icon, cart symbol, trolley icon, UI buttons, UI overlays, price tags, stickers, badges, watermarks, split screens, distorted hands, extra limbs, second person, glass partition wall, glass separation room, showroom vitrines, wall display cabinets, boutique store, retail shop, residential room, crowded manual rows of seated workers, STRICTLY NO black bars, NO pillarboxing, NO letterboxing, NO side borders. NO product operation or demonstrations. Same facility as all other panels, ${placement.negativeRule}.`
   ].join('\n');
 
   if (customInstruction) {
@@ -2332,7 +2334,7 @@ function composeMasterStoryboardProduct(panelInputs, outputMasterPath) {
 
     execSync(`"${ffmpegPath}" -y ${inputs} -filter_complex "${filter}" -map "[outv]" "${outputMasterPath}"`, { stdio: 'pipe' });
   } finally {
-    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) { }
   }
   return outputMasterPath;
 }
@@ -2364,7 +2366,7 @@ function detectHorizontalDividers(imageInput) {
     console.warn(`[TemplateProduct] Layout divider detection error: ${err.message}`);
     return { hasDividers: false, dividerCount: 0 };
   } finally {
-    try { if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn); } catch (_) {}
+    try { if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn); } catch (_) { }
   }
 }
 
@@ -2759,7 +2761,7 @@ function getProductSession(runId, baseDir) {
             if (sData.runId) productSessions.set(sData.runId, sData);
             if (sData.jobId) productSessions.set(sData.jobId, sData);
             return sData;
-          } catch (_) {}
+          } catch (_) { }
         }
       }
     }
@@ -2782,7 +2784,7 @@ function getProductSession(runId, baseDir) {
             if (sData.jobId) productSessions.set(sData.jobId, sData);
             return sData;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -2863,13 +2865,13 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
   let productCollage2Buf = null;
 
   try {
-    try { await geminiClient.init(); } catch (_) {}
+    try { await geminiClient.init(); } catch (_) { }
 
     // 1. Lưu presenter model vào inputs/
     if (presenterAsset?.buffer) {
       try {
         fs.writeFileSync(path.join(inputsDir, 'model.png'), presenterAsset.buffer);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // 2. Lấy toàn bộ ảnh sản phẩm thực tế từ filePayloads
@@ -2890,7 +2892,7 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
       const finalName = safeName.includes('.') ? safeName : `${safeName}${ext}`;
       try {
         fs.writeFileSync(path.join(inputsDir, finalName), buf);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // 4. Sinh product collages: input.png (ảnh 1-8) và input2.png (ảnh 9-16 nếu có > 8 ảnh)
@@ -2906,10 +2908,10 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
     productCollage2Buf = collages.input2Buf;
 
     if (productCollageBuf) {
-      try { fs.writeFileSync(path.join(inputsDir, 'input.png'), productCollageBuf); } catch (_) {}
+      try { fs.writeFileSync(path.join(inputsDir, 'input.png'), productCollageBuf); } catch (_) { }
     }
     if (productCollage2Buf) {
-      try { fs.writeFileSync(path.join(inputsDir, 'input2.png'), productCollage2Buf); } catch (_) {}
+      try { fs.writeFileSync(path.join(inputsDir, 'input2.png'), productCollage2Buf); } catch (_) { }
     }
 
     // 5. Chuẩn bị payload hình ảnh gửi lên Gemini Stage 1:
@@ -3031,8 +3033,8 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
     const chosenEnvironment = getProductEnvironmentBible(stage1Parsed.analysis, effectiveOptions);
     stage1Parsed.analysis.sourcingSetting = chosenEnvironment.setting;
     stage1Parsed.analysis.environmentBible = chosenEnvironment;
-    stage1Parsed.analysis.visualBible = {...DEFAULT_GLOBAL_VISUAL_BIBLE, environmentType: chosenEnvironment.setting, environmentBible: chosenEnvironment};
-    stage1Parsed.analysis.affordances = {...(stage1Parsed.analysis.affordances || {}), heroAction:'No demonstration; static product detail'};
+    stage1Parsed.analysis.visualBible = { ...DEFAULT_GLOBAL_VISUAL_BIBLE, environmentType: chosenEnvironment.setting, environmentBible: chosenEnvironment };
+    stage1Parsed.analysis.affordances = { ...(stage1Parsed.analysis.affordances || {}), heroAction: 'No demonstration; static product detail' };
 
     // ── STAGE 2: 40s Native-Voice Script & Storyboard Construction (Prompt B) ──
     console.log(`[TemplateProduct] Stage 2: Crafting 40s 5-Clip Native-Voice Script & Storyboard (Prompt B)...`);
@@ -3263,7 +3265,7 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
         console.warn(`[TemplateProduct] Flow Master Storyboard Attempt ${attempt}/3 failed: ${fErr.message}`);
       } finally {
         if (flowPage) {
-          try { await closeFlowPage(flowPage); } catch (_) {}
+          try { await closeFlowPage(flowPage); } catch (_) { }
         }
       }
     }
@@ -3284,8 +3286,8 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
     const bestCandIdx = Number(qaResult?.selectedCandidateIndex) || 1;
     const bestMasterBuf = candidateBuffers[bestCandIdx - 1] || candidateBuffers[0];
 
-    // ── Slices master thành 5 panels 9:16 ──
-    console.log(`[TemplateProduct] Step 3: Slicing master storyboard (Candidate #${bestCandIdx}) into 5 vertical panels (1080x1920, 9:16)...`);
+    // ── Slices master thành 5 vertical panels tự nhiên (Zero-Distortion) ──
+    console.log(`[TemplateProduct] Step 3: Slicing master storyboard (Candidate #${bestCandIdx}) into 5 vertical panels (as-is, zero-distortion)...`);
     const tempMasterPath = path.join(runDir, 'temp-master.png');
     fs.writeFileSync(tempMasterPath, bestMasterBuf);
 
@@ -3456,7 +3458,7 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
       isInteractiveStoryboard: true,
     };
   } finally {
-    try { await geminiClient.close(); } catch (_) {}
+    try { await geminiClient.close(); } catch (_) { }
   }
 }
 
@@ -3518,7 +3520,7 @@ async function executeProductRemakePanel(chatId, baseDir, runId, targetPanelInde
       newPanelBuf = genRes.allResults[0].buffer;
     }
   } finally {
-    await closeFlowPage(flowPage).catch(() => {});
+    await closeFlowPage(flowPage).catch(() => { });
   }
 
   if (!newPanelBuf) {
@@ -3627,7 +3629,7 @@ async function executeProductRemakeAll(chatId, baseDir, runId, opts = {}) {
       newMasterBuf = genRes.allResults[0].buffer;
     }
   } finally {
-    await closeFlowPage(flowPage).catch(() => {});
+    await closeFlowPage(flowPage).catch(() => { });
   }
 
   if (!newMasterBuf) {
@@ -3637,7 +3639,7 @@ async function executeProductRemakeAll(chatId, baseDir, runId, opts = {}) {
   const tempMasterPath = path.join(session.runDir, 'temp-master-remake.png');
   fs.writeFileSync(tempMasterPath, newMasterBuf);
 
-  // Slices master mới thành 5 panels 9:16
+  // Slices master mới thành 5 vertical panels tự nhiên (Zero-Distortion)
   const newPanels = sliceMasterStoryboardProduct(tempMasterPath, session.panelsDir);
   const panelBuffers = newPanels.map(p => fs.readFileSync(p));
   const masterPath = path.join(session.runDir, 'master-storyboard.png');
@@ -3678,7 +3680,7 @@ function sanitizeChromeDataProfiles(baseDir) {
 
     for (const f of fs.readdirSync(userDataDir)) {
       if (f.startsWith('Singleton')) {
-        try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) {}
+        try { fs.unlinkSync(path.join(userDataDir, f)); } catch (_) { }
       }
     }
 
@@ -3694,10 +3696,10 @@ function sanitizeChromeDataProfiles(baseDir) {
             content.profile.exited_cleanly = true;
             fs.writeFileSync(pPath, JSON.stringify(content));
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function generateCameraMotionProductClip(imagePath, outputPath, opts = {}) {
@@ -3783,12 +3785,12 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
       try {
         fs.copyFileSync(r.videoPath, targetPath);
         isSuccess = true;
-      } catch (_) {}
+      } catch (_) { }
     } else if (r?.videoBase64) {
       try {
         fs.writeFileSync(targetPath, Buffer.from(r.videoBase64, 'base64'));
         isSuccess = true;
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (isSuccess && fs.existsSync(targetPath) && fs.statSync(targetPath).size > 1000) {
@@ -3799,7 +3801,7 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
       console.warn(`[TemplateProduct] ⚠️ Panel ${i} video generation failed on server. Skipping panel ${i} (will NOT merge into final video).`);
       failedPanelIndices.push(i);
       if (fs.existsSync(targetPath)) {
-        try { fs.unlinkSync(targetPath); } catch (_) {}
+        try { fs.unlinkSync(targetPath); } catch (_) { }
       }
     }
   }
@@ -3832,7 +3834,7 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
     const finalDir = path.join(session.runDir, 'final');
     ensureDir(finalDir);
     const finalVideoPath = path.join(finalDir, 'final-video.mp4');
-    try { fs.copyFileSync(mergedVideoPath, finalVideoPath); } catch (_) {}
+    try { fs.copyFileSync(mergedVideoPath, finalVideoPath); } catch (_) { }
   }
 
   session.mergedVideoPath = mergedVideoPath;
@@ -3928,7 +3930,7 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
   // Gửi video về Telegram
   if (chatId) {
     if (opts.statusMsgId) {
-      await deleteTelegramMessage(chatId, opts.statusMsgId).catch(() => {});
+      await deleteTelegramMessage(chatId, opts.statusMsgId).catch(() => { });
     }
 
     // 1. Gửi video hoàn chỉnh (nếu có video được ghép)
@@ -3952,11 +3954,11 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
 
     // 2. Xóa message tiến trình cũ
     if (tracker && tracker.messageId) {
-      await deleteTelegramMessage(chatId, tracker.messageId).catch(() => {});
+      await deleteTelegramMessage(chatId, tracker.messageId).catch(() => { });
       tracker.messageId = null;
     }
     if (session.stepTrackerMessageId) {
-      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => { });
       session.stepTrackerMessageId = null;
     }
 
@@ -4062,19 +4064,19 @@ async function executeProductRemakeSingleVideo(chatId, baseDir, runId, targetPan
     try {
       fs.copyFileSync(newVideos[0].videoPath, targetPath);
       isSuccess = true;
-    } catch (_) {}
+    } catch (_) { }
   } else if (newVideos && newVideos[0]?.videoBase64) {
     try {
       fs.writeFileSync(targetPath, Buffer.from(newVideos[0].videoBase64, 'base64'));
       isSuccess = true;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // KHÔNG tạo fallback video tĩnh từ ảnh nếu lỗi
   if (!isSuccess) {
     console.warn(`[TemplateProduct] ⚠️ Remake video for scene ${pIdx} failed on Flow server. Skipping scene ${pIdx}.`);
     if (fs.existsSync(targetPath)) {
-      try { fs.unlinkSync(targetPath); } catch (_) {}
+      try { fs.unlinkSync(targetPath); } catch (_) { }
     }
     if (chatId) {
       await sendTelegramMessage(chatId, `⚠️ <b>[Template Product] Tạo lại Video Cảnh ${pIdx} thất bại:</b> Lỗi server Flow Google (có thể do kiểm duyệt hình ảnh không an toàn hoặc lỗi mạng). Cảnh ${pIdx} đã bị bỏ qua, không được merge vào video. Bạn có thể bấm <b>Remake Cảnh ${pIdx}</b> để sinh lại ảnh panel trước.`, {
@@ -4109,7 +4111,7 @@ async function executeProductRemakeSingleVideo(chatId, baseDir, runId, targetPan
   if (mergedVideoPath && fs.existsSync(mergedVideoPath)) {
     const finalDir = path.join(session.runDir, 'final');
     ensureDir(finalDir);
-    try { fs.copyFileSync(mergedVideoPath, path.join(finalDir, 'final-video.mp4')); } catch (_) {}
+    try { fs.copyFileSync(mergedVideoPath, path.join(finalDir, 'final-video.mp4')); } catch (_) { }
   }
 
   session.mergedVideoPath = mergedVideoPath;
@@ -4140,15 +4142,15 @@ async function executeProductRemakeSingleVideo(chatId, baseDir, runId, targetPan
 
     // Xóa status message tiến trình cũ (nếu có)
     if (opts.stepTracker && opts.stepTracker.messageId) {
-      await deleteTelegramMessage(chatId, opts.stepTracker.messageId).catch(() => {});
+      await deleteTelegramMessage(chatId, opts.stepTracker.messageId).catch(() => { });
       opts.stepTracker.messageId = null;
     }
     if (session.stepTrackerMessageId) {
-      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
+      await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => { });
       session.stepTrackerMessageId = null;
     }
     if (opts.statusMsgId) {
-      await deleteTelegramMessage(chatId, opts.statusMsgId).catch(() => {});
+      await deleteTelegramMessage(chatId, opts.statusMsgId).catch(() => { });
     }
 
     // 2. Gửi status message mới kèm options remake video hoặc upload TikTok

@@ -13,31 +13,51 @@ Hệ thống tự động hóa toàn diện từ link sản phẩm TikTok Shop /
 
 ### Yêu Cầu Hệ Thống
 * **Hệ điều hành**: Windows 10/11, macOS hoặc Linux.
-* **Node.js**: Phiên bản **v20 LTS** (hoặc tối thiểu v18+). Tải tại: [nodejs.org](https://nodejs.org/)
-* **Tài khoản Google**: Đã truy cập được [Google Labs Flow](https://labs.google/fx/tools/flow) & [Google Gemini](https://gemini.google.com).
-* **Telegram Bot Token**: Tạo bot qua [@BotFather](https://t.me/botfather) để lấy token riêng cho máy.
+* **Node.js**: Phiên bản **v20 LTS** (tối thiểu v18+). Script setup tự cài nếu máy chưa có (macOS/Linux).
+* **Google Chrome thật** (bắt buộc): Flow tạo ảnh bằng **Nano Banana Pro** qua Chrome thật (CDP port `9222`) để có reCAPTCHA score cao. Server tự mở Chrome khi cần.
+* **Tài khoản Google**: Đã truy cập được [Google Flow](https://labs.google/fx/tools/flow) & [Google Gemini](https://gemini.google.com).
+* **Telegram Bot Token**: Tạo bot qua [@BotFather](https://t.me/botfather).
+* **Docker** (tuỳ chọn): chỉ cần nếu dùng n8n để upload TikTok + gắn giỏ hàng.
 
 ---
 
-### Cách 1: Setup Tự Động 1-Click (Khuyên dùng)
+### ✅ Setup 1 Lệnh (Khuyên dùng)
 
-#### 👉 Trên Windows:
-1. Clone repo về máy hoặc tải file ZIP rồi giải nén.
-2. **Double-click (click đúp) vào file `setup.bat`** ở thư mục gốc của dự án.
-3. Script sẽ tự động:
-   * Kiểm tra Node.js (hướng dẫn tải nếu máy chưa có).
-   * Khởi tạo các thư mục dữ liệu (`chrome-data`, `gemini-cookies`, `uploads`, `storyboard-review-runs`).
-   * Cài đặt toàn bộ dependencies thư viện qua `yarn` / `npm`.
-   * Cài đặt trình duyệt Playwright Chromium.
-   * Tạo file `.env` và nhắc bạn nhập `TELEGRAM_BOT_TOKEN`.
-   * Mở trình duyệt Chrome để bạn đăng nhập Google Flow & Gemini lần đầu (tự động xuất và lưu cookies session).
+| Hệ điều hành | Lệnh |
+|---|---|
+| macOS / Linux | `chmod +x setup.sh start.sh && ./setup.sh` |
+| Windows | Double-click `setup.bat` |
+| Không tương tác (CI / máy chủ) | `cd playwright-service && node setup.js --yes` |
 
-#### 👉 Trên macOS / Linux:
-1. Mở Terminal tại thư mục dự án và chạy:
-   ```bash
-   chmod +x setup.sh start.sh
-   ./setup.sh
-   ```
+Script `setup.sh` / `setup.bat` → [`playwright-service/setup.js`](playwright-service/setup.js) sẽ tự động:
+
+1. Kiểm tra / cài Node.js.
+2. Tạo thư mục dữ liệu (`chrome-data`, `gemini-cookies`, `uploads`, `storyboard-review-runs`, `assets`).
+3. Cài dependencies (`yarn` / fallback `npm`) và Playwright Chromium.
+4. Tạo `.env` từ `.env.example`, hỏi `TELEGRAM_BOT_TOKEN`, cảnh báo nếu thiếu `GEMINI_API_KEY`.
+5. Kiểm tra Google Chrome thật, ffmpeg, proxy list (tuỳ chọn).
+6. Cài `flow-captcha-worker` nếu thư mục này có trên máy (tuỳ chọn).
+7. Khởi động **n8n** bằng `docker compose` nếu có Docker (tuỳ chọn).
+8. Mở trình duyệt để đăng nhập Google lần đầu và tự xuất cookie.
+
+> Setup an toàn để chạy lại nhiều lần — các bước đã xong sẽ được giữ nguyên.
+
+#### Cấu hình `.env` tối thiểu (`playwright-service/.env`)
+```env
+PORT=3000
+TELEGRAM_BOT_TOKEN=token_tu_botfather
+GEMINI_API_KEY=key_gemini           # phân tích sản phẩm + TTS
+GEMINI_TTS_FALLBACK_KEYS=key2,key3   # tuỳ chọn
+```
+
+#### Thành phần tuỳ chọn
+| Thành phần | Mục đích | Nếu không có |
+|---|---|---|
+| `playwright-service/assets/Webshare 10 proxies.txt` (`ip:port:user:pass` mỗi dòng) | Xoay proxy khi Flow báo `UNUSUAL_ACTIVITY` | Proxy Bridge `127.0.0.1:8888` chạy DIRECT |
+| `flow-captcha-worker/` (port `9060`) | reCAPTCHA token score cao | Tự fallback lấy token từ tab Chrome |
+| n8n Docker (port `5678`) | Upload TikTok + gắn giỏ hàng | Bot vẫn tạo video bình thường |
+
+> ⚠️ File proxy, `.env`, cookies, `chrome-data/`, `chrome-proxy-data/` đều nằm trong `.gitignore` — **không commit**. Máy mới cần tự copy/điền.
 
 ---
 
@@ -75,21 +95,29 @@ node login.js
 
 ## ▶️ Khởi Động Server
 
-Sau khi đã setup xong, bạn có thể khởi động server bất cứ lúc nào:
+Sau khi setup xong, chỉ cần **1 lệnh** để chạy bot:
 
-* **Trên Windows**: **Double-click vào file `start.bat`** ở thư mục gốc (tương đương chạy `node server.js`).
-* **Trên macOS / Linux**: Chạy `./start.sh` hoặc:
-  ```bash
-  cd playwright-service
-  node server.js
-  ```
+```bash
+cd playwright-service
+npm start          # = node --max-http-header-size=65536 server.js
+```
+
+* **macOS / Linux**: hoặc `./start.sh` ở thư mục gốc.
+* **Windows**: double-click `start.bat`.
+
+Server tự động: bật Proxy Bridge (`127.0.0.1:8888`) → làm mới cookie Google → mở API port `3000` → bật Telegram bot polling. Chrome thật (CDP `9222`) được mở tự động khi có job tạo ảnh.
 
 Khi server khởi động thành công, bạn sẽ thấy log:
 ```text
+[ProxyBridge] ✅ Local Proxy Bridge listening on 127.0.0.1:8888
 🚀 Playwright Automation Server listening on port 3000
 [Telegram Bot] Telegram polling active. Listening for TikTok links & /upload...
-[Telegram Bot] ✅ Đã đăng ký 24 commands vào menu bot.
 ```
+
+> Tuỳ chọn: chạy thêm `cd flow-captcha-worker && npm start` ở terminal khác để có reCAPTCHA token ổn định hơn.
+
+### 🖼️ Model tạo ảnh storyboard
+`tpro` và `tproduct` tạo Master Storyboard trên Google Flow với **Nano Banana Pro**, tỉ lệ **16:9**, **x4** candidates. Ảnh tham chiếu (`model.png` + `input.png`) được upload và gắn vào request tạo ảnh (xem [`direct-flow-engine.js`](playwright-service/services/playwright-direct/direct-flow-engine.js)).
 
 ---
 
@@ -116,6 +144,7 @@ Bot hỗ trợ đầy đủ các lệnh ngắn gọn tiền tố `/t` (vẫn h�
 | Lệnh | Chức Năng |
 |---|---|
 | `/register <Tên Shop>` | Đăng ký nhóm vào hệ thống và liên kết tài khoản TikTok Shop qua QR code |
+| `/login` | Đăng nhập / làm mới phiên TikTok bằng QR cho shop của nhóm (cùng tài khoản → cập nhật credential cũ) |
 | `/upload` | Ghép các cảnh video thành video dọc 9:16 và đăng lên kênh TikTok liên kết của chat |
 | `/remake <cảnh> [prompt]` | Tạo lại cảnh video chưa ưng ý (VD: `/remake 1` hoặc `/remake 4 quay góc cận hơn`) |
 | `/status` | Xem trạng thái hàng đợi đang xử lý video |
@@ -141,6 +170,11 @@ Hệ thống cho phép thêm nhóm Telegram mới và liên kết tài khoản T
    * Bot mở phiên đăng nhập bảo mật và gửi ảnh mã QR trực tiếp vào nhóm Telegram (mã có hiệu lực trong 90 giây).
    * Mở app **TikTok trên điện thoại** $\rightarrow$ Vào trang cá nhân $\rightarrow$ Chọn biểu tượng Quét mã QR $\rightarrow$ Quét ảnh và bấm **Xác nhận đăng nhập**.
    * Server tự động bắt session cookies, lấy thông tin nick/ID TikTok, lưu vào `tiktok-accounts.json`, cập nhật `config.json` và thông báo hoàn tất ngay trong nhóm.
+
+4. **Đăng nhập lại khi phiên TikTok hết hạn (`/login`)**:
+   * Trong nhóm đã đăng ký, gõ `/login` → bot gửi ngay mã QR.
+   * Quét bằng **đúng tài khoản TikTok cũ** → hệ thống nhận diện trùng `userId` và cập nhật cookie vào **chính credential cũ** (cả `tiktok-accounts.json` và n8n), không tạo credential/node mới.
+   * Quét bằng tài khoản khác → shop của nhóm sẽ chuyển sang tài khoản đó.
 
 ---
 
@@ -214,7 +248,13 @@ Hệ thống hỗ trợ kết hợp với **n8n** để tự động hoá việc
 
 ### 2. Cài Đặt & Khởi Động n8n Bằng Docker:
 
-Chạy container n8n bằng lệnh Docker sau (lưu ý cờ `--add-host=host.docker.internal:host-gateway` để n8n có thể gọi ngược lại server Node.js chạy trên máy host):
+Cách nhanh nhất (dùng [`docker-compose.yml`](docker-compose.yml) ở thư mục gốc — `setup.js` cũng tự chạy bước này nếu có Docker):
+
+```bash
+docker compose up -d n8n
+```
+
+Hoặc chạy thủ công bằng `docker run` (lưu ý cờ `--add-host=host.docker.internal:host-gateway` để n8n có thể gọi ngược lại server Node.js chạy trên máy host):
 
 ```bash
 docker run -d \

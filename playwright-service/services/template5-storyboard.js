@@ -1213,11 +1213,12 @@ function sliceStoryboardIntoFourPanels(storyboardBuffer) {
   try {
     fs.writeFileSync(inputPath, buf);
 
+    // Giữ nguyên tỷ lệ và kích thước sau khi cắt ra từ storyboard (không ép scale 9:16 gây méo hình)
     const filterCrops = [
-      '[0:v]crop=iw/4:ih:0:0,scale=1080:1920:flags=lanczos[out1]',
-      '[0:v]crop=iw/4:ih:iw/4:0,scale=1080:1920:flags=lanczos[out2]',
-      '[0:v]crop=iw/4:ih:iw/2:0,scale=1080:1920:flags=lanczos[out3]',
-      '[0:v]crop=iw/4:ih:3*iw/4:0,scale=1080:1920:flags=lanczos[out4]',
+      '[0:v]crop=iw/4:ih:0:0[out1]',
+      '[0:v]crop=iw/4:ih:iw/4:0[out2]',
+      '[0:v]crop=iw/4:ih:iw/2:0[out3]',
+      '[0:v]crop=iw/4:ih:3*iw/4:0[out4]',
     ];
 
     for (let i = 0; i < 4; i++) {
@@ -1225,7 +1226,7 @@ function sliceStoryboardIntoFourPanels(storyboardBuffer) {
     }
 
     const buffers = outPaths.map(p => fs.readFileSync(p));
-    console.log(`[Template5_3] ✅ Sliced Master Storyboard into 4 panel images full viền (no white borders): ${buffers.map((b, i) => `Panel ${i + 1} (${(b.length / 1024).toFixed(0)} KB)`).join(', ')}`);
+    console.log(`[Template5] ✅ Sliced Master Storyboard into 4 panel images (as-is native aspect ratio, no stretch): ${buffers.map((b, i) => `Panel ${i + 1} (${(b.length / 1024).toFixed(0)} KB)`).join(', ')}`);
     return buffers;
   } finally {
     [inputPath, ...outPaths].forEach(p => {
@@ -1285,9 +1286,9 @@ async function cleanPanel4LogoViaGemini(geminiClient, panel4Buffer) {
 
     fs.writeFileSync(geminiCleanPath, cleanedBuf);
 
-    // Ghép vá góc dưới bên phải (rộng 280px, cao 220px) từ ảnh Gemini sạch đè lên góc dưới phải của Panel 4 gốc
-    // Giữ nguyên 100% toàn bộ phần còn lại của ảnh Google Flow gốc!
-    const patchCmd = `"${ffmpegPath}" -y -i "${origPath}" -i "${geminiCleanPath}" -filter_complex "[1:v]scale=1080:1920:flags=lanczos,crop=280:220:1080-280:1920-220[patch];[0:v][patch]overlay=main_w-280:main_h-220[out]" -map "[out]" -q:v 2 "${patchedPath}"`;
+    // Ghép vá góc dưới bên phải từ ảnh Gemini sạch đè lên góc dưới phải của Panel 4 gốc
+    // Giữ nguyên 100% tỷ lệ và độ phân giải gốc của Panel 4!
+    const patchCmd = `"${ffmpegPath}" -y -i "${origPath}" -i "${geminiCleanPath}" -filter_complex "[1:v]scale=w=main_w:h=main_h[scaled];[scaled]crop=w=iw*0.35:h=ih*0.2:x=iw-ow:y=ih-oh[patch];[0:v][patch]overlay=x=main_w-overlay_w:y=main_h-overlay_h[out]" -map "[out]" -q:v 2 "${patchedPath}"`;
     execSync(patchCmd, { timeout: 15000, stdio: 'pipe' });
 
     if (fs.existsSync(patchedPath)) {

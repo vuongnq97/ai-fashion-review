@@ -92,8 +92,8 @@ assert(masterPrompt.includes('glass partition wall'), 'Negative prompt must forb
 assert(masterPrompt.includes('showroom vitrines'), 'Negative prompt must forbid showroom vitrines');
 assert(masterPrompt.includes('blue medical gowns'), 'Negative prompt must forbid blue medical gowns');
 assert(masterPrompt.includes('surgical hairnets'), 'Negative prompt must forbid surgical hairnets');
-assert(masterPrompt.includes('NO bare shoulders, NO tube top'), 'Presenter attire must forbid bare shoulders/tube top');
-console.log('   ✅ Master prompt negative rules, conveyor belt mandate & attire successfully verified');
+assert(masterPrompt.includes('PRESENTER ATTIRE & WARDROBE LOCK — EXACT OUTFIT MATCH'), 'Presenter attire must lock outfit to canonical model');
+console.log('   ✅ Master prompt negative rules, conveyor belt mandate & attire wardrobe lock successfully verified');
 
 // 6. Test Handheld vs Tabletop Product Placement in Panel 1
 console.log('\n6. Verifying Panel 1 Product Focus & Handheld vs Tabletop Placement:');

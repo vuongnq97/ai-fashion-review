@@ -49,10 +49,13 @@ gemini-cookies/
 playwright-service/labs.google.cookies.json
 playwright-service/labs.google.cookies.backup-*.json
 playwright-service/tiktok-accounts.backup-*.json
+playwright-service/assets/proxy-state.json
+playwright-service/assets/*proxies*.txt
 config
 
 # Browser profiles / sessions
 playwright-service/chrome-data/
+playwright-service/chrome-proxy-data/
 playwright-service/google_labs_profile/
 playwright-service/.tiktok-login-profile/
 gemini-image-service/chrome-data/
@@ -120,4 +123,7 @@ workflows/n8n_*/
 # Storyboard runs & scratch
 playwright-service/storyboard-review-runs/
 playwright-service/scratch/
-
+scratch/
+# Flow2API testing (separate folder)
+flow2api-test/
+flow-captcha-worker/

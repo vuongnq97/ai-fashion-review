@@ -13,6 +13,13 @@ if (!process.execArgv.some(arg => arg.includes('max-http-header-size')) && !proc
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 require('dotenv').config();
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('⚠️ [Global] Unhandled Rejection caught (process saved):', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('💥 [Global] Uncaught Exception caught (process saved):', err?.message || err);
+});
 require('./utils/shop-context');
 const express = require('express');
 const fs = require('fs');
@@ -93,6 +100,14 @@ if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
 }
 
 (async () => {
+
+  // ─── Khởi động Proxy Bridge (127.0.0.1:8888 -> Webshare) ───────────────
+  try {
+    const { startProxyBridge } = require('./services/proxy-bridge');
+    await startProxyBridge();
+  } catch (err) {
+    console.warn('⚠️ [Startup] Proxy Bridge warning:', err.message);
+  }
 
   // ─── Tự động làm mới và xuất cookie Google/Gemini từ chrome-data ──────────
   try {

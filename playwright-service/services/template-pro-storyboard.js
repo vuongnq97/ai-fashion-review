@@ -987,15 +987,34 @@ function sliceMasterStoryboardPro(storyboardBuffer) {
   try {
     fs.writeFileSync(inputPath, buf);
 
-    // Mỗi panel được crop chính xác 1/4 bề ngang (iw/4) và toàn bộ chiều cao (ih),
-    // scale về 480:1080 (tỷ lệ đúng 4:9, KHÔNG co kéo, KHÔNG méo hình)
+    // Kiểm tra kích thước thực tế của ảnh (Landscape 16:9 hay Portrait 9:16)
+    let isLandscape = true;
+    try {
+      execSync(`"${ffmpegPath}" -i "${inputPath}"`, { stdio: 'pipe' });
+    } catch (probeErr) {
+      const probeOut = (probeErr.stderr ? probeErr.stderr.toString() : '') + (probeErr.stdout ? probeErr.stdout.toString() : '');
+      const dimMatch = probeOut.match(/Stream #0:0(?:.*): Video: .*, (\d+)x(\d+)/);
+      if (dimMatch) {
+        const w = parseInt(dimMatch[1], 10);
+        const h = parseInt(dimMatch[2], 10);
+        if (h > w) {
+          isLandscape = false;
+        }
+      }
+    }
+
+    // - Nếu Landscape (width >= height): 4 panels xếp ngang cạnh nhau -> cắt theo 4 cột (iw/4)
+    // - Nếu Portrait (height > width): 4 panels xếp dọc từ trên xuống dưới -> cắt theo 4 hàng (ih/4)
+    // Cả 2 trường hợp đều scale về 480:1080 (tỷ lệ chuẩn 4:9, KHÔNG co kéo, KHÔNG méo hình)
     for (let i = 0; i < 4; i++) {
-      const cropFilter = `crop=iw/4:ih:${i}*iw/4:0,scale=480:1080:flags=lanczos`;
+      const cropFilter = isLandscape
+        ? `crop=iw/4:ih:${i}*iw/4:0,scale=480:1080:flags=lanczos`
+        : `crop=iw:ih/4:0:${i}*ih/4,scale=480:1080:flags=lanczos`;
       execSync(`"${ffmpegPath}" -y -i "${inputPath}" -vf "${cropFilter}" -frames:v 1 "${outPaths[i]}"`, { timeout: 15000, stdio: 'pipe' });
     }
 
     const buffers = outPaths.map(p => fs.readFileSync(p));
-    console.log(`[TemplatePro] ✅ Sliced Master Storyboard into 4 natural 4:9 panels (480x1080): ${buffers.map((b, i) => `Panel ${i + 1} (${(b.length / 1024).toFixed(0)} KB)`).join(', ')}`);
+    console.log(`[TemplatePro] ✅ Sliced Master Storyboard (${isLandscape ? 'Landscape 16:9 columns' : 'Portrait 9:16 rows'}) into 4 natural 4:9 panels (480x1080): ${buffers.map((b, i) => `Panel ${i + 1} (${(b.length / 1024).toFixed(0)} KB)`).join(', ')}`);
     return buffers;
   } finally {
     [inputPath, ...outPaths].forEach(p => {

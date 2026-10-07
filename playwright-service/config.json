@@ -29,6 +29,34 @@
     "sceneRatio": "9:16",
     "nhiReferencePath": "assets/nhi"
   },
+  "motherBabySettings": {
+    "channelType": "mother_baby",
+    "faceless": false,
+    "flowProjectUrl": "https://flow.google.com/project/e947447c-d7a2-4f56-94a4-6924950c7f11",
+    "flowProjectId": "e947447c-d7a2-4f56-94a4-6924950c7f11",
+    "motherAssetPath": "assets/nhi/mom.png",
+    "babyAssetPath": "assets/nhi/baby.png",
+    "world": {
+      "id": "mother_baby_home",
+      "style": "warm Vietnamese young-family home",
+      "lighting": "soft natural daylight + subtle warm practical light"
+    },
+    "voice": {
+      "gender": "nu",
+      "localeStyle": "southern_vietnamese",
+      "persona": "young_mother"
+    }
+  },
+  "templateProductSettings": {
+    "channelType": "live_commerce_presenter",
+    "faceless": false,
+    "panelCount": 5,
+    "clipDuration": 8,
+    "totalTargetDuration": 40,
+    "videoModelKey": "veo_3_1_i2v_s_lite_8s_low_priority",
+    "presenterAssetPath": "assets/tproduct/presenter.png",
+    "nativeVoice": true
+  },
   "autoT3Settings": {
     "hashtags": [],
     "enabled": false,
@@ -156,19 +184,19 @@
   },
   "autoT5Settings": {
     "hashtags": [],
-    "enabled": true,
+    "enabled": false,
     "chatId": "-5348767040",
     "timezone": "Asia/Ho_Chi_Minh",
     "template": "tpro",
     "times": [
-      "06:00",
-      "06:30",
+      "06:40",
+      "06:50",
       "07:00",
-      "07:30",
-      "08:00",
       "08:30",
+      "08:45",
       "09:00",
       "09:30",
+      "09:45",
       "10:00",
       "10:30",
       "11:00",
@@ -193,61 +221,69 @@
       "20:30"
     ],
     "shortlinks": [
-     "https://vt.tiktok.com/ZS9SbCf3pShUq-vkYWI",
-"https://vt.tiktok.com/ZS9SbCPSAnMvF-scXwD",
-"https://vt.tiktok.com/ZS9SbC5MXc6rv-kVRPn",
-"https://vt.tiktok.com/ZS9SbCx2bH2f9-plHdU",
-"https://vt.tiktok.com/ZS9SbCCch6XRE-K6w89",
-"https://vt.tiktok.com/ZS9SbCCyHxgfX-30w9n",
-"https://vt.tiktok.com/ZS9SbCXUQhtHg-L9Hm0",
-"https://vt.tiktok.com/ZS9SbCg4DT8qB-i8iqk",
-"https://vt.tiktok.com/ZS9SbXRDEQb5y-BklVQ",
-"https://vt.tiktok.com/ZS9SbXeatUyhx-yAG2U",
-"https://vt.tiktok.com/ZS9SbXRWpUfKN-Lc2XV",
-"https://vt.tiktok.com/ZS9SbXNxnW4Hj-qnUHm",
-"https://vt.tiktok.com/ZS9SbXrXcwGgP-bz4Hw",
-"https://vt.tiktok.com/ZS9SbXSwqYM1P-Nt1d9",
-"https://vt.tiktok.com/ZS9SbXyNEnsbH-XnqCu",
-"https://vt.tiktok.com/ZS9SbXxa45m6e-J6Gef",
-"https://vt.tiktok.com/ZS9SbXQeeSsCL-uRvUx",
-"https://vt.tiktok.com/ZS9SbXTgMhkRt-9cCHG",
-"https://vt.tiktok.com/ZS9Sb49sDK93g-580C7",
-"https://vt.tiktok.com/ZS9Sb4Cy1F5EX-XCYIA",
-"https://vt.tiktok.com/ZS9Sb4VDUtttA-aVsCF",
-"https://vt.tiktok.com/ZS9Sb4sqRmHkw-PE9tI",
-"https://vt.tiktok.com/ZS9Sb43XWquQy-Hnld0",
-"https://vt.tiktok.com/ZS9Sb4K2sW6nh-AmMpE",
-"https://vt.tiktok.com/ZS9SbVMDFKoX3-C00Da",
-"https://vt.tiktok.com/ZS9SbVmSYWAyp-wOkWM",
-  "https://vt.tiktok.com/ZS9SbCf3pShUq-vkYWI",
-"https://vt.tiktok.com/ZS9SbCPSAnMvF-scXwD",
-"https://vt.tiktok.com/ZS9SbC5MXc6rv-kVRPn",
-"https://vt.tiktok.com/ZS9SbCx2bH2f9-plHdU"
+      "https://vt.tiktok.com/ZS9SbCf3pShUq-vkYWI",
+      "https://vt.tiktok.com/ZS9SbCPSAnMvF-scXwD",
+      "https://vt.tiktok.com/ZS9SbC5MXc6rv-kVRPn",
+      "https://vt.tiktok.com/ZS9SbCx2bH2f9-plHdU",
+      "https://vt.tiktok.com/ZS9SbCCch6XRE-K6w89",
+      "https://vt.tiktok.com/ZS9SbCCyHxgfX-30w9n",
+      "https://vt.tiktok.com/ZS9SbCXUQhtHg-L9Hm0",
+      "https://vt.tiktok.com/ZS9SbCg4DT8qB-i8iqk",
+      "https://vt.tiktok.com/ZS9SbXRDEQb5y-BklVQ",
+      "https://vt.tiktok.com/ZS9SbXeatUyhx-yAG2U",
+      "https://vt.tiktok.com/ZS9SbXRWpUfKN-Lc2XV",
+      "https://vt.tiktok.com/ZS9SbXNxnW4Hj-qnUHm",
+      "https://vt.tiktok.com/ZS9SbXrXcwGgP-bz4Hw",
+      "https://vt.tiktok.com/ZS9SbXSwqYM1P-Nt1d9",
+      "https://vt.tiktok.com/ZS9SbXyNEnsbH-XnqCu",
+      "https://vt.tiktok.com/ZS9SbXxa45m6e-J6Gef",
+      "https://vt.tiktok.com/ZS9SbXQeeSsCL-uRvUx",
+      "https://vt.tiktok.com/ZS9SbXTgMhkRt-9cCHG",
+      "https://vt.tiktok.com/ZS9Sb49sDK93g-580C7",
+      "https://vt.tiktok.com/ZS9Sb4VDUtttA-aVsCF",
+      "https://vt.tiktok.com/ZS9SbVMDFKoX3-C00Da",
+      "https://vt.tiktok.com/ZS9SbVmSYWAyp-wOkWM",
+      "https://vt.tiktok.com/ZS9SbCf3pShUq-vkYWI",
+      "https://vt.tiktok.com/ZS9SbCPSAnMvF-scXwD",
+      "https://vt.tiktok.com/ZS9SbC5MXc6rv-kVRPn",
+      "https://vt.tiktok.com/ZS9SbCx2bH2f9-plHdU"
     ]
   },
   "channels": {
     "-5593403910": {
       "label": "Shop Giày Nữ",
+      "gender": "female",
+      "audience": "chị em",
       "tiktokCredentialId": "WIFMkBwL39jBHjxo",
       "tiktokCredentialName": "Lady Shop"
     },
     "-5593429194": {
       "label": "Shop Giày Nam",
+      "gender": "male",
+      "audience": "anh em",
       "tiktokCredentialId": "cJDNuW2i1tFFXivi",
       "tiktokCredentialName": "Men Shop"
     },
     "-5348767040": {
       "label": "Gia dụng",
+      "gender": "neutral",
+      "audience": "các bác",
       "tiktokCredentialId": "Q9JStYDsDEzn5Tg3",
-      "tiktokCredentialName": "Nhi SHop"
+      "tiktokCredentialName": "Nhi Shop (nhi_giadung)",
+      "status": "active",
+      "linkedAt": "2026-10-05T09:49:41.041Z"
     },
     "-5575155415": {
       "label": "QShop",
+      "gender": "neutral",
+      "audience": "mọi người",
       "status": "pending_link",
       "updatedAt": "2026-09-05T08:49:08.489Z"
     },
     "-5349912870": {
       "label": "Qv",
+      "gender": "female",
+      "audience": "chị em",
       "status": "active",
       "updatedAt": "2026-09-05T09:12:21.732Z",
       "tiktokCredentialId": "af54938e56c52021",
@@ -256,6 +292,8 @@
     },
     "-5391525231": {
       "label": "Mít À Ơi",
+      "gender": "female",
+      "audience": "chị em",
       "status": "active",
       "updatedAt": "2026-09-05T09:55:21.462Z",
       "tiktokCredentialId": "75935ca6f875f61c",
@@ -264,6 +302,8 @@
     },
     "-5293583806": {
       "label": "Qu Test",
+      "gender": "neutral",
+      "audience": "mọi người",
       "status": "active",
       "updatedAt": "2026-09-05T10:04:20.374Z",
       "tiktokCredentialId": "d28cd72f0f2218d0",
@@ -272,6 +312,8 @@
     },
     "-5326491806": {
       "label": "Lời Phật Dạy",
+      "gender": "neutral",
+      "audience": "quý vị",
       "status": "active",
       "updatedAt": "2026-09-05T12:47:28.673Z",
       "tiktokCredentialId": "c3c0638c44685528",
@@ -280,6 +322,8 @@
     },
     "-5599617175": {
       "label": "LadyShop",
+      "gender": "female",
+      "audience": "chị em",
       "status": "active",
       "updatedAt": "2026-09-05T13:46:50.624Z",
       "tiktokCredentialId": "47998727722c4e3b",
@@ -288,6 +332,8 @@
     },
     "-5592540592": {
       "label": "ahii",
+      "gender": "female",
+      "audience": "chị em",
       "status": "active",
       "updatedAt": "2026-09-05T13:52:16.685Z",
       "tiktokCredentialId": "7f74344f32212c9d",
@@ -296,11 +342,43 @@
     },
     "-5031728769": {
       "label": "Lady Shop",
+      "gender": "female",
+      "audience": "chị em",
       "status": "active",
       "updatedAt": "2026-09-05T14:12:54.254Z",
       "tiktokCredentialId": "eb67b0501ad2a191",
       "tiktokCredentialName": "Lady Shop (@ladystore2000)",
       "linkedAt": "2026-09-05T14:13:54.043Z"
+    },
+    "-5424522541": {
+      "label": "Mẹ Bắp",
+      "gender": "female",
+      "audience": "các mẹ",
+      "status": "active",
+      "updatedAt": "2026-09-14T13:42:39.407Z",
+      "tiktokCredentialId": "103b2fb2207e6b6d",
+      "tiktokCredentialName": "Mẹ Bắp (@mebaptiktok)",
+      "linkedAt": "2026-09-14T13:43:31.200Z",
+      "flowProjectUrl": "https://flow.google.com/project/e947447c-d7a2-4f56-94a4-6924950c7f11",
+      "flowProjectId": "e947447c-d7a2-4f56-94a4-6924950c7f11"
+    },
+    "-5467551336": {
+      "label": "Tiệm tạp hoá",
+      "gender": "neutral",
+      "audience": "cả nhà",
+      "status": "active",
+      "updatedAt": "2026-09-14T14:43:12.023Z",
+      "tiktokCredentialId": "5bc62703fd2b99db",
+      "tiktokCredentialName": "Tiệm tạp hoá (@tymtaphoa)",
+      "linkedAt": "2026-09-14T14:46:29.121Z"
+    },
+    "-5424437263": {
+      "label": "Tiệm nhà Niy",
+      "status": "active",
+      "updatedAt": "2026-10-07T13:04:10.839Z",
+      "tiktokCredentialId": "80b18c5dc3c5f738",
+      "tiktokCredentialName": "Tiệm nhà Niy (@.tp.xy.knh05)",
+      "linkedAt": "2026-10-07T13:21:10.488Z"
     }
   }
 }

@@ -45,14 +45,17 @@ const ASPECT_RATIO_MAP = {
 };
 
 const ASPECT_RATIO_TO_FLOW_INT = {
-  '16:9': 1,
-  '4:3': 2,
-  '1:1': 3,
-  '3:4': 4,
-  '9:16': 5,
-  'IMAGE_ASPECT_RATIO_LANDSCAPE': 1,
-  'IMAGE_ASPECT_RATIO_SQUARE': 3,
-  'IMAGE_ASPECT_RATIO_PORTRAIT': 5,
+  '16:9': 3,
+  'landscape': 3,
+  '9:16': 2,
+  'portrait': 2,
+  '1:1': 1,
+  'square': 1,
+  '4:3': 4,
+  '3:4': 5,
+  'IMAGE_ASPECT_RATIO_LANDSCAPE': 3,
+  'IMAGE_ASPECT_RATIO_PORTRAIT': 2,
+  'IMAGE_ASPECT_RATIO_SQUARE': 1,
 };
 
 // Flow image generation model (confirmed from network capture: ogiZ0b API uses GEM_PIX_2)
@@ -416,12 +419,18 @@ async function findImageUUID(page, searchTerm, mode = 'image') {
   if (mode === 'video') {
     addBtn = page.locator('div[aria-haspopup="dialog"]:text("Bắt đầu")');
   } else {
-    addBtn = page.locator('button:has(i:text("add_2"))');
+    addBtn = page.locator('button').filter({ hasText: /^add$/i }).or(
+      page.locator('button:has(i:text("add_2")), button:has(i:text("add")), button:has(.google-symbols:has-text("add")), button[aria-label*="thêm" i]')
+    ).last();
   }
 
-  await addBtn.waitFor({ state: 'visible', timeout: 10000 });
-  await addBtn.click();
-  await page.waitForTimeout(2000);
+  const isAddVisible = await addBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  if (!isAddVisible) {
+    console.warn(`[Gen] ⚠️ Add button for gallery picker not visible, skipping UUID lookup for "${searchTerm}"`);
+    return null;
+  }
+  await addBtn.click({ force: true }).catch(() => {});
+  await page.waitForTimeout(1500);
 
   // Set filter to "Mới nhất"
   const filterBtn = page.locator('[role="dialog"] button', { hasText: /Gần đây|Mới nhất|Cũ nhất|Dùng nhiều nhất|Yêu thích/i }).first();
@@ -531,16 +540,20 @@ async function prepareGeneration(page, prompt, filePayloads, config, baseDir) {
         imageInputUUIDs.push(uuid);
       }
     } catch (uploadErr) {
-      console.warn(`[Gen] ⚠️ Direct API upload failed: ${uploadErr.message}. Falling back to DOM upload...`);
+      console.warn(`[Gen] ⚠️ Direct API upload failed: ${uploadErr.message}. Falling back to DOM/UI upload...`);
       imageInputUUIDs = [];
-      await uploadImages(page, filePayloads, baseDir);
-      for (const fp of filePayloads) {
-        const uuid = await findImageUUID(page, fp.name);
-        if (uuid) {
-          imageInputUUIDs.push(uuid);
-        } else {
-          throw new Error(`[Gen] Failed to resolve UUID for uploaded image "${fp.name}" after DOM upload`);
+      try {
+        await uploadImages(page, filePayloads, baseDir);
+        for (const fp of filePayloads) {
+          const uuid = await findImageUUID(page, fp.name);
+          if (uuid) {
+            imageInputUUIDs.push(uuid);
+          } else {
+            console.warn(`[Gen] ⚠️ Could not resolve UUID for "${fp.name}" (will rely on direct UI reference attachment).`);
+          }
         }
+      } catch (domErr) {
+        console.warn(`[Gen] ⚠️ DOM upload/UUID fallback warning: ${domErr.message} (will rely on direct UI reference attachment).`);
       }
     }
   } else if (config.imageSelection && config.imageSelection.length > 0) {
@@ -558,26 +571,17 @@ async function prepareGeneration(page, prompt, filePayloads, config, baseDir) {
     console.log(`[Gen] Resolved ${imageInputUUIDs.length} UUID(s): ${imageInputUUIDs.join(', ')}`);
   }
 
-  console.log('[Gen] Step 4: Getting reCAPTCHA tokens...');
+  console.log('[Gen] Step 4: Getting reCAPTCHA token (quick)...');
   const reqCount = Number(outputCount) > 1 ? Number(outputCount) : 1;
   const recaptchaTokens = [];
-  const maxAttempts = reqCount * 3;
-  for (let i = 0; i < maxAttempts && recaptchaTokens.length < reqCount; i++) {
-    try {
-      const tok = await getRecaptchaToken(page, 'IMAGE_GENERATION');
-      if (tok && !recaptchaTokens.includes(tok)) {
-        recaptchaTokens.push(tok);
-      }
-      if (recaptchaTokens.length < reqCount) {
-        await page.waitForTimeout(600);
-      }
-    } catch (err) {
-      console.warn(`[Gen] Error getting reCAPTCHA token: ${err.message}`);
-    }
+  try {
+    const tok = await getRecaptchaToken(page, 'IMAGE_GENERATION');
+    if (tok) recaptchaTokens.push(tok);
+  } catch (err) {
+    console.warn(`[Gen] Error getting reCAPTCHA token: ${err.message}`);
   }
-
-  const recaptchaToken = recaptchaTokens[0];
-  console.log(`[Gen]   reCAPTCHA: ${recaptchaToken ? recaptchaToken.substring(0, 30) : 'none'}... (${recaptchaToken ? recaptchaToken.length : 0} chars, unique tokens: ${recaptchaTokens.length}/${reqCount})`);
+  const recaptchaToken = recaptchaTokens[0] || '';
+  console.log(`[Gen]   reCAPTCHA: ${recaptchaToken ? recaptchaToken.substring(0, 30) : 'none'}... (${recaptchaToken ? recaptchaToken.length : 0} chars)`);
 
   const wiz = await page.evaluate(() => {
     const w = window.WIZ_global_data || {};
@@ -607,489 +611,81 @@ function cleanFlowImageUrl(rawUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// UI-based Generation (100% human trust, avoids bot detection)
+// Direct Network Stream Generation (100% human trust, zero UI click / tamper)
 // ═══════════════════════════════════════════════════════════════
 async function generateImagesViaUI({ page, context, prompt, outputCount = 1, aspectRatio = '16:9', imageInputUUIDs = [], filePayloads = [] }) {
   if (!page || page.isClosed()) return null;
 
-  try {
-    console.log(`[Gen-UI] 🚀 Triggering generation directly via Flow UI (natural human events)...`);
-    const count = Number(outputCount) > 1 ? Number(outputCount) : 1;
+  const count = Number(outputCount) > 1 ? Number(outputCount) : 1;
+  const { generateStoryboardsViaNativeNetworkStream } = require('./playwright-direct/direct-flow-engine');
 
-    // 0. Ensure ample viewport and clean popups
-    // Phóng to cửa sổ thật (không giả lập viewport) để Flow hiển thị đầy đủ UI, không bị cắt composer
-    await ensureWorkWindow(page, { minW: 1280, minH: 800 });
-    await page.keyboard.press('Escape').catch(() => {});
-    await page.waitForTimeout(300);
+  const refBuffer = (filePayloads && filePayloads.length > 0 && filePayloads[0]?.buffer)
+    ? filePayloads[0].buffer
+    : null;
 
-    // 1. Setup response listener for ogiZ0b (Flow batchexecute RPC containing newly generated images)
-    let signedUrls = [];
-    let rpcResponsePromise = new Promise((resolve) => {
-      const onResponse = async (res) => {
-        const url = res.url();
-        // Strictly listen to ogiZ0b RPC responses (NOT GET requests for existing flow-content images)
-        if (url.includes('ogiZ0b')) {
-          try {
-            const text = await res.text().catch(() => '');
-            if (text.includes('flow-content.google/image')) {
-              const matches = [...text.matchAll(/https:(?:\\\/|\/)+flow-content\.google\/image\/[^"\s]+/g)];
-              const extracted = matches.map(m => cleanFlowImageUrl(m[0])).filter(Boolean);
-              for (const u of extracted) {
-                if (!signedUrls.includes(u)) signedUrls.push(u);
-              }
-              console.log(`[Gen-UI] 📦 Extracted ${extracted.length} new image URL(s) from ogiZ0b response (total: ${signedUrls.length}/${count})`);
-              if (signedUrls.length >= count) {
-                page.off('response', onResponse);
-                resolve(signedUrls);
-              }
-            }
-          } catch (_) {}
-        }
-      };
-      page.on('response', onResponse);
-      setTimeout(() => {
-        page.off('response', onResponse);
-        resolve(signedUrls);
-      }, 60000);
-    });
+  const maxAttempts = 11;
+  let lastErr = null;
 
-    // 1b. Route interceptor: patch aspectInt AND inject correct imageInputUUIDs in ogiZ0b payload.
-    //     This ensures that even if the UI attached the wrong asset (e.g. old image from a previous
-    //     session), the RPC payload is corrected before Angular sends it to Flow's backend.
-    const targetAspectInt = ASPECT_RATIO_TO_FLOW_INT[aspectRatio] || 2;
-    const ogiZ0bHandler = async (route) => {
-      try {
-        const postData = route.request().postData() || '';
-        const params = new URLSearchParams(postData);
-        const fReqStr = params.get('f.req');
-        if (fReqStr) {
-          // outer = [[["ogiZ0b", "<inner json>", null, "generic"]]]
-          const outer = JSON.parse(fReqStr);
-          const innerStr = outer?.[0]?.[0]?.[1];
-          if (innerStr) {
-            const inner = JSON.parse(innerStr);
-            let patched = false;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`[Gen-DirectNetwork] 🚀 Generating ${count} image(s) via Native Network Stream (attempt ${attempt}/${maxAttempts}, ratio: ${aspectRatio}, refs: ${imageInputUUIDs?.length || 0})...`);
 
-            // 🔍 LOG FULL inner[1][0] structure to debug field positions
-            if (inner?.[1]?.[0]) {
-              const item0 = inner[1][0];
-              console.log(`[Gen-UI] 📦 ogiZ0b inner[1][0] length=${item0.length}: ` +
-                item0.map((v, i) => `[${i}]=${v === null ? 'null' : Array.isArray(v) ? 'Array(' + v.length + ')' : JSON.stringify(v).substring(0, 40)}`).join(' | '));
-            }
-
-            // Log natural aspectInt from UI
-            if (inner?.[1]?.[0] && inner[1][0][4] !== undefined) {
-              console.log(`[Gen-UI] ℹ️ ogiZ0b natural aspectInt: ${inner[1][0][4]} (requested: ${aspectRatio})`);
-            }
-
-            // Inject correct image UUIDs: inner[1][i][2] = [[uuid, null, null, null, 1], ...]
-            // MUST iterate all candidate items in inner[1] so all 4 parallel candidates get the reference image
-            if (imageInputUUIDs && imageInputUUIDs.length > 0 && Array.isArray(inner?.[1])) {
-              const expectedRef = imageInputUUIDs.map(id => [id, null, null, null, 1]);
-              const expectedIds = imageInputUUIDs;
-
-              inner[1].forEach((item, idx) => {
-                if (Array.isArray(item)) {
-                  const currentRef = item[2];
-                  const currentIds = Array.isArray(currentRef) ? currentRef.map(r => r?.[0]).filter(Boolean) : [];
-                  const mismatch = currentIds.length !== expectedIds.length || expectedIds.some((id, i) => currentIds[i] !== id);
-                  if (mismatch || !currentRef) {
-                    const prevIds = JSON.stringify(currentIds);
-                    item[2] = expectedRef;
-                    console.log(`[Gen-UI] 🔧 ogiZ0b injected imageUUIDs at [1][${idx}][2]: [${prevIds}]→[${JSON.stringify(expectedIds)}]`);
-                    patched = true;
-                  } else {
-                    console.log(`[Gen-UI] ✅ ogiZ0b imageUUIDs already correct at [1][${idx}][2]: ${JSON.stringify(currentIds)}`);
-                  }
-                }
-              });
-            }
-
-            if (patched) {
-              outer[0][0][1] = JSON.stringify(inner);
-              params.set('f.req', JSON.stringify(outer));
-              await route.continue({ postData: params.toString() });
-              return;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`[Gen-UI] ⚠️ ogiZ0b intercept error: ${err.message}`);
-      }
-      await route.continue();
-    };
-    await page.route('**ogiZ0b**', ogiZ0bHandler).catch(() => {});
-
-    // 2. Open settings and configure mode, ratio, and count
-
-    console.log('[Gen-UI] ⚙️ Checking image settings in Flow UI...');
-    const settingsBtn = page.locator('button.settings-trigger-button, button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Video ·"), button:has-text("Hình ảnh ·")').first();
-    if (await settingsBtn.isVisible().catch(() => false)) {
-      await settingsBtn.click({ force: true, timeout: 3000 }).catch(() => {});
-      await page.waitForTimeout(500);
-
-      // Select Hình ảnh (Image)
-      const imgToggle = page.locator('mat-button-toggle:has-text("Hình ảnh") button, mat-button-toggle:has-text("Image") button, button:has-text("Hình ảnh"), button:has-text("Image")').first();
-      if (await imgToggle.isVisible().catch(() => false)) {
-        await imgToggle.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(300);
-      }
-
-      // Select ratio (16:9 or 9:16)
-      const ratioLabel = aspectRatio === '9:16' ? '9:16' : '16:9';
-      let ratioClicked = false;
-      const ratioBtn = page.locator(`mat-button-toggle:has-text("${ratioLabel}") button, button:text-is("${ratioLabel}")`).first();
-      if (await ratioBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await ratioBtn.click({ force: true }).catch(() => {});
-        ratioClicked = true;
-        await page.waitForTimeout(300);
-      }
-      if (!ratioClicked) {
-        ratioClicked = await page.evaluate((label) => {
-          const elements = Array.from(document.querySelectorAll('button, mat-button-toggle, [role="radio"]'));
-          for (const el of elements) {
-            const txt = (el.textContent || '').trim();
-            if (txt === label || txt.includes(label)) {
-              (el.querySelector('button') || el).click();
-              return true;
-            }
-          }
-          return false;
-        }, ratioLabel).catch(() => false);
-        if (ratioClicked) await page.waitForTimeout(300);
-      }
-      console.log(`[Gen-UI] 📐 Selected ratio ${ratioLabel} (clicked: ${ratioClicked})`);
-
-      // Select count (x1, x2, x3, x4)
-      const countLabel = `x${Math.min(Math.max(count, 1), 4)}`;
-      let countClicked = false;
-      const countBtn = page.locator(`mat-button-toggle:has-text("${countLabel}") button, button:text-is("${countLabel}")`).first();
-      if (await countBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await countBtn.click({ force: true }).catch(() => {});
-        countClicked = true;
-        await page.waitForTimeout(300);
-      }
-      if (!countClicked) {
-        countClicked = await page.evaluate((label) => {
-          const elements = Array.from(document.querySelectorAll('button, mat-button-toggle, [role="radio"]'));
-          for (const el of elements) {
-            const txt = (el.textContent || '').trim();
-            if (txt === label) {
-              (el.querySelector('button') || el).click();
-              return true;
-            }
-          }
-          return false;
-        }, countLabel).catch(() => false);
-        if (countClicked) await page.waitForTimeout(300);
-      }
-
-      await page.keyboard.press('Escape').catch(() => {});
-      await page.waitForTimeout(400);
-
-      // Verify trigger button text
-      const newSettingsText = await settingsBtn.textContent().catch(() => '');
-      console.log(`[Gen-UI] 🔍 Settings button after config: "${(newSettingsText || '').trim().substring(0, 60)}"`);
-    }
-
-    // 3. Attach reference image — MUST be the correct image (no silent wrong-asset fallback)
-    const hasFilesToAttach = (filePayloads && filePayloads.length > 0) || (imageInputUUIDs && imageInputUUIDs.length > 0);
-    if (hasFilesToAttach) {
-      console.log('[Gen-UI] 🖼️ Attaching reference image in Flow UI...');
-      const targetUUID = imageInputUUIDs[0] || null;
-      const refFile = filePayloads?.[0] || null;
-
-      const addBtn = page.locator('button[aria-label="Thêm thành phần vào ô nhập câu lệnh"], button[aria-label="Add components to prompt input"]').first();
-      if (await addBtn.isVisible().catch(() => false)) {
-        await addBtn.click({ force: true, timeout: 3000 }).catch(() => {});
-        await page.waitForTimeout(600);
-
-        // Wait for asset panel to appear
-        await page.waitForSelector(
-          '.asset-item-container, flow-add-menu-asset-list img, [role="listbox"] img',
-          { timeout: 5000 }
-        ).catch(() => {});
-        await page.waitForTimeout(400);
-
-        // Match asset in DOM: by UUID in outerHTML, by filename, or pick top item
-        const searchName = refFile?.name || 'input.png';
-        const attachResult = await page.evaluate(({ uuid, name }) => {
-          const containers = document.querySelectorAll(
-            '.asset-item-container, flow-add-menu-asset-list .asset-item, [role="listbox"] [role="option"]'
-          );
-          if (!containers || containers.length === 0) return null;
-
-          // 1. Try matching uuid in outerHTML if present
-          if (uuid) {
-            for (const el of containers) {
-              if (el.outerHTML.includes(uuid)) {
-                (el.querySelector('img') || el.querySelector('button') || el).click();
-                return 'matched-uuid';
-              }
-            }
-          }
-
-          // 2. Try matching file name in text
-          if (name) {
-            const cleanName = name.toLowerCase().replace(/\.[^.]+$/, '');
-            for (const el of containers) {
-              const txt = (el.innerText || '').toLowerCase();
-              if (txt.includes(name.toLowerCase()) || txt.includes(cleanName)) {
-                (el.querySelector('img') || el.querySelector('button') || el).click();
-                return 'matched-name';
-              }
-            }
-          }
-
-          // 3. Fallback: newly uploaded asset is always the first item in the list
-          const first = containers[0];
-          (first.querySelector('img') || first.querySelector('button') || first).click();
-          return 'first-item';
-        }, { uuid: targetUUID, name: searchName }).catch(() => null);
-
-        if (attachResult) {
-          console.log(`[Gen-UI] ✅ Attached reference image (${attachResult}, UUID: ${targetUUID})`);
-        } else {
-          console.log(`[Gen-UI] ℹ️ Closed asset panel; route interceptor will inject UUID: ${targetUUID}`);
-        }
-        await page.keyboard.press('Escape').catch(() => {});
-        await page.waitForTimeout(600);
-      }
-    }
-
-    // 4. Enter prompt and submit
-    console.log('[Gen-UI] ✍️ Typing image prompt in ProseMirror...');
-    const promptEditorResult = await page.evaluate(async (promptText) => {
-      const isVisible = (el) => {
-        if (!el || !el.isConnected) return false;
-        const r = el.getBoundingClientRect();
-        return r.width > 40 && r.height > 15 && r.bottom > 0 && r.top < window.innerHeight;
-      };
-
-      const candidates = Array.from(document.querySelectorAll(
-        '.ProseMirror, [data-slate-editor="true"], [contenteditable="true"], textarea'
-      )).filter(isVisible).filter(el => {
-        if (el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header')) return false; // Exclude top project header / title
-        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
-        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-        if (ph.includes('search') || ph.includes('tìm') || aria.includes('search') || aria.includes('tìm')) return false;
-        return true;
+      const buffers = await generateStoryboardsViaNativeNetworkStream(page, {
+        prompt,
+        aspectRatio,
+        referenceBuffer: refBuffer,
+        imageInputUUIDs,
+        filePayloads,
+        outputCount: count,
+        timeoutMs: 60000,
       });
 
-      if (candidates.length === 0) return { found: false };
+      if (buffers && buffers.length > 0) {
+        const results = buffers.map((buf, i) => ({
+          base64: buf.toString('base64'),
+          buffer: buf,
+          mimeType: 'image/png',
+          imageName: `img_${Date.now()}_${i + 1}`,
+          signedUrl: ''
+        }));
 
-      // Closest to bottom of viewport = composer
-      candidates.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
-      const editor = candidates[0];
-
-      editor.focus();
-
-      // Clear content
-      try {
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editor);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        document.execCommand('delete', false);
-      } catch (_) {}
-
-      // Insert text via execCommand
-      try {
-        document.execCommand('insertText', false, promptText);
-      } catch (_) {}
-
-      // Trigger events for Angular / ProseMirror
-      editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-      editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-
-      const text = editor.innerText || editor.textContent || editor.value || '';
-      return {
-        found: true,
-        textLength: text.length,
-        textSnippet: text.substring(0, 50),
-        top: editor.getBoundingClientRect().top
-      };
-    }, prompt).catch(() => ({ found: false }));
-
-    console.log(`[Gen-UI] ✍️ DOM prompt insertion: found=${promptEditorResult?.found}, len=${promptEditorResult?.textLength || 0}, snippet="${promptEditorResult?.textSnippet || ''}"`);
-
-    // Fallback via Playwright locator if text didn't stick
-    const editorLocator = page.locator('.ProseMirror, [contenteditable="true"]').filter({
-      hasNot: page.locator('input[placeholder*="search" i]')
-    }).last();
-
-    if (await editorLocator.isVisible().catch(() => false)) {
-      if (!promptEditorResult?.textLength || promptEditorResult.textLength < 10) {
-        await editorLocator.click({ timeout: 3000 }).catch(() => {});
-        await page.waitForTimeout(200);
-        await page.keyboard.press('Meta+A').catch(() => {});
-        await page.keyboard.press('Backspace').catch(() => {});
-        await page.waitForTimeout(100);
-        try {
-          await page.keyboard.insertText(prompt);
-        } catch (_) {
-          try { await page.keyboard.type(prompt); } catch (__) {}
-        }
-        await page.waitForTimeout(400);
-      }
-    }
-
-    // 5. Submit
-    console.log('[Gen-UI] 🚀 Submitting image generation...');
-    let submitClicked = false;
-    for (let c = 0; c < 16; c++) {
-      const status = await page.evaluate(() => {
-        const isVisible = (el) => {
-          if (!el || !el.isConnected) return false;
-          const style = window.getComputedStyle(el);
-          if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) return false;
-          const r = el.getBoundingClientRect();
-          return r.width >= 16 && r.height >= 16 && r.bottom > 0 && r.top < window.innerHeight;
+        console.log(`[Gen-DirectNetwork] ✅ Successfully generated and downloaded ${results.length} candidate(s)!`);
+        return {
+          base64: results[0].base64,
+          buffer: results[0].buffer,
+          mimeType: results[0].mimeType,
+          imageName: results[0].imageName,
+          allResults: results
         };
-        const isEnabled = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true' && !el.classList.contains('disabled');
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[Gen-DirectNetwork] ⚠️ Attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
 
-        // Only search buttons in composer area (not in top header/nav)
-        const buttons = Array.from(document.querySelectorAll('button, [role="button"]'))
-          .filter(isVisible)
-          .filter(b => !b.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'));
+      if (attempt < maxAttempts) {
+        try {
+          const { rotateProxy } = require('./proxy-bridge');
+          const nextP = rotateProxy();
+          console.log(`[Gen-DirectNetwork] 🔄 Auto-switched to proxy #${nextP.index + 1}/${nextP.total} (${nextP.host}:${nextP.port})`);
+        } catch (_) {}
 
-        // 1. Arrow forward button
-        for (const b of buttons) {
-          const icon = b.querySelector('.google-symbols, mat-icon, i, span');
-          const iconText = (icon?.textContent || '').trim().toLowerCase();
-          const bText = (b.textContent || '').trim().toLowerCase();
-          if (iconText === 'arrow_forward' || bText === 'arrow_forward' || bText.includes('arrow_forward')) {
-            if (isEnabled(b)) {
-              b.click();
-              return { found: true, enabled: true, clicked: true, type: 'arrow_forward' };
-            }
-            return { found: true, enabled: false, clicked: false, type: 'arrow_forward' };
+        console.log('[Gen-DirectNetwork] ⏳ Cooldown 3s và tải lại Flow page để áp dụng proxy/session mới...');
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const currentUrl = page.url();
+          if (currentUrl.includes('flow.google.com/project/')) {
+            await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 });
+          } else {
+            const projectUrl = `https://flow.google.com/project/${PROJECT_ID}`;
+            await page.goto(projectUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
           }
-        }
-
-        // 2. Specific aria-label submit buttons (exact or tight match)
-        for (const b of buttons) {
-          const aria = (b.getAttribute('aria-label') || '').toLowerCase().trim();
-          if (aria === 'bắt đầu tạo' || aria === 'generate' || aria === 'tạo hình ảnh' || aria === 'gửi' || aria === 'tạo') {
-            if (isEnabled(b)) {
-              b.click();
-              return { found: true, enabled: true, clicked: true, type: `aria:${aria}` };
-            }
-            return { found: true, enabled: false, clicked: false, type: `aria:${aria}` };
-          }
-        }
-
-        return { found: false };
-      }).catch(() => ({ found: false }));
-
-      if (status.clicked) {
-        submitClicked = true;
-        console.log(`[Gen-UI] ✅ Submit button clicked via DOM eval (${status.type})!`);
-        break;
-      }
-
-      if (status.found && !status.enabled) {
-        await page.waitForTimeout(500);
-        continue;
-      }
-
-      await page.waitForTimeout(500);
-    }
-
-    if (!submitClicked) {
-      const arrowLoc = page.locator('button:has(.google-symbols:has-text("arrow_forward")), button:has(i:has-text("arrow_forward")), button[aria-label="Bắt đầu tạo"], button.generate-icon-button').last();
-      if (await arrowLoc.isVisible({ timeout: 2000 }).catch(() => false)) {
-        console.log('[Gen-UI] 🖱️ Attempting locator click on arrow submit button...');
-        await arrowLoc.click({ force: true, timeout: 3000 }).catch(() => {});
-        submitClicked = true;
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
-
-    // Universal Flow submit shortcut: focus editor and press Enter
-    console.log('[Gen-UI] ⌨️ Pressing Enter on composer editor to trigger submission...');
-    await page.evaluate(() => {
-      const editors = Array.from(document.querySelectorAll('.ProseMirror, [contenteditable="true"], textarea'))
-        .filter(el => !el.closest('header, [role="banner"], flow-app-bar, flow-header, nav, .header'))
-        .filter(el => {
-          const ph = (el.getAttribute('placeholder') || '').toLowerCase();
-          return !ph.includes('search') && !ph.includes('tìm');
-        });
-      if (editors.length > 0) {
-        editors.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
-        editors[0].focus();
-      }
-    }).catch(() => {});
-    await page.waitForTimeout(100);
-    await page.keyboard.press('Enter').catch(() => {});
-
-    console.log('[Gen-UI] ⏳ Submitted prompt in Flow UI! Waiting for images...');
-
-    // 6. Wait for signedUrls from network OR poll DOM
-    let urls = await rpcResponsePromise;
-
-    // Fallback: poll DOM for flow-image-tile images if network missed some
-    if (!urls || urls.length < count) {
-      console.log(`[Gen-UI] Polling DOM for generated images (currently have ${urls?.length || 0}/${count})...`);
-      for (let p = 0; p < 15; p++) {
-        await page.waitForTimeout(2000);
-        const domUrls = await page.evaluate(() => {
-          const tiles = document.querySelectorAll('flow-image-tile img[src*="flow-content.google/image"]');
-          return Array.from(tiles).slice(0, 8).map(img => img.src);
-        }).catch(() => []);
-        for (const du of domUrls) {
-          const cleaned = cleanFlowImageUrl(du);
-          if (cleaned && !signedUrls.includes(cleaned)) {
-            signedUrls.push(cleaned);
-          }
-        }
-        if (signedUrls.length >= count) {
-          urls = signedUrls;
-          break;
-        }
-      }
-    }
-
-    urls = signedUrls;
-    if (!urls || urls.length === 0) {
-      throw new Error('Timeout waiting for Flow UI image generation response (60s limit)');
-    }
-
-    console.log(`[Gen-UI] 🎉 Captured ${urls.length} image URL(s) from UI generation!`);
-    const results = [];
-    for (let i = 0; i < urls.length; i++) {
-      const u = urls[i];
-      try {
-        const buf = await downloadCdnBuffer(u, 60000);
-        if (buf && buf.length > 0) {
-          results.push({
-            base64: buf.toString('base64'),
-            buffer: buf,
-            mimeType: 'image/png',
-            imageName: u.match(/image\/([0-9a-f-]+)/i)?.[1] || `image_${i + 1}`,
-            signedUrl: u
-          });
-        }
-      } catch (fErr) {
-        console.warn(`[Gen-UI] ⚠️ Failed downloading candidate #${i + 1}: ${fErr.message}`);
-      }
-    }
-
-    if (results.length > 0) {
-      console.log(`[Gen-UI] ✅ Successfully downloaded ${results.length} candidate(s)!`);
-      return {
-        base64: results[0].base64,
-        buffer: results[0].buffer,
-        mimeType: results[0].mimeType,
-        imageName: results[0].imageName,
-        allResults: results
-      };
-    }
-    return null;
-  } catch (err) {
-    console.warn(`[Gen-UI] ⚠️ UI generation encountered error: ${err.message}. Falling back to API...`);
-    return null;
   }
+
+  throw lastErr || new Error(`[Gen-DirectNetwork] All ${maxAttempts} attempts failed.`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1114,8 +710,9 @@ async function executeGeneration({
   const targetProjectId = projectId || wiz?.projectId || PROJECT_ID;
   const count = Number(outputCount) > 1 ? Number(outputCount) : 1;
 
-  // 1. UI path: uses human-like UI interaction (buttons, reCAPTCHA) but may apply wrong ratio.
-  //    Skip when skipUi=true — caller will rely on page.evaluate() fetch with explicit payload.
+  // 1. Direct Network Stream path: uses native human event for composer input/submit,
+  //    captures ogiZ0b RPC response stream directly from network, downloads CDN buffers.
+  //    Tự động xoay vòng proxy pool khi gặp UNUSUAL_ACTIVITY và reload trang để retry.
   if (!skipUi && page && !page.isClosed()) {
     try {
       const uiResult = await generateImagesViaUI({
@@ -1128,11 +725,12 @@ async function executeGeneration({
         filePayloads
       });
       if (uiResult && uiResult.allResults && uiResult.allResults.length > 0) {
-        console.log(`[Gen] ✅ UI-based generation successful! Generated ${uiResult.allResults.length} image(s).`);
+        console.log(`[Gen] ✅ Direct network stream generation successful! Generated ${uiResult.allResults.length} image(s).`);
         return uiResult;
       }
     } catch (uiErr) {
-      console.warn(`[Gen] UI generation fallback to direct RPC: ${uiErr.message}`);
+      console.error(`[Gen] ❌ Native network stream generation failed after proxy rotation retries: ${uiErr.message}`);
+      throw uiErr;
     }
   }
 

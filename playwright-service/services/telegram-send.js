@@ -50,15 +50,16 @@ function formatReplyMarkup(replyMarkup) {
 async function sendTelegramMessage(chatId, text, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
+  const opts = options || {};
 
   try {
     const payload = {
       chat_id: chatId,
       text,
-      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+      ...(opts.parse_mode ? { parse_mode: opts.parse_mode } : {}),
     };
-    if (options.reply_markup) {
-      payload.reply_markup = formatReplyMarkup(options.reply_markup);
+    if (opts.reply_markup) {
+      payload.reply_markup = formatReplyMarkup(opts.reply_markup);
     }
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -102,16 +103,17 @@ async function sendTelegramMessage(chatId, text, options = {}) {
 async function editTelegramMessage(chatId, messageId, text, options = {}) {
   const botToken = getBotToken();
   if (!botToken || !messageId) return false;
+  const opts = options || {};
 
   try {
     const payload = {
       chat_id: chatId,
       message_id: messageId,
       text,
-      ...(options.parse_mode ? { parse_mode: options.parse_mode } : {}),
+      ...(opts.parse_mode ? { parse_mode: opts.parse_mode } : {}),
     };
-    if (options.reply_markup) {
-      payload.reply_markup = formatReplyMarkup(options.reply_markup);
+    if (opts.reply_markup) {
+      payload.reply_markup = formatReplyMarkup(opts.reply_markup);
     }
     const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
       method: 'POST',
@@ -181,6 +183,7 @@ function optimizeImageForTelegram(buf) {
 async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', options = {}) {
   const botToken = getBotToken();
   if (!botToken) return null;
+  const opts = options || {};
 
   const rawBuf = toBuffer(imageBufferOrBase64);
   if (!rawBuf) return null;
@@ -194,13 +197,13 @@ async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', op
       const blob = new Blob([buf], { type: mime });
       formData.append('photo', blob, filename);
       if (caption) formData.append('caption', caption);
-      if (options.parse_mode) formData.append('parse_mode', options.parse_mode);
-      if (options.reply_markup) {
+      if (opts.parse_mode) formData.append('parse_mode', opts.parse_mode);
+      if (opts.reply_markup) {
         formData.append(
           'reply_markup',
-          typeof options.reply_markup === 'string'
-            ? options.reply_markup
-            : JSON.stringify(options.reply_markup)
+          typeof opts.reply_markup === 'string'
+            ? opts.reply_markup
+            : JSON.stringify(opts.reply_markup)
         );
       }
 
@@ -213,14 +216,14 @@ async function sendPhotoToTelegram(chatId, imageBufferOrBase64, caption = '', op
       if (!response.ok) {
         const errText = await response.text();
         console.error(`[Telegram] sendPhoto failed (attempt ${attempt}/2): ${errText}`);
-        if (errText.includes('BUTTON_DATA_INVALID') && options.reply_markup) {
+        if (errText.includes('BUTTON_DATA_INVALID') && opts.reply_markup) {
           console.warn('[Telegram] ⚠️ BUTTON_DATA_INVALID: callback_data exceeded 64-byte limit. Retrying sendPhoto without reply_markup...');
           const fallbackFormData = new FormData();
           fallbackFormData.append('chat_id', chatId);
           const fallbackBlob = new Blob([buf], { type: mime });
           fallbackFormData.append('photo', fallbackBlob, filename);
           if (caption) fallbackFormData.append('caption', caption);
-          if (options.parse_mode) fallbackFormData.append('parse_mode', options.parse_mode);
+          if (opts.parse_mode) fallbackFormData.append('parse_mode', opts.parse_mode);
 
           const fallbackRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
             method: 'POST',
@@ -351,11 +354,12 @@ async function sendOrUpdateLivePanel(chatId, previousMessageId, imageBufferOrBas
 async function sendVideoToTelegramDirect(chatId, videoBase64, panelIndex, panelName, caption, options = {}) {
   const botToken = getBotToken();
   if (!botToken) return false;
+  const opts = options || {};
 
   const pName = panelName || `Panel ${panelIndex || 1}`;
 
   try {
-    const cropPct = typeof options.cropPercent === 'number' ? options.cropPercent : 0;
+    const cropPct = typeof opts.cropPercent === 'number' ? opts.cropPercent : 0;
     console.log(`[Telegram] Preparing ${pName} before sending (crop: ${cropPct * 100}%)...`);
     const resizedBase64 = await processVideoBase64(videoBase64, {
       cropPercent: cropPct,

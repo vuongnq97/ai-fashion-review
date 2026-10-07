@@ -42,6 +42,16 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
     };
   }
 
+  if (template === 'testing' || template === 'template_testing' || template === 'ttest') {
+    return {
+      name: 'testing',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        const templateTesting = require('./playwright-direct/template-direct-storyboard');
+        return templateTesting.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'testing' });
+      },
+    };
+  }
+
   if (template === 'template_mom' || template === 'templatemom' || template === 'tmom') {
     return {
       name: 'template_mom',
@@ -89,6 +99,14 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
     config.systemSettings?.storyboardProvider ||
     'aistudio-playwright'
   ).trim().toLowerCase();
+
+  if (provider === 'flow2api' || provider === 'flow-api') {
+    const flow2api = require('./flow2api-adapter/flow2api-storyboard-provider');
+    return {
+      name: 'flow2api',
+      generateStoryboard: flow2api.generateStoryboard,
+    };
+  }
 
   if (provider === 'google-flow' || provider === 'googleflow' || provider === 'flow') {
     return {

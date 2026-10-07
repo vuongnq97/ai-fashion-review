@@ -272,12 +272,19 @@ execSync(
 );
 assert.ok(fs.existsSync(mockMasterPath), 'Master mock image created');
 
+function getImageInfo(p) {
+  try { execSync(`"${ffmpegPath}" -i "${p}"`, { encoding: 'utf8', stdio: 'pipe' }); return ''; }
+  catch (err) { return (err.stderr || '') + (err.stdout || ''); }
+}
+
 const slicedPanels = sliceMasterStoryboardProduct(mockMasterPath, panelsDir);
 assert.strictEqual(slicedPanels.length, 5, 'Must produce 5 sliced panels');
 for (let i = 0; i < 5; i++) {
   assert.ok(fs.existsSync(slicedPanels[i]), `Panel ${i + 1} must exist at ${slicedPanels[i]}`);
+  const dims = getImageInfo(slicedPanels[i]);
+  assert.ok(dims.includes('384x1080'), `Panel ${i + 1} must keep native resolution 384x1080 (no stretching)`);
 }
-console.log('✅ Successfully sliced 1920x1080 master into 5 panels (1080x1920 for Veo)');
+console.log('✅ Successfully sliced 1920x1080 master into 5 panels (native 384x1080, zero distortion)');
 
 // 8.2 Test slicing Google Flow 1376x768 output
 const mockFlow169Path = path.join(tmpDir, 'flow-1376x768.png');
@@ -291,8 +298,10 @@ const flowSliced = sliceMasterStoryboardProduct(mockFlow169Path, flowPanelsDir);
 assert.strictEqual(flowSliced.length, 5, 'Must produce 5 sliced panels from 1376x768');
 for (let i = 0; i < 5; i++) {
   assert.ok(fs.existsSync(flowSliced[i]), `Flow panel ${i + 1} must exist at ${flowSliced[i]}`);
+  const dims = getImageInfo(flowSliced[i]);
+  assert.ok(dims.includes('274x768'), `Flow panel ${i + 1} must keep native resolution 274x768 (no stretching)`);
 }
-console.log('✅ Successfully sliced 1376x768 Google Flow master into 5 panels (1080x1920 for Veo)');
+console.log('✅ Successfully sliced 1376x768 Google Flow master into 5 panels (native 274x768, zero distortion)');
 
 const recomposedMasterPath = path.join(tmpDir, 'recomposed-master.png');
 composeMasterStoryboardProduct(slicedPanels, recomposedMasterPath);

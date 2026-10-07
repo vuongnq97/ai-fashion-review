@@ -375,11 +375,21 @@ function ensureRealChromeCdp(cdpPort) {
         || path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome-CDP');
       fs.mkdirSync(dataDir, { recursive: true });
 
+      try {
+        const { startProxyBridge } = require('./proxy-bridge');
+        await startProxyBridge();
+      } catch (pErr) {
+        console.warn('[Browser] ⚠️ startProxyBridge warning:', pErr.message);
+      }
+
       console.log(`[Browser] 🚀 Cổng ${cdpPort} đang đóng — tự mở Chrome thật (profile: ${dataDir})...`);
       const child = spawn(binary, [
         `--user-data-dir=${dataDir}`,
         `--remote-debugging-port=${cdpPort}`,
         '--remote-allow-origins=*',
+        '--proxy-server=http=127.0.0.1:8888;https=127.0.0.1:8888',
+        '--disable-quic',
+        '--disable-extensions',
         '--restore-last-session',
       ], { detached: true, stdio: 'ignore' });
       child.on('error', (e) => console.log(`[Browser] ⚠️ Không mở được Chrome thật: ${e.message}`));
@@ -408,6 +418,14 @@ function ensureRealChromeCdp(cdpPort) {
 async function getSharedContext(baseDir = path.resolve(__dirname, '..')) {
   const userDataDir = path.join(baseDir, 'chrome-data');
   const cookieFile = path.join(baseDir, 'labs.google.cookies.json');
+
+  // Đảm bảo Local Proxy Bridge luôn chạy sẵn sàng tại 127.0.0.1:8888
+  try {
+    const { startProxyBridge } = require('./proxy-bridge');
+    await startProxyBridge();
+  } catch (pErr) {
+    console.warn('[Browser] ⚠️ startProxyBridge warning:', pErr.message);
+  }
 
   if (globalContext) {
     try {
@@ -489,6 +507,8 @@ async function getSharedContext(baseDir = path.resolve(__dirname, '..')) {
       viewport: null,
       args: [
         '--disable-blink-features=AutomationControlled',
+        '--proxy-server=http=127.0.0.1:8888;https=127.0.0.1:8888',
+        '--disable-quic',
         ...winConfig.windowArgs,
         ...getExtensionArgs(baseDir),
       ],
@@ -608,6 +628,24 @@ function resolveFlowProject(chatId = null, template = null, baseDir = null) {
  */
 async function createFlowPage(baseDir, customProjectUrl = null) {
   const context = await getSharedContext(baseDir);
+  const targetUrl = customProjectUrl || PROJECT_URL;
+
+  // In Chrome CDP, if there is an existing ready tab on targetUrl, prefer reusing it
+  if (context._isCdp) {
+    const pages = context.pages();
+    for (const p of pages) {
+      if (p.url().includes('flow.google.com/project') && !p.isClosed()) {
+        const composer = p.locator('.ProseMirror, [contenteditable="true"]').first();
+        if (await composer.isVisible({ timeout: 1500 }).catch(() => false)) {
+          setupTokenInterceptor(p);
+          console.log(`[Browser] ♻️ Reusing existing active Flow tab (${p.url()}) with ready composer.`);
+          p._isReused = true;
+          return p;
+        }
+      }
+    }
+  }
+
   const winConfig = getWindowLaunchConfig(baseDir);
   const isHeadless = process.env.HEADLESS === 'true';
   const page = await context.newPage();
@@ -615,7 +653,6 @@ async function createFlowPage(baseDir, customProjectUrl = null) {
     await applyWindowBounds(context, winConfig, page);
   }
   setupTokenInterceptor(page);
-  const targetUrl = customProjectUrl || PROJECT_URL;
   try {
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   } catch (navErr) {
@@ -625,48 +662,40 @@ async function createFlowPage(baseDir, customProjectUrl = null) {
       throw navErr;
     }
   }
-  // Quick check for Bearer token — flow.google.com uses native cookie RPC, Bearer is optional
-  let tokenReady = false;
-  for (let i = 0; i < 2; i++) {
-    if (cachedBearerToken && !blacklistedBearerTokens.has(cachedBearerToken)) {
-      tokenReady = true;
-      console.log(`[Browser] ✅ Bearer token captured during page load (${i + 1}s).`);
-      break;
+
+  // Đảm bảo viewport chuẩn desktop 1280x800 để composer ProseMirror không bị co giấu trong giao diện mobile
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 }).catch(() => {});
+  } catch (_) {}
+
+  // Tự động đóng banner cookie GDPR của Google ngay khi vào trang
+  try {
+    const agreeBtn = page.locator('.glue-cookie-notification-bar__accept, button:has-text("Agree"), button:has-text("Tôi đồng ý")').first();
+    if (await agreeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await agreeBtn.click({ force: true }).catch(() => {});
+      console.log('[Browser] 🍪 Dismissed Google cookie notification banner.');
     }
-    await page.waitForTimeout(500);
-  }
-  if (!tokenReady) {
-    console.log('[Browser] ℹ️ Flow page ready with native session cookies (Bearer token optional).');
-  }
+    await page.evaluate(() => {
+      document.querySelectorAll('.glue-cookie-notification-bar, #glue-cookie-notification-bar-1, [id*="glue-cookie"]').forEach(el => el.remove());
+    }).catch(() => {});
+  } catch (_) {}
+
+  // Chờ composer mount xong
+  try {
+    await page.locator('.ProseMirror, [contenteditable="true"]').first().waitFor({ state: 'visible', timeout: 15000 });
+  } catch (_) {}
+
   await handleAuthRedirect(page, context, targetUrl);
 
   // Warm up reCAPTCHA score with realistic UI interactions
-  // (reCAPTCHA Enterprise scores are session-based — interactions accumulate trust)
   try {
     const vp = page.viewportSize() || { width: 1280, height: 800 };
-    // Simulate natural browsing: move mouse around, scroll, click background
     await page.mouse.move(
       Math.floor(vp.width * 0.4 + Math.random() * vp.width * 0.2),
       Math.floor(vp.height * 0.3 + Math.random() * vp.height * 0.2),
-      { steps: 12 }
-    );
-    await page.waitForTimeout(400 + Math.floor(Math.random() * 300));
-    await page.mouse.wheel(0, 80);
-    await page.waitForTimeout(200);
-    await page.mouse.wheel(0, -80);
-    await page.waitForTimeout(300 + Math.floor(Math.random() * 200));
-    // Click on a safe background area to register user gesture
-    await page.mouse.click(
-      Math.floor(vp.width * 0.5 + Math.random() * 100 - 50),
-      Math.floor(vp.height * 0.6 + Math.random() * 80 - 40)
-    );
-    await page.waitForTimeout(500 + Math.floor(Math.random() * 300));
-    await page.mouse.move(
-      Math.floor(vp.width * 0.3 + Math.random() * vp.width * 0.4),
-      Math.floor(vp.height * 0.4 + Math.random() * vp.height * 0.3),
       { steps: 8 }
     );
-    await page.waitForTimeout(300 + Math.floor(Math.random() * 200));
+    await page.waitForTimeout(300);
   } catch (_) {}
 
   const detectedProjectId = extractProjectIdFromPage(page);
@@ -680,6 +709,10 @@ async function createFlowPage(baseDir, customProjectUrl = null) {
 async function closeFlowPage(page) {
   try {
     if (page && !page.isClosed()) {
+      if (page._isReused) {
+        console.log('[Browser] ♻️ Retaining reused flow tab open for next task.');
+        return;
+      }
       await page.close();
       console.log('[Browser] Closed flow page (tab).');
     }

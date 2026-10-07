@@ -5,12 +5,12 @@
  *
  * Local Proxy Bridge chạy tại 127.0.0.1:8888.
  * Tự động gắn Basic Authentication và forward toàn bộ HTTP/HTTPS CONNECT tunnel
- * sang Webshare Proxy Pool (10 proxies) - tránh lỗi 407 Proxy Authentication trên Chrome/Playwright.
+ * sang Proxy Pool (assets/proxies.txt) - tránh lỗi 407 Proxy Authentication trên Chrome/Playwright.
  *
  * Hỗ trợ xoay proxy động (rotateProxy):
- * - Tuần tự qua 10 proxies (#1 -> #10).
- * - Khi hết cả 10 proxies (lỗi hết proxy): tự động chuyển sang DIRECT (Không dùng proxy).
- * - Khi đang ở DIRECT mà bị lỗi: tự động quay lại dùng 10 proxies (bắt đầu lại từ Proxy #1).
+ * - Tuần tự qua toàn bộ proxies trong pool (#1 -> #N).
+ * - Khi hết cả N proxies (lỗi hết proxy): tự động chuyển sang DIRECT (Không dùng proxy).
+ * - Khi đang ở DIRECT mà bị lỗi: tự động quay lại dùng proxies (bắt đầu lại từ Proxy #1).
  *
  * Chrome/Playwright luôn giữ nguyên kết nối vào 127.0.0.1:8888, không cần khởi động lại browser!
  */
@@ -59,7 +59,7 @@ function loadProxyStateIndex() {
 }
 
 function loadProxyPool() {
-  const proxyFilePath = path.join(__dirname, '../assets/Webshare 10 proxies.txt');
+  const proxyFilePath = path.join(__dirname, '../assets/proxies.txt');
   const list = [];
   if (fs.existsSync(proxyFilePath)) {
     const lines = fs.readFileSync(proxyFilePath, 'utf8').split('\n');

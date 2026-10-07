@@ -376,11 +376,11 @@ async function main() {
   }
 
   // 5d. Proxy (tuỳ chọn)
-  const proxyFile = path.join(BASE_DIR, 'assets', 'Webshare 10 proxies.txt');
+  const proxyFile = path.join(BASE_DIR, 'assets', 'proxies.txt');
   if (fs.existsSync(proxyFile)) {
-    console.log('  ✅ Tìm thấy danh sách proxy Webshare (assets/Webshare 10 proxies.txt).');
+    console.log('  ✅ Tìm thấy danh sách proxy (assets/proxies.txt).');
   } else {
-    console.log('  ℹ️  Không có proxy list → Proxy Bridge (127.0.0.1:8888) chạy DIRECT. (Tuỳ chọn: thêm assets/Webshare 10 proxies.txt, mỗi dòng ip:port:user:pass)');
+    console.log('  ℹ️  Không có proxy list → Proxy Bridge (127.0.0.1:8888) chạy DIRECT. (Tuỳ chọn: thêm assets/proxies.txt, mỗi dòng ip:port:user:pass)');
   }
 
   // 5e. Flow Captcha Worker (tuỳ chọn, port 9060) — engine tự fallback sang Chrome nếu không có

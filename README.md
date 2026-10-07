@@ -71,7 +71,7 @@ GEMINI_TTS_FALLBACK_KEYS=key2,key3   # tuỳ chọn
 #### Thành phần tuỳ chọn
 | Thành phần | Mục đích | Nếu không có |
 |---|---|---|
-| `playwright-service/assets/Webshare 10 proxies.txt` (`ip:port:user:pass` mỗi dòng) | Xoay proxy khi Flow báo `UNUSUAL_ACTIVITY` | Proxy Bridge `127.0.0.1:8888` chạy DIRECT |
+| `playwright-service/assets/proxies.txt` (`ip:port:user:pass` mỗi dòng) | Xoay proxy khi Flow báo `UNUSUAL_ACTIVITY` | Proxy Bridge `127.0.0.1:8888` chạy DIRECT |
 | `flow-captcha-worker/` (port `9060`) | reCAPTCHA token score cao | Tự fallback lấy token từ tab Chrome |
 | n8n Docker (port `5678`) | Upload TikTok + gắn giỏ hàng | Bot vẫn tạo video bình thường |
 

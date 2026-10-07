@@ -27,11 +27,22 @@ Hệ thống tự động hóa toàn diện từ link sản phẩm TikTok Shop /
 |---|---|
 | macOS / Linux | `chmod +x setup.sh start.sh && ./setup.sh` |
 | Windows | Double-click `setup.bat` |
+| Đã có Node.js (mọi OS) | `cd playwright-service && node setup.js` |
 | Không tương tác (CI / máy chủ) | `cd playwright-service && node setup.js --yes` |
 
-Script `setup.sh` / `setup.bat` → [`playwright-service/setup.js`](playwright-service/setup.js) sẽ tự động:
+#### 4 script ở thư mục gốc là gì?
+Cả 4 đều chỉ là **lớp bọc mỏng** — logic thật nằm ở [`setup.js`](playwright-service/setup.js) và [`server.js`](playwright-service/server.js). Có thể bỏ qua và gọi thẳng lệnh Node.
 
-1. Kiểm tra / cài Node.js.
+| File | Làm gì thêm so với gọi thẳng | Tương đương |
+|---|---|---|
+| `setup.sh` | **Tự cài Node.js v20** (Homebrew hoặc nvm) nếu máy chưa có | `cd playwright-service && node setup.js` |
+| `setup.bat` | Tìm Node.js trong thư mục cài mặc định, báo lỗi rõ ràng, hỏi khởi động server sau setup | `cd playwright-service && node setup.js` |
+| `start.sh` | Không gì thêm | `cd playwright-service && node server.js` |
+| `start.bat` | Kiểm tra Node.js, `node_modules`, tạo `.env` nếu thiếu; giữ cửa sổ mở khi server dừng | `cd playwright-service && node server.js` |
+
+`setup.js` sẽ tự động:
+
+1. Kiểm tra phiên bản Node.js (việc **cài** Node.js do `setup.sh` làm).
 2. Tạo thư mục dữ liệu (`chrome-data`, `gemini-cookies`, `uploads`, `storyboard-review-runs`, `assets`).
 3. Cài dependencies (`yarn` / fallback `npm`) và Playwright Chromium.
 4. Tạo `.env` từ `.env.example`, hỏi `TELEGRAM_BOT_TOKEN`, cảnh báo nếu thiếu `GEMINI_API_KEY`.

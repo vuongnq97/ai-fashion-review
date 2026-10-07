@@ -127,3 +127,4 @@ scratch/
 # Flow2API testing (separate folder)
 flow2api-test/
 flow-captcha-worker/
+playwright-service/tiktok-accounts.json

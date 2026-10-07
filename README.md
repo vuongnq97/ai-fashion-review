@@ -17,7 +17,7 @@ Hệ thống tự động hóa toàn diện từ link sản phẩm TikTok Shop /
 * **Google Chrome thật** (bắt buộc): Flow tạo ảnh bằng **Nano Banana Pro** qua Chrome thật (CDP port `9222`) để có reCAPTCHA score cao. Server tự mở Chrome khi cần.
 * **Tài khoản Google**: Đã truy cập được [Google Flow](https://labs.google/fx/tools/flow) & [Google Gemini](https://gemini.google.com).
 * **Telegram Bot Token**: Tạo bot qua [@BotFather](https://t.me/botfather).
-* **Docker** (tuỳ chọn): chỉ cần nếu dùng n8n để upload TikTok + gắn giỏ hàng.
+* **Docker** (tuỳ chọn): chỉ cần cho container **n8n** (upload TikTok + gắn giỏ hàng). **Không cần** `flow2api-headed` (`flow2api-test/`) hay `telegram-bot-api` — `tpro`/`tproduct` tạo ảnh trực tiếp qua Chrome thật, bot gọi thẳng `api.telegram.org`. (`flow2api` chỉ dùng khi đặt `STORYBOARD_PROVIDER=flow2api` hoặc template `ttest`.)
 
 ---
 

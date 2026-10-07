@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const readline = require('readline');
+const os = require('os');
 
 const BASE_DIR = __dirname;
 const ROOT_DIR = path.resolve(BASE_DIR, '..');
@@ -427,6 +428,37 @@ async function main() {
     } catch (_) {}
   } else {
     console.log('  ℹ️  Bỏ qua bước đăng nhập. Bạn có thể chạy "node login.js" bất cứ lúc nào.');
+  }
+
+  // 6b. Đăng nhập Google trong profile Chrome thật (CDP 9222) — profile RIÊNG, khác chrome-data.
+  //     Flow tạo ảnh (Nano Banana Pro) chạy trong profile này; máy mới profile sẽ trống → phải login 1 lần.
+  const cdpDataDir = process.env.CHROME_CDP_DATA_DIR
+    || path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome-CDP');
+  const cdpLoggedIn = ['Default/Cookies', 'Default/Network/Cookies']
+    .some(p => fs.existsSync(path.join(cdpDataDir, p)));
+  console.log('\n🌐 Profile Chrome thật cho Flow (CDP 9222):', cdpDataDir);
+  if (cdpLoggedIn) {
+    console.log('  ✅ Profile đã có dữ liệu (đã từng đăng nhập).');
+  } else if (chromePath && !NON_INTERACTIVE) {
+    const ans = await askQuestion('   Profile còn trống. Mở Chrome thật để đăng nhập Google Flow ngay? (y/n, mặc định y): ');
+    if (!ans || ans.toLowerCase().startsWith('y')) {
+      try {
+        fs.mkdirSync(cdpDataDir, { recursive: true });
+        const child = require('child_process').spawn(chromePath, [
+          `--user-data-dir=${cdpDataDir}`,
+          '--no-first-run',
+          '--no-default-browser-check',
+          'https://labs.google/fx/tools/flow',
+        ], { detached: true, stdio: 'ignore' });
+        child.unref();
+        await askQuestion('   👉 Đăng nhập Google trong cửa sổ Chrome vừa mở, vào được Flow thì ĐÓNG Chrome rồi nhấn ENTER: ');
+        console.log('  ✅ Đã lưu session Google vào profile Chrome-CDP.');
+      } catch (e) {
+        console.warn('  ⚠️  Không mở được Chrome:', e.message);
+      }
+    }
+  } else {
+    console.log('  ℹ️  Profile còn trống → lần đầu server mở Chrome (port 9222), hãy đăng nhập Google Flow trong cửa sổ đó.');
   }
 
   // 7. Hoàn tất

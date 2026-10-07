@@ -66,6 +66,13 @@ GEMINI_TTS_FALLBACK_KEYS=key2,key3   # tuỳ chọn
 
 > ⚠️ File proxy, `.env`, cookies, `chrome-data/`, `chrome-proxy-data/` đều nằm trong `.gitignore` — **không commit**. Máy mới cần tự copy/điền.
 
+#### Profile trình duyệt (máy mới tự sinh, nhưng phải đăng nhập Google 1 lần)
+| Profile | Dùng cho | Đăng nhập bằng |
+|---|---|---|
+| `playwright-service/chrome-data/` | Playwright: xuất cookie Gemini, các template cũ | `setup.js` (bước đăng nhập) hoặc `node login.js` |
+| `~/Library/Application Support/Google/Chrome-CDP` (đổi bằng `CHROME_CDP_DATA_DIR`) | **Chrome thật port 9222 — Flow tạo ảnh Nano Banana Pro cho `tpro`/`tproduct`** | `setup.js` tự mở Chrome nếu profile trống, hoặc đăng nhập trong cửa sổ Chrome server mở lần đầu |
+| `playwright-service/chrome-proxy-data/` | Chỉ script thử nghiệm trong `scratch/`, code chính **không dùng** | Không cần |
+
 ---
 
 ### Cách 2: Setup Thủ Công Qua Terminal

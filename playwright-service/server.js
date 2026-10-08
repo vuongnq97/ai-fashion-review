@@ -30,7 +30,7 @@ const apiRoutes = require('./routes/index');
 
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 app.use(cors({
   origin: true,

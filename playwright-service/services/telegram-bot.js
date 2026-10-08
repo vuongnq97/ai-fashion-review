@@ -297,6 +297,7 @@ async function handleTemplate10Command(botToken, chatId) {
 }
 
 async function handleTemplateProCommand(botToken, chatId) {
+  saveChatTemplate(chatId, 'template_pro');
   const activeBatch = botBatches.get(chatId);
   if (activeBatch) {
     activeBatch.template = 'template_pro';
@@ -310,16 +311,18 @@ async function handleTemplateProCommand(botToken, chatId) {
 }
 
 async function handleTestingCommand(botToken, chatId) {
+  const targetTemplate = normalizeTemplateName('testing');
+  saveChatTemplate(chatId, targetTemplate);
   const activeBatch = botBatches.get(chatId);
   if (activeBatch) {
-    activeBatch.template = 'testing';
+    activeBatch.template = targetTemplate;
     await sendTelegramMessage(botToken, chatId,
-      '✅ Đã áp dụng /testing cho album ảnh đang gom: Review Pro Direct Network (Gọi trực tiếp Network trong Browser + Captcha mới, không click UI).');
+      `✅ Đã áp dụng /testing cho album ảnh đang gom (đang trỏ sang: ${targetTemplate}).`);
     return;
   }
 
-  pendingTemplateByChat.set(chatId, 'testing');
-  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/testing', 'Review Pro Direct Network (Gọi trực tiếp Network RPC trong Browser Playwright + New Captcha Worker, workflow chuẩn Template Pro).'));
+  pendingTemplateByChat.set(chatId, targetTemplate);
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/testing', `Testing Mode (đang trỏ sang template: ${targetTemplate})`));
 }
 
 async function handleTemplateMomCommand(botToken, chatId) {
@@ -1458,17 +1461,17 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     return;
   }
 
-  // ── /testing interactive storyboard callbacks (Playwright Direct Network RPCs) ─────
+  // ── /testing interactive storyboard callbacks (Redirected to Template Pro /tpro) ─────
   if (data.startsWith('ttest_remake:')) {
     const parts = data.split(':');
     const pIdx = parseInt(parts[1], 10);
     const runId = parts[2];
-    await answerCallbackQuery(botToken, queryId, `⏳ Đang remake Cảnh ${pIdx} qua Network trình duyệt...`);
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang remake Cảnh ${pIdx}...`);
 
-    const { executeDirectRemakePanel, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { executeProRemakePanel, getProSession, saveProSession } = require('./template-pro-storyboard');
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
-    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
 
     if (session?.stepTrackerMessageId) {
       await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
@@ -1476,12 +1479,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     }
 
     const tracker = new FlowStepTracker(chatId, {
-      title: session?.productTitle || 'Sản phẩm review',
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
     });
-    await tracker.start(3, `Đang remake Cảnh ${pIdx} qua Network trình duyệt...`);
-    if (session && typeof saveDirectSession === 'function') {
+    await tracker.start(3, `Đang remake Cảnh ${pIdx}...`);
+    if (session && typeof saveProSession === 'function') {
       session.stepTrackerMessageId = tracker.messageId;
-      saveDirectSession(session);
+      saveProSession(runId, session);
     }
 
     flowQueue.enqueue({
@@ -1490,8 +1493,8 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       baseDir,
       label: `Remake Cảnh ${pIdx} (/testing - ${runId})`,
       execute: async () => {
-        if (typeof executeDirectRemakePanel === 'function') {
-          await executeDirectRemakePanel(chatId, baseDir, runId, pIdx, { stepTracker: tracker });
+        if (typeof executeProRemakePanel === 'function') {
+          await executeProRemakePanel(chatId, baseDir, runId, pIdx, { stepTracker: tracker });
         }
       }
     }).catch(err => {
@@ -1503,12 +1506,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
   if (data.startsWith('ttest_remake_all:')) {
     const parts = data.split(':');
     const runId = parts[1];
-    await answerCallbackQuery(botToken, queryId, '⏳ Đang tạo lại toàn bộ Storyboard qua Network trình duyệt...');
+    await answerCallbackQuery(botToken, queryId, '⏳ Đang tạo lại toàn bộ Storyboard...');
 
-    const { executeDirectRemakeAll, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { executeProRemakeAll, getProSession, saveProSession } = require('./template-pro-storyboard');
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
-    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
 
     if (session?.stepTrackerMessageId) {
       await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
@@ -1516,12 +1519,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     }
 
     const tracker = new FlowStepTracker(chatId, {
-      title: session?.productTitle || 'Sản phẩm review',
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
     });
-    await tracker.start(3, 'Đang tạo lại toàn bộ 4 cảnh qua Network trình duyệt...');
-    if (session && typeof saveDirectSession === 'function') {
+    await tracker.start(3, 'Đang tạo lại toàn bộ 4 cảnh...');
+    if (session && typeof saveProSession === 'function') {
       session.stepTrackerMessageId = tracker.messageId;
-      saveDirectSession(session);
+      saveProSession(runId, session);
     }
 
     flowQueue.enqueue({
@@ -1530,8 +1533,8 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       baseDir,
       label: `Remake All (/testing - ${runId})`,
       execute: async () => {
-        if (typeof executeDirectRemakeAll === 'function') {
-          await executeDirectRemakeAll(chatId, baseDir, runId, { stepTracker: tracker });
+        if (typeof executeProRemakeAll === 'function') {
+          await executeProRemakeAll(chatId, baseDir, runId, { stepTracker: tracker });
         }
       }
     }).catch(err => {
@@ -1543,12 +1546,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
   if (data.startsWith('ttest_ok:')) {
     const parts = data.split(':');
     const runId = parts[1];
-    await answerCallbackQuery(botToken, queryId, '✅ Đã duyệt Storyboard! Đang tạo 4 Video qua Network trình duyệt...');
+    await answerCallbackQuery(botToken, queryId, '✅ Đã duyệt Storyboard! Đang tiến hành tạo video...');
 
-    const { finalizeDirectStoryboardAndGenerateVideos, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { finalizeProStoryboardAndGenerateVideos, getProSession, saveProSession } = require('./template-pro-storyboard');
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
-    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
 
     if (session?.stepTrackerMessageId) {
       await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
@@ -1556,12 +1559,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     }
 
     const tracker = new FlowStepTracker(chatId, {
-      title: session?.productTitle || 'Sản phẩm review',
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
     });
-    await tracker.start(4, 'Đang sinh 4 video qua Network trình duyệt...');
-    if (session && typeof saveDirectSession === 'function') {
+    await tracker.start(4, 'Đang sinh 4 video chuyển động AI...');
+    if (session && typeof saveProSession === 'function') {
       session.stepTrackerMessageId = tracker.messageId;
-      saveDirectSession(session);
+      saveProSession(runId, session);
     }
 
     flowQueue.enqueue({
@@ -1570,7 +1573,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       baseDir,
       label: `Generate Videos (/testing - ${runId})`,
       execute: async () => {
-        await finalizeDirectStoryboardAndGenerateVideos(chatId, baseDir, runId, {
+        await finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, {
           botToken,
           lastRunByChat,
           stepTracker: tracker,
@@ -1586,12 +1589,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const parts = data.split(':');
     const target = parseInt(parts[1], 10) || 1;
     const runId = parts[2];
-    await answerCallbackQuery(botToken, queryId, `⏳ Đang tạo lại Video Cảnh ${target} qua Network trình duyệt...`);
+    await answerCallbackQuery(botToken, queryId, `⏳ Đang tạo lại Video Cảnh ${target}...`);
 
-    const { executeDirectRemakeSingleVideo, getDirectSession, saveDirectSession } = require('./playwright-direct/template-direct-storyboard');
+    const { executeProRemakeSingleVideo, getProSession, saveProSession } = require('./template-pro-storyboard');
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
-    const session = typeof getDirectSession === 'function' ? getDirectSession(runId, baseDir) : null;
+    const session = typeof getProSession === 'function' ? getProSession(runId, baseDir) : null;
 
     if (session?.stepTrackerMessageId) {
       await deleteTelegramMessage(chatId, session.stepTrackerMessageId).catch(() => {});
@@ -1599,12 +1602,12 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     }
 
     const tracker = new FlowStepTracker(chatId, {
-      title: session?.productTitle || 'Sản phẩm review',
+      title: session?.analysis?.productName || session?.productTitle || 'Sản phẩm review',
     });
-    await tracker.start(4, `Đang tạo lại Video Cảnh ${target} qua Network trình duyệt...`);
-    if (session && typeof saveDirectSession === 'function') {
+    await tracker.start(4, `Đang tạo lại Video Cảnh ${target}...`);
+    if (session && typeof saveProSession === 'function') {
       session.stepTrackerMessageId = tracker.messageId;
-      saveDirectSession(session);
+      saveProSession(runId, session);
     }
 
     flowQueue.enqueue({
@@ -1613,11 +1616,13 @@ async function handleCallbackQuery(botToken, callbackQuery) {
       baseDir,
       label: `Remake Video Cảnh ${target} (/testing - ${runId})`,
       execute: async () => {
-        await executeDirectRemakeSingleVideo(chatId, baseDir, runId, target, {
-          botToken,
-          stepTracker: tracker,
-          lastRunByChat,
-        });
+        if (typeof executeProRemakeSingleVideo === 'function') {
+          await executeProRemakeSingleVideo(chatId, baseDir, runId, target, {
+            botToken,
+            stepTracker: tracker,
+            lastRunByChat,
+          });
+        }
       }
     }).catch(err => {
       console.error(`[Telegram Bot] Remake video scene error for chat ${chatId}:`, err.message);
@@ -1629,7 +1634,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const parts = data.split(':');
     const runId = parts[1];
     await answerCallbackQuery(botToken, queryId, '⏳ Đang chuẩn bị tải video lên TikTok...');
-    await handleUploadDirectCommand(botToken, chatId, `testing-${runId}`);
+    await handleUploadDirectCommand(botToken, chatId, `tpro-${runId}`);
     return;
   }
 
@@ -3046,7 +3051,7 @@ async function handleUpdate(botToken, update) {
       } else if (batch.template === 'template_pro' || batch.template === 'templatepro' || batch.template === 'tpro') {
         templateMessage = ' theo /tpro review Pro tương tác storyboard (remake từng panel)';
       } else if (batch.template === 'testing' || batch.template === 'template_testing' || batch.template === 'ttest') {
-        templateMessage = ' theo /testing Review Pro hoàn toàn qua API (Flow2API Gateway, không chạy browser)';
+        templateMessage = ' theo /testing (Testing Template Pro /tpro)';
       } else if (batch.template === 'template_mom' || batch.template === 'templatemom' || batch.template === 'tmom') {
         templateMessage = ' theo /tmom Kênh Mẹ & Bé tương tác storyboard (mẹ bỉm sữa)';
       } else if (batch.template === 'template_food' || batch.template === 'templatefood' || batch.template === 'tfood') {

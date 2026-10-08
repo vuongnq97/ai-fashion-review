@@ -349,27 +349,50 @@ function archiveStoryboardReview(baseDir, filePayloads, request, bridgeResult, p
 }
 
 
-function buildFilePayloadFromPanel(panel) {
+function buildFilePayloadFromPanel(panel, runPrefix = '') {
+  const pIdx = panel.index || 1;
+  const prefix = runPrefix ? `${runPrefix}_` : '';
+  const defaultName = `${prefix}panel_${pIdx}.png`;
+  const baseName = panel.imagePath ? path.basename(panel.imagePath) : defaultName;
+  const finalName = runPrefix && !baseName.startsWith(prefix) ? `${prefix}${baseName}` : baseName;
+
   if (panel.buffer && Buffer.isBuffer(panel.buffer)) {
     return {
-      name: panel.imagePath ? path.basename(panel.imagePath) : `panel-${panel.index || 1}.png`,
+      name: finalName,
       mimeType: panel.mimeType || 'image/png',
       buffer: panel.buffer,
+      mediaId: panel.mediaId || null,
     };
   }
   if (!panel.imagePath || !fs.existsSync(panel.imagePath)) return null;
   const ext = path.extname(panel.imagePath).toLowerCase();
   return {
-    name: path.basename(panel.imagePath),
+    name: finalName,
     mimeType: ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png',
     buffer: fs.readFileSync(panel.imagePath),
+    mediaId: panel.mediaId || null,
   };
 }
 
 async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
+  const { applyProxyPolicy } = require('./proxy-bridge');
+  const { isProxyEnabledForTemplate } = require('./template-options');
+  const templateName = options.template || options.storyboardTemplate || '';
+  const resolvedUseProxy = options.useProxy !== undefined
+    ? options.useProxy
+    : (templateName ? isProxyEnabledForTemplate(templateName) : true);
+
+  applyProxyPolicy(resolvedUseProxy, `VideoGen - ${templateName || 'Direct'}`);
+
+  const runTag = options.runId || options.jobId || `run-${Date.now()}`;
+  const cleanRunPrefix = String(runTag)
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(-10);
+
   const jobs = panels
     .filter(panel => panel.prompt && (panel.imagePath || panel.buffer))
-    .map(panel => ({ panel, filePayload: buildFilePayloadFromPanel(panel) }))
+    .map(panel => ({ panel, filePayload: buildFilePayloadFromPanel(panel, cleanRunPrefix) }))
     .filter(job => job.filePayload);
 
   if (jobs.length === 0) {
@@ -378,7 +401,6 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
   }
 
   const page = await createFlowPage(baseDir, options.projectUrl || null);
-  const runTag = options.runId || options.jobId || `run-${Date.now()}`;
   const videoDir = path.join(baseDir, 'uploads', 'aistudio-videos', runTag);
   ensureDir(videoDir);
 
@@ -400,7 +422,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     const isMultiMode = options.multiImageMode !== undefined ? options.multiImageMode : true;
     const filePayloadsToSend = (panel.referenceImages && Array.isArray(panel.referenceImages) && panel.referenceImages.length > 0)
       ? panel.referenceImages.map((img, idx) => ({
-          name: img.name || `ref-${idx + 1}.png`,
+          name: img.name ? (img.name.startsWith(cleanRunPrefix) ? img.name : `${cleanRunPrefix}_${img.name}`) : `${cleanRunPrefix}_ref_${idx + 1}.png`,
           mimeType: img.mimeType || 'image/png',
           buffer: Buffer.isBuffer(img.buffer) ? img.buffer : (img.path && fs.existsSync(img.path) ? fs.readFileSync(img.path) : null),
         })).filter(f => f.buffer)
@@ -426,6 +448,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
         hasVoice: panel.voiceId || options.voiceId || options.hasVoice ? true : false,
         projectId: options.projectId || null,
         outputCount: options.outputCount || 1,
+        useProxy: resolvedUseProxy,
       },
       baseDir
     );
@@ -433,7 +456,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
     return { panel, prepared };
   }
 
-  async function executeAndSaveVideo(panel, prepared) {
+  async function executeAndSaveVideo(panel, prepared, filePayload) {
     const base64 = await executeVideoGeneration(prepared);
     const videoPath = path.join(videoDir, `panel-${panel.index}-video-${Date.now()}.mp4`);
     fs.writeFileSync(videoPath, Buffer.from(base64, 'base64'));
@@ -441,6 +464,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
       panelIndex: panel.index,
       prompt: panel.prompt,
       videoPath,
+      mediaId: prepared?.imageMediaIds?.[0] || filePayload?.mediaId || null,
     };
     if (options.includeVideoBase64) {
       item.video = { base64, mimeType: 'video/mp4' };
@@ -473,7 +497,7 @@ async function generateVideosFromPanelsDirect(baseDir, panels, options = {}) {
           });
 
           // 2. Poll and save video (releases browser lock, takes ~60-90s on Google servers)
-          const resultItem = await executeAndSaveVideo(prepResult.panel, prepResult.prepared);
+          const resultItem = await executeAndSaveVideo(prepResult.panel, prepResult.prepared, job.filePayload);
           resultsByPanel.set(panel.index, resultItem);
           console.log(`[GeminiWebAPI->Flow] ✅ Panel ${panel.index} video completed successfully (attempt ${attempt})!`);
           return resultItem;

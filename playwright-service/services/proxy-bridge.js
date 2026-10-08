@@ -7,10 +7,21 @@
  * Tự động gắn Basic Authentication và forward toàn bộ HTTP/HTTPS CONNECT tunnel
  * sang Proxy Pool (assets/proxies.txt) - tránh lỗi 407 Proxy Authentication trên Chrome/Playwright.
  *
- * Hỗ trợ xoay proxy động (rotateProxy):
- * - Tuần tự qua toàn bộ proxies trong pool (#1 -> #N).
- * - Khi hết cả N proxies (lỗi hết proxy): tự động chuyển sang DIRECT (Không dùng proxy).
- * - Khi đang ở DIRECT mà bị lỗi: tự động quay lại dùng proxies (bắt đầu lại từ Proxy #1).
+ * QUY TRÌNH XOAY PROXY ĐỘNG — ƯU TIÊN MẶC ĐỊNH (DIRECT-FIRST PROXY ROTATION):
+ * 1. Ưu tiên sử dụng MẶC ĐỊNH (DIRECT - Không dùng proxy) cho tất cả các flow.
+ * 2. Khi MẶC ĐỊNH bị lỗi (429, Unusual Activity, timeout, v.v.):
+ *    - Ghi nhận thời điểm lỗi (directFailedAt = Date.now()).
+ *    - Kích hoạt thời gian chờ (cooldown) đúng 1 tiếng (3,600,000 ms).
+ *    - Lập tức chuyển sang dùng PROXY (tiếp tục proxy tiếp theo trong danh sách, ví dụ proxy 21).
+ * 3. Trong 1 tiếng đó:
+ *    - Tiếp tục sử dụng proxy. Nếu proxy đang chạy bị lỗi, tự động xoay sang proxy kế tiếp (22, 23...).
+ * 4. Sau khi đủ 1 tiếng kể từ lúc mặc định bị lỗi:
+ *    - Hệ thống tự động quay lại thử chế độ MẶC ĐỊNH (DIRECT).
+ *    - Vị trí proxy vừa dùng (ví dụ proxy 20) được ghi nhớ nguyên vẹn.
+ * 5. Khi thử lại MẶC ĐỊNH:
+ *    - Nếu MẶC ĐỊNH bị lỗi tiếp: Ghi nhận 1 tiếng cooldown mới và tiếp tục chuyển sang proxy tiếp theo (ví dụ proxy 21).
+ *    - Nếu MẶC ĐỊNH không lỗi: Tiếp tục sử dụng MẶC ĐỊNH cho các lượt tiếp theo.
+ *    - Sau này khi đang dùng MẶC ĐỊNH mà bị lỗi: Lập tức tiếp tục proxy tiếp theo (ví dụ proxy 21).
  *
  * Chrome/Playwright luôn giữ nguyên kết nối vào 127.0.0.1:8888, không cần khởi động lại browser!
  */
@@ -21,41 +32,123 @@ const fs = require('fs');
 const path = require('path');
 
 let serverInstance = null;
-let currentProxyIndex = 0;
 let proxyPool = [];
+let lastProxyIndex = 0;
+let hasUsedProxy = false;
+let isDirect = true; // MẶC ĐỊNH LÀ ƯU TIÊN HÀNG ĐẦU (Không dùng proxy)
+let directFailedAt = null;
+
 const STATE_FILE_PATH = path.join(__dirname, '../assets/proxy-state.json');
+const DEFAULT_DIRECT_COOLDOWN_MS = 60 * 60 * 1000; // 1 tiếng = 3,600,000 ms
+
+const DIRECT_PROXY = {
+  isDirect: true,
+  host: 'DIRECT (No Proxy)',
+  port: 0,
+  user: '',
+  pass: '',
+  auth: '',
+};
+
+function getDirectCooldownMs() {
+  if (process.env.DIRECT_COOLDOWN_MS) {
+    const val = Number(process.env.DIRECT_COOLDOWN_MS);
+    if (!isNaN(val) && val > 0) return val;
+  }
+  return DEFAULT_DIRECT_COOLDOWN_MS;
+}
+
+let lastStateMtime = 0;
 
 function saveProxyState() {
   try {
-    const active = proxyPool[currentProxyIndex] || {};
-    const proxyCount = proxyPool.filter(p => !p.isDirect).length;
+    const cooldownMs = getDirectCooldownMs();
+    const active = isDirect
+      ? DIRECT_PROXY
+      : (proxyPool[lastProxyIndex] || DIRECT_PROXY);
+
     const state = {
-      currentProxyIndex,
-      isDirect: !!active.isDirect,
-      host: active.host || '',
+      isDirect,
+      lastProxyIndex,
+      hasUsedProxy,
+      currentProxyIndex: isDirect ? proxyPool.length : lastProxyIndex,
+      directFailedAt,
+      directCooldownMs: cooldownMs,
+      host: active.host || 'DIRECT (No Proxy)',
       port: active.port || 0,
-      proxyCount,
-      total: proxyPool.length,
+      proxyCount: proxyPool.length,
+      total: proxyPool.length + 1,
       updatedAt: new Date().toISOString(),
     };
     fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf8');
+    try {
+      lastStateMtime = fs.statSync(STATE_FILE_PATH).mtimeMs;
+    } catch (_) {}
   } catch (err) {
     console.warn('[ProxyBridge] ⚠️ Không thể lưu proxy state:', err.message);
   }
 }
 
-function loadProxyStateIndex() {
+function checkAndRefreshCooldown() {
+  if (!isDirect && directFailedAt) {
+    const elapsed = Date.now() - directFailedAt;
+    const cooldownMs = getDirectCooldownMs();
+    if (elapsed >= cooldownMs) {
+      const elapsedMin = Math.round(elapsed / 60000);
+      console.log(`[ProxyBridge] ⏰ Đã đủ ${elapsedMin} phút (>= 1 tiếng) kể từ lúc mặc định bị lỗi -> Tự động quay lại thử chế độ MẶC ĐỊNH (DIRECT).`);
+      isDirect = true;
+      saveProxyState();
+      return true;
+    }
+  }
+  return false;
+}
+
+function loadProxyState() {
   try {
     if (fs.existsSync(STATE_FILE_PATH)) {
+      const stat = fs.statSync(STATE_FILE_PATH);
+      lastStateMtime = stat.mtimeMs;
       const data = JSON.parse(fs.readFileSync(STATE_FILE_PATH, 'utf8'));
-      if (typeof data.currentProxyIndex === 'number' && Number.isInteger(data.currentProxyIndex)) {
-        return data.currentProxyIndex;
+      if (typeof data.lastProxyIndex === 'number' && Number.isInteger(data.lastProxyIndex)) {
+        lastProxyIndex = data.lastProxyIndex;
+      } else if (typeof data.currentProxyIndex === 'number' && Number.isInteger(data.currentProxyIndex)) {
+        lastProxyIndex = data.currentProxyIndex >= proxyPool.length ? 0 : data.currentProxyIndex;
       }
+
+      if (typeof data.hasUsedProxy === 'boolean') {
+        hasUsedProxy = data.hasUsedProxy;
+      } else if (lastProxyIndex > 0) {
+        hasUsedProxy = true;
+      }
+
+      if (typeof data.directFailedAt === 'number') {
+        directFailedAt = data.directFailedAt;
+      }
+
+      if (typeof data.isDirect === 'boolean') {
+        isDirect = data.isDirect;
+      } else {
+        isDirect = true; // Mặc định ưu tiên DIRECT
+      }
+
+      // Kiểm tra ngay xem đã đủ 1 tiếng để quay lại DIRECT chưa
+      checkAndRefreshCooldown();
     }
   } catch (err) {
     console.warn('[ProxyBridge] ⚠️ Lỗi đọc proxy state:', err.message);
   }
-  return null;
+}
+
+function syncStateFromFile() {
+  try {
+    if (fs.existsSync(STATE_FILE_PATH)) {
+      const stat = fs.statSync(STATE_FILE_PATH);
+      if (stat.mtimeMs !== lastStateMtime) {
+        loadProxyState();
+      }
+    }
+  } catch (_) {}
 }
 
 function loadProxyPool() {
@@ -91,106 +184,125 @@ function loadProxyPool() {
     });
   }
 
-  // Thêm chế độ DIRECT (Không dùng proxy) sau khi đã thử hết các proxies
-  list.push({
-    isDirect: true,
-    host: 'DIRECT (No Proxy)',
-    port: 0,
-    user: '',
-    pass: '',
-    auth: '',
-  });
-
   proxyPool = list;
+  loadProxyState();
 
-  // Khôi phục proxy trước đó từ file nếu có
-  const savedIdx = loadProxyStateIndex();
-  if (savedIdx !== null && savedIdx >= 0 && savedIdx < list.length) {
-    currentProxyIndex = savedIdx;
-    const active = list[currentProxyIndex];
-    const proxyCount = list.filter(p => !p.isDirect).length;
-    if (active.isDirect) {
-      console.log(`[ProxyBridge] 📂 Khôi phục proxy trước đó: DIRECT (Không dùng proxy)`);
-    } else {
-      console.log(`[ProxyBridge] 📂 Khôi phục proxy trước đó: #${currentProxyIndex + 1}/${proxyCount} (${active.host}:${active.port})`);
-    }
+  if (isDirect) {
+    console.log(`[ProxyBridge] 🌐 Chế độ khởi động: MẶC ĐỊNH (DIRECT - Không dùng proxy, tổng ${list.length} proxy dự phòng).`);
   } else {
-    currentProxyIndex = 0;
-    saveProxyState();
+    const active = list[lastProxyIndex] || DIRECT_PROXY;
+    const cooldownMs = getDirectCooldownMs();
+    const elapsed = Date.now() - (directFailedAt || Date.now());
+    const remainingMin = Math.max(0, Math.round((cooldownMs - elapsed) / 60000));
+    console.log(`[ProxyBridge] 🔄 Chế độ khởi động: Đang trong cooldown mặc định (còn ${remainingMin} phút) -> Sử dụng PROXY #${lastProxyIndex + 1}/${list.length} (${active.host}:${active.port})`);
   }
 
   return list;
 }
 
 function getActiveProxy() {
-  if (proxyPool.length === 0) proxyPool = loadProxyPool();
-  const savedIdx = loadProxyStateIndex();
-  if (savedIdx !== null && savedIdx >= 0 && savedIdx < proxyPool.length && savedIdx !== currentProxyIndex) {
-    currentProxyIndex = savedIdx;
+  if (proxyPool.length === 0) loadProxyPool();
+  syncStateFromFile();
+  checkAndRefreshCooldown();
+
+  if (isDirect || proxyPool.length === 0) {
+    return {
+      ...DIRECT_PROXY,
+      index: lastProxyIndex,
+      proxyCount: proxyPool.length,
+      isDirect: true,
+    };
   }
-  return proxyPool[currentProxyIndex] || proxyPool[0];
+
+  const p = proxyPool[lastProxyIndex] || DIRECT_PROXY;
+  return {
+    ...p,
+    index: lastProxyIndex,
+    proxyCount: proxyPool.length,
+    isDirect: false,
+  };
 }
 
 function rotateProxy() {
-  if (proxyPool.length === 0) proxyPool = loadProxyPool();
-  const savedIdx = loadProxyStateIndex();
-  if (savedIdx !== null && savedIdx >= 0 && savedIdx < proxyPool.length) {
-    currentProxyIndex = savedIdx;
-  }
+  if (proxyPool.length === 0) loadProxyPool();
+  checkAndRefreshCooldown();
 
-  const previous = proxyPool[currentProxyIndex];
-  currentProxyIndex = (currentProxyIndex + 1) % proxyPool.length;
-  const current = proxyPool[currentProxyIndex];
+  const cooldownMs = getDirectCooldownMs();
 
-  const proxyCount = proxyPool.filter(p => !p.isDirect).length;
+  if (isDirect) {
+    // ─── CHẾ ĐỘ MẶC ĐỊNH (DIRECT) BỊ LỖI ───
+    directFailedAt = Date.now();
+    isDirect = false;
 
-  if (current.isDirect) {
-    console.log(`[ProxyBridge] 🌐 Đã thử hết ${proxyCount} proxy -> Tự động chuyển sang chế độ DIRECT (Không sử dụng proxy)!`);
-  } else if (previous && previous.isDirect) {
-    console.log(`[ProxyBridge] 🔄 Bị lỗi khi chạy DIRECT -> Tự động quay lại dùng danh sách ${proxyCount} proxy (bắt đầu từ Proxy #1: ${current.host}:${current.port})!`);
+    // Tiếp tục proxy tiếp theo trong danh sách:
+    // Nếu trước đó đã từng sử dụng proxy (ví dụ đang ở Proxy #20), tiến sang Proxy #21.
+    if (hasUsedProxy) {
+      lastProxyIndex = (lastProxyIndex + 1) % proxyPool.length;
+    } else {
+      // Lần đầu tiên bị lỗi kể từ khi hệ thống chạy:
+      lastProxyIndex = 0; // Bắt đầu từ Proxy #1
+      hasUsedProxy = true;
+    }
+
+    saveProxyState();
+
+    const active = proxyPool[lastProxyIndex] || DIRECT_PROXY;
+    const nextRetryTime = new Date(directFailedAt + cooldownMs).toLocaleTimeString();
+    console.log(`[ProxyBridge] ❌ Chế độ MẶC ĐỊNH (DIRECT) bị lỗi -> Kích hoạt cooldown 1 tiếng (tới ${nextRetryTime}).`);
+    console.log(`[ProxyBridge] 🔄 Tự động chuyển sang tiếp tục PROXY #${lastProxyIndex + 1}/${proxyPool.length} (${active.host}:${active.port})!`);
+
+    return getCurrentProxy();
   } else {
-    console.log(`[ProxyBridge] 🔄 Chuyển sang proxy tiếp theo #${currentProxyIndex + 1}/${proxyCount}: ${current.host}:${current.port}`);
+    // ─── ĐANG TRONG 1 TIẾNG SỬ DỤNG PROXY, VÀ PROXY HIỆN TẠI BỊ LỖI ───
+    const prevIdx = lastProxyIndex;
+    lastProxyIndex = (lastProxyIndex + 1) % proxyPool.length;
+    hasUsedProxy = true;
+    saveProxyState();
+
+    const active = proxyPool[lastProxyIndex] || DIRECT_PROXY;
+    const elapsed = Date.now() - (directFailedAt || Date.now());
+    const remainingMin = Math.max(0, Math.round((cooldownMs - elapsed) / 60000));
+    console.log(`[ProxyBridge] 🔄 Proxy #${prevIdx + 1}/${proxyPool.length} bị lỗi -> Chuyển sang proxy tiếp theo #${lastProxyIndex + 1}/${proxyPool.length}: ${active.host}:${active.port} (Còn ${remainingMin} phút cooldown mặc định).`);
+
+    return getCurrentProxy();
   }
-
-  saveProxyState();
-
-  return {
-    ...current,
-    index: currentProxyIndex,
-    total: proxyPool.length,
-    proxyCount,
-  };
 }
 
 function switchToDirect() {
-  if (proxyPool.length === 0) proxyPool = loadProxyPool();
-  const directIdx = proxyPool.findIndex(p => p.isDirect);
-  if (directIdx !== -1) {
-    currentProxyIndex = directIdx;
-    saveProxyState();
-    console.log(`[ProxyBridge] 🌐 Đã chuyển sang chế độ DIRECT (Không sử dụng proxy).`);
-  }
-  return getCurrentProxy();
+  if (proxyPool.length === 0) loadProxyPool();
+  isDirect = true;
+  directFailedAt = null;
+  saveProxyState();
+  console.log('[ProxyBridge] 🌐 Đã chủ động chuyển sang chế độ MẶC ĐỊNH (DIRECT).');
+  return getActiveProxy();
 }
 
-function switchToProxies(startIndex = 0) {
-  if (proxyPool.length === 0) proxyPool = loadProxyPool();
-  currentProxyIndex = startIndex >= 0 && startIndex < proxyPool.length ? startIndex : 0;
+function switchToProxies(startIndex = null) {
+  if (proxyPool.length === 0) loadProxyPool();
+  isDirect = false;
+  if (typeof startIndex === 'number' && startIndex >= 0 && startIndex < proxyPool.length) {
+    lastProxyIndex = startIndex;
+  }
+  hasUsedProxy = true;
+  if (!directFailedAt) {
+    directFailedAt = Date.now();
+  }
   saveProxyState();
-  const current = proxyPool[currentProxyIndex];
-  console.log(`[ProxyBridge] 🔄 Đã chuyển sang dùng proxy #${currentProxyIndex + 1}: ${current.host}:${current.port}`);
-  return getCurrentProxy();
+  const current = proxyPool[lastProxyIndex] || DIRECT_PROXY;
+  console.log(`[ProxyBridge] 🔄 Đã chuyển sang dùng PROXY #${lastProxyIndex + 1}/${proxyPool.length}: ${current.host}:${current.port}`);
+  return getActiveProxy();
+}
+
+function applyProxyPolicy(useProxy, contextLabel = '') {
+  checkAndRefreshCooldown();
+  const active = getActiveProxy();
+  const modeStr = active.isDirect ? 'DIRECT (Mặc định)' : `PROXY #${active.index + 1}/${active.proxyCount} (${active.host}:${active.port})`;
+  console.log(`[ProxyBridge] 📡 [${contextLabel || 'Request'}] Trạng thái kết nối: ${modeStr}`);
+  return active;
 }
 
 function getCurrentProxy() {
-  const active = getActiveProxy();
-  const proxyCount = proxyPool.filter(p => !p.isDirect).length;
-  return {
-    ...active,
-    index: currentProxyIndex,
-    total: proxyPool.length,
-    proxyCount,
-  };
+  return getActiveProxy();
 }
 
 function startProxyBridge(options = {}) {
@@ -270,7 +382,8 @@ function startProxyBridge(options = {}) {
       clientSocket.on('error', () => {});
 
       const activeProxy = getActiveProxy();
-      console.log(`[ProxyBridge] 🔌 CONNECT: ${req.url} -> ${activeProxy.host}:${activeProxy.port}`);
+      const targetLog = activeProxy.isDirect ? 'DIRECT' : `${activeProxy.host}:${activeProxy.port}`;
+      console.log(`[ProxyBridge] 🔌 CONNECT: ${req.url} -> ${targetLog}`);
 
       // ─── CHẾ ĐỘ DIRECT CONNECT (TCP TUNNEL TRỰC TIẾP KHÔNG QUA PROXY) ─────
       if (activeProxy.isDirect) {
@@ -317,9 +430,9 @@ function startProxyBridge(options = {}) {
 
         if (res.statusCode !== 200) {
           console.warn(`[ProxyBridge] ⚠️ Upstream CONNECT refused (${res.statusCode}) for ${req.url} by ${activeProxy.host}:${activeProxy.port}`);
-          if (res.statusCode === 402) {
-            console.warn(`[ProxyBridge] ⚠️ Proxy ${activeProxy.host}:${activeProxy.port} bị lỗi 402 (Hết hạn gói) -> Tự động chuyển sang DIRECT!`);
-            try { switchToDirect(); } catch (_) {}
+          if (res.statusCode === 402 || res.statusCode === 407) {
+            console.warn(`[ProxyBridge] ⚠️ Proxy ${activeProxy.host}:${activeProxy.port} bị lỗi ${res.statusCode} -> Tự động xoay sang proxy tiếp theo!`);
+            try { rotateProxy(); } catch (_) {}
           }
           try {
             clientSocket.write(`HTTP/1.1 ${res.statusCode} Connection Failed\r\n\r\n`);
@@ -355,9 +468,8 @@ function startProxyBridge(options = {}) {
 
     server.listen(localPort, '127.0.0.1', () => {
       const active = getActiveProxy();
-      const proxyCount = proxyPool.filter(p => !p.isDirect).length;
       const targetStr = active.isDirect ? 'DIRECT (No Proxy)' : `${active.host}:${active.port}`;
-      console.log(`[ProxyBridge] ✅ Local Proxy Bridge listening on 127.0.0.1:${localPort} (active: #${currentProxyIndex + 1}/${proxyPool.length} [${targetStr}], total proxies: ${proxyCount})`);
+      console.log(`[ProxyBridge] ✅ Local Proxy Bridge listening on 127.0.0.1:${localPort} (active: #${active.index + 1}/${active.proxyCount} [${targetStr}])`);
       serverInstance = server;
       resolve(server);
     });
@@ -389,4 +501,7 @@ module.exports = {
   switchToProxies,
   getCurrentProxy,
   getActiveProxy,
+  applyProxyPolicy,
+  getDirectCooldownMs,
+  checkAndRefreshCooldown,
 };

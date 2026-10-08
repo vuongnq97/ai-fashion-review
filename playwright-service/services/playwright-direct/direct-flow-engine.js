@@ -506,7 +506,48 @@ async function generateStoryboardsViaNativeNetworkStream(page, {
     } catch (_) {}
   };
 
+  // Helper to remove any stale chips (e.g. old input collages or leftover images) from the composer
+  const clearStaleComposerChips = async () => {
+    try {
+      await page.evaluate(() => {
+        const matchesRemove = (el) => {
+          if (!el) return false;
+          const txt = (el.textContent || '').trim().toLowerCase();
+          const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+          const cls = (el.className || '').toString().toLowerCase();
+          return txt === 'close' || txt === 'clear' || txt === 'cancel' ||
+            aria.includes('xoá') || aria.includes('xóa') || aria.includes('remove') || aria.includes('clear') || aria.includes('delete') ||
+            cls.includes('remove') || cls.includes('delete') || cls.includes('close');
+        };
+        // 1. Remove chips in flow-image-ingredient-chip or frame-trigger
+        const chips = Array.from(document.querySelectorAll('flow-image-ingredient-chip, div.frame-trigger, [data-ingredient-type]'));
+        for (const chip of chips) {
+          const btns = Array.from(chip.querySelectorAll('button, [role="button"], mat-icon, i, span'));
+          for (const btn of btns) {
+            if (matchesRemove(btn)) {
+              (btn.closest('button') || btn).click();
+              break;
+            }
+          }
+        }
+        // 2. Remove any close buttons in prompt box
+        const promptBox = document.querySelector('flow-base-prompt-box, flow-prompt-input, .base-prompt-box, form');
+        if (promptBox) {
+          const closeBtns = Array.from(promptBox.querySelectorAll('button, [role="button"]')).filter(matchesRemove);
+          closeBtns.forEach(b => b.click());
+        }
+      }).catch(() => {});
+
+      const chipClose = page.locator('flow-image-ingredient-chip button, flow-image-ingredient-chip mat-icon, flow-base-prompt-box button:has-text("close"), button[aria-label*="Xóa" i], button[aria-label*="Remove" i]');
+      const cCount = await chipClose.count().catch(() => 0);
+      for (let i = 0; i < cCount; i++) {
+        await chipClose.nth(i).click({ force: true }).catch(() => {});
+      }
+    } catch (_) {}
+  };
+
   await dismissModals();
+  await clearStaleComposerChips();
 
   // 0. Đảm bảo composer ở trạng thái sẵn sàng
   const isBusy = await page.evaluate(() => {
@@ -518,6 +559,7 @@ async function generateStoryboardsViaNativeNetworkStream(page, {
     await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
     await page.waitForTimeout(3000);
     await dismissModals();
+    await clearStaleComposerChips();
   }
 
   // Thu thập / upload danh sách reference image UUIDs
@@ -550,121 +592,219 @@ async function generateStoryboardsViaNativeNetworkStream(page, {
     console.log(`[DirectEngine] 🖼️ Reference image UUID(s) to inject into ogiZ0b: ${effectiveImageUuids.join(', ')}`);
   }
 
-  // 1. Cài đặt composer trước: Chế độ Hình ảnh (Image mode), Model (Nano Banana Pro), Tỷ lệ 16:9 (Aspect Ratio), Số lượng ảnh (Output count)
-  try {
-    const settingsBtn = page.locator('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Hình ảnh"), button:has-text("Video ·")').first();
-    if (await settingsBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-      const btnText = (await settingsBtn.innerText().catch(() => '')).toLowerCase();
-      console.log(`[DirectEngine] ⚙️ Current settings button: "${btnText.replace(/\n/g, ' ')}"`);
-
-      const targetRatio = (aspectRatio === '16:9' || aspectRatio === 'landscape') ? '16:9' : '9:16';
-      const isRatioCorrect = targetRatio === '16:9'
-        ? (btnText.includes('16_9') || btnText.includes('16:9'))
-        : (btnText.includes('9_16') || btnText.includes('9:16'));
-      const isModeCorrect = btnText.includes('hình ảnh') || btnText.includes('image') || btnText.includes('banana');
-      const targetCountStr = `x${Math.min(Math.max(Number(outputCount) || 1, 1), 4)}`;
-      const isCountCorrect = btnText.includes(targetCountStr);
-      const isModelCorrect = btnText.includes('banana pro') || btnText.includes('pro');
-
-      if (!isModeCorrect || !isRatioCorrect || !isCountCorrect || !isModelCorrect) {
-        console.log(`[DirectEngine] 🔄 Cập nhật cài đặt Flow UI: mode=Image, model=Nano Banana Pro, ratio=${targetRatio}, count=${targetCountStr}...`);
-        await settingsBtn.click({ force: true });
-        await page.waitForSelector('mat-button-toggle', { timeout: 3000 }).catch(() => {});
-        await page.waitForTimeout(300);
-
-        // a. Switch to Image mode if currently in Video
-        await page.evaluate(() => {
-          const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
-          for (const t of toggles) {
-            const txt = (t.innerText || t.textContent || '').toLowerCase();
-            if (txt.includes('hình ảnh') || txt.includes('image')) {
-              const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
-              if (!isChecked) {
-                const btn = t.querySelector('button') || t;
-                btn.click();
-              }
-              break;
-            }
-          }
-        }).catch(() => {});
-        await page.waitForTimeout(200);
-
-        // b. Switch Aspect Ratio to 16:9 (or target)
-        const ratioSet = await page.evaluate((ratio) => {
-          const isLandscape = ratio === '16:9';
-          const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
-          for (const t of toggles) {
-            const txt = (t.innerText || t.textContent || '').trim();
-            const val = (t.getAttribute('value') || '').toUpperCase();
-            const aria = (t.getAttribute('aria-label') || '').toLowerCase();
-            const isMatch = txt.includes(ratio) ||
-              (isLandscape && (val.includes('LANDSCAPE') || aria.includes('16:9') || txt.includes('16_9') || txt.includes('16:9'))) ||
-              (!isLandscape && (val.includes('PORTRAIT') || aria.includes('9:16') || txt.includes('9_16') || txt.includes('9:16')));
-            if (isMatch) {
-              const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
-              if (!isChecked) {
-                const btn = t.querySelector('button') || t;
-                btn.click();
-              }
-              return txt;
-            }
-          }
-          return null;
-        }, targetRatio).catch(() => null);
-        console.log(`[DirectEngine] 📐 Ratio toggle clicked: ${ratioSet || 'not found'}`);
-        await page.waitForTimeout(200);
-
-        // c. Switch Model to Nano Banana Pro
-        try {
-          const currentModelText = await page.evaluate(() => {
-            const btn = document.querySelector('.cdk-overlay-pane button[aria-label="Chọn nhóm mô hình"], .cdk-overlay-pane button[aria-haspopup="menu"]');
-            return btn ? (btn.innerText || '').toLowerCase() : '';
-          });
-          if (!currentModelText.includes('banana pro') && !currentModelText.includes('pro')) {
-            const modelPickerBtn = page.locator('.cdk-overlay-pane button[aria-label="Chọn nhóm mô hình"], .cdk-overlay-pane button[aria-haspopup="menu"]').first();
-            if (await modelPickerBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-              await modelPickerBtn.click({ force: true });
-              await page.waitForTimeout(300);
-              const proOption = page.locator('.mat-mdc-menu-panel button').filter({ hasText: /Nano Banana Pro/i }).first();
-              if (await proOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-                await proOption.click({ force: true });
-                console.log('[DirectEngine] 🍌 Switched model to: Nano Banana Pro');
-                await page.waitForTimeout(300);
-              } else {
-                await page.keyboard.press('Escape').catch(() => {});
-              }
-            }
-          }
-        } catch (modelErr) {
-          console.warn('[DirectEngine] ⚠️ Model selection warning:', modelErr.message);
+  // Đính kèm các ảnh tham chiếu panel vào Flow UI composer để xuất hiện trực quan trên giao diện Flow
+  if (Array.isArray(filePayloads) && filePayloads.length > 0) {
+    try {
+      const tempPaths = [];
+      for (let i = 0; i < filePayloads.length; i++) {
+        const fp = filePayloads[i];
+        if (fp.path && fs.existsSync(fp.path)) {
+          tempPaths.push(fp.path);
+        } else if (fp.buffer) {
+          const tPath = path.join(os.tmpdir(), `tpro-panel-ref-${i + 1}-${Date.now()}.jpg`);
+          fs.writeFileSync(tPath, fp.buffer);
+          tempPaths.push(tPath);
         }
-        await page.waitForTimeout(200);
+      }
+      if (tempPaths.length > 0) {
+        const fileInput = page.locator('input[type="file"]').last();
+        if (await fileInput.count().catch(() => 0) > 0) {
+          console.log(`[DirectEngine] 📎 Attaching ${tempPaths.length} panel reference images to composer UI...`);
+          await fileInput.setInputFiles(tempPaths, { timeout: 8000 }).catch(() => {});
+          await page.waitForTimeout(1000);
+        }
+      }
+    } catch (attachErr) {
+      console.warn(`[DirectEngine] ⚠️ Attaching chips to UI note: ${attachErr.message}`);
+    }
+  }
 
-        // d. Switch Output Count (e.g. x4)
-        const countSet = await page.evaluate((cStr) => {
-          const toggles = Array.from(document.querySelectorAll('mat-button-toggle'));
-          for (const t of toggles) {
-            const txt = (t.innerText || t.textContent || '').trim();
-            if (txt === cStr || txt.includes(cStr)) {
-              const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
-              if (!isChecked) {
-                const btn = t.querySelector('button') || t;
-                btn.click();
-              }
-              return txt;
-            }
+  // 1. Cài đặt composer trước: Chế độ Hình ảnh (Image mode), Model (Nano Banana Pro), Tỷ lệ 16:9 (Aspect Ratio), Số lượng ảnh (Output count)
+  async function configureFlowSettingsForImage(p) {
+    const settingsBtn = p.locator('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Hình ảnh"), button:has-text("Video ·")').first();
+    if (!(await settingsBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
+      return;
+    }
+    const btnText = (await settingsBtn.innerText().catch(() => '')).toLowerCase();
+    console.log(`[DirectEngine] ⚙️ Current settings button: "${btnText.replace(/\n/g, ' ')}"`);
+
+    const targetRatio = (aspectRatio === '16:9' || aspectRatio === 'landscape') ? '16:9' : '9:16';
+    const isRatioCorrect = targetRatio === '16:9'
+      ? (btnText.includes('16_9') || btnText.includes('16:9'))
+      : (btnText.includes('9_16') || btnText.includes('9:16'));
+    const isModeCorrect = !btnText.includes('video') && (btnText.includes('hình ảnh') || btnText.includes('image') || btnText.includes('banana'));
+    const targetCountStr = `x${Math.min(Math.max(Number(outputCount) || 1, 1), 4)}`;
+    const isCountCorrect = btnText.includes(targetCountStr);
+    const isModelCorrect = btnText.includes('banana pro') || btnText.includes('pro');
+
+    if (isModeCorrect && isRatioCorrect && isCountCorrect && isModelCorrect) {
+      return;
+    }
+
+    console.log(`[DirectEngine] 🔄 Cập nhật cài đặt Flow UI: mode=Image, model=Nano Banana Pro, ratio=${targetRatio}, count=${targetCountStr}...`);
+
+    // Helper kiểm tra popup cài đặt đã mở chưa
+    const isSettingsPanelOpen = async () => {
+      return await p.evaluate(() => {
+        const pane = document.querySelector('.cdk-overlay-pane:not([style*="display: none"]), mat-dialog-container, [role="dialog"], [role="menu"]');
+        if (!pane) return false;
+        const items = Array.from(pane.querySelectorAll('button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button'));
+        for (const item of items) {
+          const r = item.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) return true;
+        }
+        return false;
+      }).catch(() => false);
+    };
+
+    // Mở popup cài đặt nếu chưa mở (thử tối đa 3 lần)
+    let panelOpen = await isSettingsPanelOpen();
+    if (!panelOpen) {
+      for (let openAttempt = 1; openAttempt <= 3; openAttempt++) {
+        await settingsBtn.click({ force: true }).catch(() => {});
+        for (let w = 0; w < 12; w++) {
+          await p.waitForTimeout(100);
+          panelOpen = await isSettingsPanelOpen();
+          if (panelOpen) break;
+        }
+        if (panelOpen) break;
+        await p.keyboard.press('Escape').catch(() => {});
+        await p.waitForTimeout(300);
+      }
+    }
+
+    if (!panelOpen) {
+      console.warn('[DirectEngine] ⚠️ Không thể mở panel cài đặt sau 3 lần thử');
+      return;
+    }
+
+    // a. Chuyển sang chế độ Hình ảnh (Image) nếu đang ở Video
+    const switchedToImage = await p.evaluate(() => {
+      const candidates = Array.from(document.querySelectorAll('.cdk-overlay-pane button[role="tab"], .cdk-overlay-pane [role="tab"], .cdk-overlay-pane .mat-mdc-tab, .cdk-overlay-pane mat-button-toggle, .cdk-overlay-pane button, button[role="tab"], .mat-mdc-tab'));
+      for (const el of candidates) {
+        const txt = (el.textContent || '').trim().toLowerCase();
+        const val = (el.getAttribute('value') || '').toLowerCase();
+        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+        if (txt.includes('hình ảnh') || txt.includes('image') || val === 'image' || aria.includes('hình ảnh') || aria.includes('image')) {
+          const isChecked = el.classList.contains('mat-button-toggle-checked') ||
+                            el.getAttribute('aria-checked') === 'true' ||
+                            el.getAttribute('aria-selected') === 'true' ||
+                            el.classList.contains('mat-mdc-tab-active') ||
+                            el.classList.contains('mdc-tab--active');
+          if (!isChecked) {
+            const btn = el.querySelector('button') || el;
+            btn.click();
+            return { action: 'clicked', text: txt.substring(0, 30) };
           }
-          return null;
-        }, targetCountStr).catch(() => null);
-        console.log(`[DirectEngine] 🔢 Count toggle clicked: ${countSet || 'not found'}`);
-        await page.waitForTimeout(200);
+          return { action: 'already_checked', text: txt.substring(0, 30) };
+        }
+      }
+      return { action: 'not_found' };
+    }).catch(() => ({ action: 'eval_error' }));
 
-        // Đóng panel cài đặt
-        await page.keyboard.press('Escape').catch(() => {});
-        await page.waitForTimeout(300);
+    console.log(`[DirectEngine] 🖼️ Chuyển Image mode: ${JSON.stringify(switchedToImage)}`);
+    if (switchedToImage.action === 'clicked') {
+      // Chờ Angular re-render từ controls Video sang controls Hình ảnh
+      await p.waitForTimeout(500);
+    }
+
+    // b. Chọn tỷ lệ (Ratio 16:9 hoặc target)
+    const ratioSet = await p.evaluate((ratio) => {
+      const isLandscape = ratio === '16:9';
+      const toggles = Array.from(document.querySelectorAll('.cdk-overlay-pane mat-button-toggle, mat-button-toggle'));
+      for (const t of toggles) {
+        const txt = (t.innerText || t.textContent || '').trim();
+        const val = (t.getAttribute('value') || '').toUpperCase();
+        const aria = (t.getAttribute('aria-label') || '').toLowerCase();
+        const isMatch = txt.includes(ratio) ||
+          (isLandscape && (val.includes('LANDSCAPE') || aria.includes('16:9') || txt.includes('16_9') || txt.includes('16:9'))) ||
+          (!isLandscape && (val.includes('PORTRAIT') || aria.includes('9:16') || txt.includes('9_16') || txt.includes('9:16')));
+        if (isMatch) {
+          const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
+          if (!isChecked) {
+            const btn = t.querySelector('button') || t;
+            btn.click();
+          }
+          return txt;
+        }
+      }
+      return null;
+    }, targetRatio).catch(() => null);
+    console.log(`[DirectEngine] 📐 Ratio toggle clicked: ${ratioSet || 'not found'}`);
+    await p.waitForTimeout(200);
+
+    // c. Chọn Model: Nano Banana Pro
+    try {
+      const currentModelText = await p.evaluate(() => {
+        const btn = document.querySelector('.cdk-overlay-pane button[aria-label="Chọn nhóm mô hình"], .cdk-overlay-pane button[aria-haspopup="menu"]');
+        return btn ? (btn.innerText || '').toLowerCase() : '';
+      });
+      if (!currentModelText.includes('banana pro') && !currentModelText.includes('pro')) {
+        const modelPickerBtn = p.locator('.cdk-overlay-pane button[aria-label="Chọn nhóm mô hình"], .cdk-overlay-pane button[aria-haspopup="menu"]').first();
+        if (await modelPickerBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+          await modelPickerBtn.click({ force: true });
+          await p.waitForTimeout(300);
+          const proOption = p.locator('.mat-mdc-menu-panel button').filter({ hasText: /Nano Banana Pro/i }).first();
+          if (await proOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await proOption.click({ force: true });
+            console.log('[DirectEngine] 🍌 Switched model to: Nano Banana Pro');
+            await p.waitForTimeout(300);
+          } else {
+            await p.keyboard.press('Escape').catch(() => {});
+          }
+        }
+      }
+    } catch (modelErr) {
+      console.warn('[DirectEngine] ⚠️ Model selection warning:', modelErr.message);
+    }
+    await p.waitForTimeout(200);
+
+    // d. Chọn số lượng ảnh (Output count x4)
+    const countSet = await p.evaluate((cStr) => {
+      const toggles = Array.from(document.querySelectorAll('.cdk-overlay-pane mat-button-toggle, mat-button-toggle'));
+      for (const t of toggles) {
+        const txt = (t.innerText || t.textContent || '').trim();
+        if (txt === cStr || txt.includes(cStr)) {
+          const isChecked = t.classList.contains('mat-button-toggle-checked') || t.getAttribute('aria-checked') === 'true';
+          if (!isChecked) {
+            const btn = t.querySelector('button') || t;
+            btn.click();
+          }
+          return txt;
+        }
+      }
+      return null;
+    }, targetCountStr).catch(() => null);
+    console.log(`[DirectEngine] 🔢 Count toggle clicked: ${countSet || 'not found'}`);
+    await p.waitForTimeout(200);
+
+    // Đóng panel cài đặt
+    await p.keyboard.press('Escape').catch(() => {});
+    await p.waitForTimeout(300);
+  }
+
+  try {
+    await configureFlowSettingsForImage(page);
+
+    // 🔒 CHỐT CHẶN AN TOÀN (CIRCUIT BREAKER):
+    // Kiểm tra lại nút cài đặt xem có còn bị kẹt ở chế độ Video không
+    const settingsBtnCheck = page.locator('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Hình ảnh"), button:has-text("Video ·")').first();
+    let verifiedBtnText = (await settingsBtnCheck.innerText().catch(() => '')).toLowerCase();
+    if (verifiedBtnText.includes('video')) {
+      console.warn(`[DirectEngine] ⚠️ Flow composer vẫn bị kẹt ở chế độ VIDEO ("${verifiedBtnText}"). Đang tải lại tab Flow để reset trạng thái...`);
+      await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+      await page.waitForTimeout(2000);
+      await dismissModals();
+      await configureFlowSettingsForImage(page);
+      verifiedBtnText = (await settingsBtnCheck.innerText().catch(() => '')).toLowerCase();
+      if (verifiedBtnText.includes('video')) {
+        throw new Error(`[DirectEngine] 🚨 Flow composer bị kẹt ở chế độ VIDEO ("${verifiedBtnText}"). Đã từ chối gửi lệnh để tránh sinh video nhầm trong luồng tạo ảnh Storyboard!`);
       }
     }
   } catch (modeErr) {
+    if (modeErr.message && modeErr.message.includes('kẹt ở chế độ VIDEO')) {
+      throw modeErr;
+    }
     console.warn('[DirectEngine] ⚠️ Settings adjustment warning:', modeErr.message);
   }
 
@@ -803,11 +943,6 @@ async function generateStoryboardsViaNativeNetworkStream(page, {
         if (isDone || isUnusualThrottled) return;
         isUnusualThrottled = true;
         console.warn(`[DirectEngine] ⚠️ Google Flow UNUSUAL_ACTIVITY detected (${sourceMsg}).`);
-        try {
-          const { rotateProxy } = require('../proxy-bridge');
-          const nextP = rotateProxy();
-          console.log(`[DirectEngine] 🔄 Auto-switched to proxy #${nextP.index + 1}/${nextP.total} (${nextP.host}:${nextP.port})`);
-        } catch (_) {}
         cleanup();
         reject(new Error('Google Flow UNUSUAL_ACTIVITY: Bot score throttled.'));
       };
@@ -890,6 +1025,13 @@ async function generateStoryboardsViaNativeNetworkStream(page, {
       const b = Array.from(document.querySelectorAll('button')).find(x => (x.textContent || '').includes('arrow_forward'));
       return b && !b.disabled && b.getAttribute('aria-disabled') !== 'true';
     }, { timeout: 6000 }).catch(() => {});
+
+    // 🔒 KIỂM TRA CHỐT CHẶN CUỐI CÙNG TRƯỚC KHI BẤM SUBMIT:
+    const finalSettingsBtn = page.locator('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Hình ảnh"), button:has-text("Video ·")').first();
+    const finalModeText = (await finalSettingsBtn.innerText().catch(() => '')).toLowerCase();
+    if (finalModeText.includes('video')) {
+      throw new Error(`[DirectEngine] 🚨 Chặn khẩn cấp: Trình soạn thảo Flow đang ở chế độ VIDEO ("${finalModeText}"). Không được phép submit ảnh trong chế độ video!`);
+    }
 
     // 4. Kích hoạt submit qua real mouse click trên nút mũi tên hoặc Enter
     console.log('[DirectEngine] ⚡ Triggering native submit...');

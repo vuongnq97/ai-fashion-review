@@ -148,8 +148,9 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
 
     const videos = Array.isArray(result.videos) ? result.videos : [];
     const template = String(options.template || options.storyboardTemplate || result.template || '').toLowerCase();
-    const isAtomicShot = template === 'template10' || template === 'template_10';
+    const isAtomicShot = template === 'template10' || template === 'template_10' || template === 't10';
     const isInteractiveStoryboard = template === 'template_pro' || template === 'templatepro' || template === 'tpro' ||
+      template === 'testing' || template === 'template_testing' || template === 'ttest' ||
       template === 'template_mom' || template === 'templatemom' || template === 'tmom' ||
       template === 'template_food' || template === 'templatefood' || template === 'tfood' ||
       template === 'template_product' || template === 'templateproduct' || template === 'tproduct' || template === 'tpro40nv' ||

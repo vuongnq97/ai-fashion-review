@@ -701,7 +701,7 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
     // If no batchKey, process immediately (single image, no batching)
     if (!batchKey) {
       console.log(`[API] Storyboard: ${filePayloads.length} image(s) received (no batch)`);
-      const provider = getStoryboardProvider(baseDir);
+      const provider = getStoryboardProvider(baseDir, options);
       console.log(`[API] Storyboard provider: ${provider.name}`);
       const results = await provider.generateStoryboard(baseDir, filePayloads, options);
       return res.json({ success: true, results, isPrimary: true });
@@ -738,7 +738,7 @@ router.post('/generate-storyboard', upload.array('images', 10), async (req, res)
       console.log(`[API] Storyboard batch "${batchKey}": processing ${images.length} image(s) for ${waiters.length} waiter(s)`);
 
       try {
-        const provider = getStoryboardProvider(baseDir);
+        const provider = getStoryboardProvider(baseDir, batchOpts);
         console.log(`[API] Storyboard provider: ${provider.name}`);
         const results = await provider.generateStoryboard(baseDir, images, batchOpts);
         waiters.forEach((w, idx) => w.resolve({ results, isPrimary: idx === 0 }));

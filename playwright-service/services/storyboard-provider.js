@@ -43,11 +43,16 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
   }
 
   if (template === 'testing' || template === 'template_testing' || template === 'ttest') {
+    const { normalizeTemplateName } = require('./template-options');
+    const resolvedTemplate = normalizeTemplateName('testing');
+    if (resolvedTemplate && resolvedTemplate !== 'testing') {
+      return getStoryboardProvider(baseDir, { ...options, template: resolvedTemplate });
+    }
     return {
-      name: 'testing',
+      name: 'template_pro',
       generateStoryboard: (baseDir, filePayloads, opts = {}) => {
-        const templateTesting = require('./playwright-direct/template-direct-storyboard');
-        return templateTesting.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'testing' });
+        const templatePro = require('./template-pro-storyboard');
+        return templatePro.generateStoryboard(baseDir, filePayloads, { ...opts, template: 'template_pro' });
       },
     };
   }

@@ -43,6 +43,7 @@ const { generateVideosFromPanelsDirect } = require('./gemini-webapi-storyboard')
 const { createFlowPage, closeFlowPage } = require('./browser');
 const { prepareGeneration, executeGeneration } = require('./image');
 const { registerExternalCompletedJob } = require('./generation-job');
+const { buildTemplateOptions } = require('./template-options');
 const { FlowStepTracker } = require('./flow-step-tracker');
 
 // In-memory cache for active /tpro sessions: runId -> sessionData
@@ -422,6 +423,7 @@ function sanitizeVisualActionPrompt(text) {
  */
 function buildTemplateProAnalysisPrompt(options = {}) {
   const ctx = options.productContext || {};
+  const imageCount = Math.max(1, parseInt(options.imageCount, 10) || 1);
   let contextSection = '';
   if (ctx.productTitle || ctx.productDescription || ctx.shopName) {
     const parts = [];
@@ -492,6 +494,24 @@ QUY TẮC CỐT LÕI (STRICT RULES CHO TEMPLATE PRO):
    - Kêu gọi hành động giỏ hàng (CTA) CHỈ XUẤT HIỆN DUY NHẤT TRONG LỜI THOẠI VOICE-OVER (voiceOver).
    - Trong 'visualDescription' và 'techVFX' (đặc biệt là Cảnh 4 Closing): TUYỆT ĐỐI KHÔNG mô tả các hành động như chỉ tay, chỉ trỏ về góc màn hình, chạm vào icon giỏ hàng, chạm góc trái, hay xuất hiện icon/hình ảnh giỏ hàng trên video.
    - Hình ảnh và thao tác Cảnh 4 phải tập trung 100% vào phong cách sống tự nhiên, bối cảnh ngăn nắp, tôn vinh sản phẩm hoàn thiện trong đời sống thực tế (lifestyle clean shot).
+9. NGÔN NGỮ TIẾNG ANH CHO CÁC TRƯỜNG HÌNH ẢNH & CAMERA (VISUAL FIELDS MUST BE IN PROFESSIONAL ENGLISH):
+   - Để model AI sinh hình ảnh (Google Flow / Nano Banana Pro / Imagen) hiểu chính xác 100% bối cảnh, ánh sáng và cử động, các trường sau ĐÂY BẮT BUỘC PHẢI VIẾT BẰNG TIẾNG ANH CHUẨN NHIẾP ẢNH (PROFESSIONAL PHOTOGRAPHY ENGLISH):
+     * 'sceneContext': 'location', 'lighting', 'mood' (Ví dụ: 'Bright modern minimalist living room with warm wood accents', 'Soft natural daylight from side window with gentle contact shadows', 'Clean, premium, authentic smartphone photography').
+     * 'script': 'visualDescription', 'techVFX', 'cameraAction' của cả 4 cảnh BẮT BUỘC PHẢI VIẾT BẰNG TIẾNG ANH (Ví dụ: 'Close-up 45-degree angle shot of hands holding the product on a luxury marble tabletop', 'Hands gently rotating the product to display its clean profile', 'Static macro close-up framing').
+   - TUYỆT ĐỐI KHÔNG MÔ TẢ NGOẠI HÌNH SẢN PHẨM TRONG visualDescription VÀ techVFX (NO PRODUCT APPEARANCE IN VISUAL FIELDS):
+     * Ảnh storyboard được tạo dựa DUY NHẤT vào ảnh tham chiếu gốc (reference images), nên mọi mô tả ngoại hình bằng chữ đều có thể gây xung đột với ảnh.
+     * Chỉ mô tả: bối cảnh, vị trí đặt, hành động tay, góc máy, khoảng cách khung hình. Luôn gọi sản phẩm chung chung bằng tiếng Anh là 'the product'.
+     * TUYỆT ĐỐI KHÔNG ghi tên sản phẩm, hình dạng, màu sắc, chất liệu, họa tiết, logo, bộ phận (buttons, lid, handle, nozzle...) trong 2 trường này.
+   - CÁC TRƯỜNG DÀNH CHO NGƯỜI DÙNG & VOICE-OVER (productName, fourAnswers, voiceOver, panelOverlays, cartAnchorText, hashtags): BẮT BUỘC GIỮ TIẾNG VIỆT TỰ NHIÊN ĐỜI THƯỜNG MIỀN NAM.
+10. LỰA CHỌN ẢNH THAM CHIẾU CHO TỪNG PANEL (PANEL REFERENCE MAPPING):
+   - Có ${imageCount} ảnh sản phẩm đầu vào được cung cấp (được đánh số thứ tự từ 1 đến ${imageCount}).
+   - Hãy phân tích từng ảnh đầu vào và trả về mảng "panelRefMapping" gồm đúng 4 số nguyên (từ 1 đến ${imageCount}) chỉ định ảnh đầu vào nào phù hợp nhất làm hình tham chiếu chuẩn cho 4 panel tương ứng:
+     * panelRefMapping[0]: Ảnh tham chiếu chuẩn cho Panel 1 (Hook).
+     * panelRefMapping[1]: Ảnh tham chiếu chuẩn cho Panel 2 (Solution / Công năng).
+     * panelRefMapping[2]: Ảnh tham chiếu chuẩn cho Panel 3 (Proof / Chất liệu, góc cận cảnh).
+     * panelRefMapping[3]: Ảnh tham chiếu chuẩn cho Panel 4 (Closing / Toàn cảnh).
+   - Nếu có ít hơn 4 ảnh (ví dụ 1, 2 hoặc 3 ảnh), hãy tái sử dụng các chỉ số ảnh hợp lý nhất (ví dụ nếu chỉ có 1 ảnh thì [1, 1, 1, 1]; 2 ảnh thì [1, 2, 1, 2] hoặc tương tự).
+   - Nếu có 4 ảnh trở lên, chọn 4 ảnh đại diện tốt nhất cho 4 cảnh.
 
 Return ONLY valid JSON matching this schema (CRITICAL JSON SYNTAX RULES: NEVER put unescaped double quotes inside text strings — use single quotes '...' for quoting words; ensure proper commas between all properties and array elements):
 {
@@ -506,7 +526,8 @@ Return ONLY valid JSON matching this schema (CRITICAL JSON SYNTAX RULES: NEVER p
     "materials": "mô tả chất liệu hoặc thành phần nổi bật",
     "highlights": ["điểm nổi bật 1", "điểm nổi bật 2", "điểm nổi bật 3"],
     "targetAudience": "đối tượng người mua & người dùng tổng thể",
-    "productShape": "CRITICAL — Mô tả chính xác hình dạng vật lý của sản phẩm từ ảnh tham chiếu đã upload (ví dụ: 'hình tròn, vỉ lưới tròn và khay tròn', 'hình chữ nhật dài', 'hình vuông', 'hình trụ đứng', 'dạng bút oval', v.v.) — BẮT BUỘC phân tích kỹ ảnh và ghi rõ hình dạng thực tế",
+    "productShape": "Mô tả hình dạng vật lý tổng thể (chỉ dùng nội bộ để phân loại)",
+    "panelRefMapping": [1, 2, 3, 4],
     "fourAnswers": {
       "hook": "Câu trả lời phân tích cho Cảnh 1: Hook gì để họ dừng lướt?",
       "solution": "Câu trả lời phân tích cho Cảnh 2: Sản phẩm là giải pháp gì cho người dùng thực tế?",
@@ -520,9 +541,9 @@ Return ONLY valid JSON matching this schema (CRITICAL JSON SYNTAX RULES: NEVER p
     "tone": "nói chuyện giao tiếp đời thường miền Nam, tự nhiên, gần gũi, dùng từ ngữ hàng ngày, không sáo rỗng formal"
   },
   "sceneContext": {
-    "location": "mô tả chi tiết không gian bối cảnh sống động phù hợp sản phẩm",
-    "lighting": "ánh sáng tự nhiên dịu nhẹ ban ngày kết hợp đèn ấm",
-    "mood": "aesthetic, hiện đại, 100% chân thực"
+    "location": "Detailed environment/setting in English (e.g. 'Bright modern minimalist living room with warm wooden furniture')",
+    "lighting": "Lighting description in English (e.g. 'Soft natural daylight from large window with realistic contact shadows')",
+    "mood": "Visual mood in English (e.g. 'Clean, premium, authentic smartphone photography')"
   },
   "panelOverlays": [
     { "id": 1, "headline": "TIÊU ĐỀ IN HOA CẢNH 1", "subtexts": ["• Dòng điểm nhấn hook 1", "• Dòng điểm nhấn 2"] },
@@ -536,36 +557,36 @@ Return ONLY valid JSON matching this schema (CRITICAL JSON SYNTAX RULES: NEVER p
       "phase": "Hook",
       "goal": "Hook dừng lướt gây tò mò theo đúng targetUser/buyerAngle bằng giọng đời thường miền Nam",
       "voiceOver": "Lời thoại Cảnh 1 dài từ 16 đến 18 từ tiếng Việt đời thường miền Nam tự nhiên kết thúc bằng dấu câu (xưng hô phù hợp, không lạm dụng mấy bà, ví dụ dùng tui, mọi người, cả nhà, anh em, nè, á nha)...",
-      "visualDescription": "Mô tả hình ảnh Cảnh 1 (nửa trái của Video 1) — BẮT BUỘC bao gồm hình dạng chính xác của sản phẩm theo productShape (ví dụ: 'khay tròn inox', 'hộp chữ nhật', 'bình trụ', v.v.)",
-      "techVFX": "Thao tác tay thực tế Cảnh 1...",
-      "cameraAction": "cận cảnh góc máy ổn định bắt đầu 0s-4s của Video 1"
+      "visualDescription": "Professional English description of scene context, hand placement, and camera framing for Scene 1 — refer to product strictly as 'the product', DO NOT describe shape/color/materials/parts",
+      "techVFX": "Realistic physical hand interaction in English for Scene 1 (e.g. 'Hands naturally picking up and holding the product on the tabletop')...",
+      "cameraAction": "Camera action in English (e.g. 'Static close-up framing starting at 0s-4s of Video 1')"
     },
     {
       "id": 2,
       "phase": "Solution",
       "goal": "Giới thiệu sản phẩm và công năng giải pháp bằng giọng đời thường miền Nam",
       "voiceOver": "Lời thoại Cảnh 2 dài từ 16 đến 18 từ tiếng Việt đời thường miền Nam (câu hoàn chỉnh đủ ý không bị cutoff)...",
-      "visualDescription": "Mô tả hình ảnh Cảnh 2 (nửa phải của Video 1) — BẮT BUỘC ghi rõ hình dạng sản phẩm theo productShape trong mô tả",
-      "techVFX": "Thao tác tay đặc tả tính năng Cảnh 2...",
-      "cameraAction": "chuyển cảnh dứt khoát tại mốc 4s sang Cảnh 2"
+      "visualDescription": "Professional English description of scene context, hand interaction, and camera framing for Scene 2 — refer to product strictly as 'the product', DO NOT describe shape/color/materials/parts",
+      "techVFX": "Realistic physical hand interaction in English demonstrating key function for Scene 2 (e.g. 'Hands operating the main feature of the product')...",
+      "cameraAction": "Camera action in English (e.g. 'Clean-cut transition at 4s mark to medium close-up framing')"
     },
     {
       "id": 3,
       "phase": "Proof",
       "goal": "Đặc tả chi tiết chất liệu, bằng chứng chứng minh bằng giọng đời thường miền Nam",
       "voiceOver": "Lời thoại Cảnh 3 dài từ 16 đến 18 từ tiếng Việt đời thường miền Nam tự nhiên kết thúc bằng dấu câu (ví dụ chắc nịch bao bền, xịn sờ vào êm ái)...",
-      "visualDescription": "Mô tả hình ảnh Cảnh 3 (nửa trái của Video 2)",
-      "techVFX": "Thao tác tay chứng minh chất lượng Cảnh 3...",
-      "cameraAction": "cận cảnh góc máy ổn định bắt đầu 0s-4s của Video 2"
+      "visualDescription": "Professional English description of close-up shot emphasizing craftsmanship and finish for Scene 3 — refer to product strictly as 'the product', DO NOT describe shape/color/materials/parts",
+      "techVFX": "Realistic physical hand interaction in English for Scene 3 (e.g. 'Fingers gently examining the surface texture and build quality of the product')...",
+      "cameraAction": "Camera action in English (e.g. 'Static macro close-up framing starting at 0s-4s of Video 2')"
     },
     {
       "id": 4,
       "phase": "Closing",
       "goal": "Tổng thể phong cách sống và chốt đơn giỏ hàng bằng giọng đời thường miền Nam",
       "voiceOver": "Lời thoại Cảnh 4 dài từ 16 đến 18 từ tiếng Việt đời thường miền Nam (tổng cả 4 cảnh tối thiểu 65 từ, tối đa 70 từ, câu hoàn chỉnh đủ ý không bị cutoff)...",
-      "visualDescription": "Mô tả hình ảnh Cảnh 4 (nửa phải của Video 2, thuần phong cách sống, không vẽ icon giỏ hàng)",
-      "techVFX": "Không gian sống ngăn nắp, sản phẩm hoàn thiện Cảnh 4 (tuyệt đối không chỉ tay, không chạm icon giỏ hàng)...",
-      "cameraAction": "chuyển cảnh dứt khoát tại mốc 4s sang Cảnh 4"
+      "visualDescription": "Professional English description of clean lifestyle setting and camera framing for Scene 4 (pure lifestyle shot, absolutely no cart icons) — refer to product strictly as 'the product', DO NOT describe shape/color/materials/parts",
+      "techVFX": "Realistic lifestyle setting in English for Scene 4 (e.g. 'The product resting neatly in an organized modern living space, absolutely no pointing gestures')...",
+      "cameraAction": "Camera action in English (e.g. 'Clean-cut transition at 4s mark to wider lifestyle perspective')"
     }
   ]
 }
@@ -579,12 +600,13 @@ Important:
  * Thực hiện phân tích sản phẩm qua Gemini API riêng cho Template Pro
  */
 async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {}) {
-  const analysisPrompt = buildTemplateProAnalysisPrompt(options);
+  const imageCount = Array.isArray(filePayloads) ? Math.max(1, filePayloads.length) : 1;
+  const analysisPrompt = buildTemplateProAnalysisPrompt({ ...options, imageCount });
 
-  // Upload tối đa 4 ảnh đầu vào lên Gemini để lấy URL hợp lệ trước khi phân tích
+  // Upload tối đa 8 ảnh đầu vào lên Gemini để lấy URL hợp lệ trước khi phân tích
   const uploadedFiles = [];
   if (geminiClient && Array.isArray(filePayloads)) {
-    const uploadCount = Math.min(filePayloads.length, 4);
+    const uploadCount = Math.min(filePayloads.length, 8);
     console.log(`[TemplatePro] 📤 Uploading ${uploadCount} reference image(s) to Gemini for analysis...`);
     for (let i = 0; i < uploadCount; i++) {
       const file = filePayloads[i];
@@ -621,6 +643,7 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
       materials: 'Chất liệu cao cấp, hoàn thiện tỉ mỉ',
       highlights: ['Thiết kế tiện dụng', 'Xài bao êm', 'Ưng bụng mỗi ngày'],
       targetAudience: 'Mọi gia đình và người dùng yêu thích sự tiện lợi',
+      panelRefMapping: [1, 2, 3, 4].map(idx => ((idx - 1) % imageCount) + 1),
       fourAnswers: {
         hook: `Bữa giờ thấy em này hot quá, nay tui rinh về test cho cả nhà coi nè.`,
         solution: `Nhỏ gọn cưng xỉu, ai xài cũng mê, làm gì cũng nhanh gọn và ưng bụng nha.`,
@@ -633,9 +656,9 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
         tone: 'nói chuyện giao tiếp đời thường miền Nam, thân thiện, duyên dáng, gần gũi, dùng từ ngữ hàng ngày không formal'
       },
       sceneContext: {
-        location: 'Không gian sống hiện đại sáng sủa, nội thất tối giản tinh tế',
-        lighting: 'Ánh sáng tự nhiên dịu nhẹ ban ngày kết hợp đèn ấm',
-        mood: 'Chân thực, hiện đại, cao cấp'
+        location: 'Bright modern minimalist living room with clean natural surfaces',
+        lighting: 'Soft natural daylight from side window with realistic soft contact shadows',
+        mood: 'Clean, authentic, high-end smartphone photography'
       },
       panelOverlays: [
         { id: 1, headline: 'THIẾT KẾ TINH TẾ', subtexts: ['• Kiểu dáng hiện đại', '• Nhỏ gọn tiện lợi'] },
@@ -650,36 +673,36 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
           phase: 'Hook',
           goal: 'Hook dừng lướt gây tò mò bằng giọng đời thường miền Nam',
           voiceOver: 'Bữa giờ thấy em này hot quá, nay tui rinh về test cho cả nhà coi nè.',
-          visualDescription: `Cận cảnh cầm ${fallbackTitle} trên bề mặt tự nhiên sang trọng`,
-          techVFX: 'Thao tác tay thực tế cầm sản phẩm',
-          cameraAction: 'cận cảnh góc máy ổn định bắt đầu 0s-4s của Video 1'
+          visualDescription: 'Close-up 45-degree angle shot of hands holding the product on a sleek natural tabletop',
+          techVFX: 'Hands naturally holding and rotating the product',
+          cameraAction: 'Static close-up framing starting at 0s-4s of Video 1'
         },
         {
           id: 2,
           phase: 'Solution',
           goal: 'Giới thiệu công năng giải pháp bằng giọng đời thường miền Nam',
           voiceOver: 'Nhỏ gọn cưng xỉu, ai xài cũng mê, làm gì cũng nhanh gọn và ưng bụng nha.',
-          visualDescription: `Mô tả công năng và chi tiết của ${fallbackTitle}`,
-          techVFX: 'Thao tác tay đặc tả tính năng',
-          cameraAction: 'lia máy sang phải và zoom vào Cảnh 2 trong 4s-8s của Video 1'
+          visualDescription: 'Close-up demonstration showing hands interacting with the product to display its key function',
+          techVFX: 'Hands performing a realistic ergonomic interaction with the product',
+          cameraAction: 'Clean-cut transition at 4s mark to medium close-up framing'
         },
         {
           id: 3,
           phase: 'Proof',
           goal: 'Đặc tả chất liệu và độ bền bằng giọng đời thường miền Nam',
           voiceOver: 'Cầm chắc nịch bao bền, chất liệu xịn xò sờ vào thấy êm ái cực kỳ đã.',
-          visualDescription: `Cận cảnh chất liệu và độ hoàn thiện của ${fallbackTitle}`,
-          techVFX: 'Thao tác tay kiểm tra thực tế',
-          cameraAction: 'cận cảnh góc máy ổn định bắt đầu 0s-4s của Video 2'
+          visualDescription: 'Macro close-up shot highlighting the authentic texture, surface finish, and premium craftsmanship',
+          techVFX: 'Fingers gently examining the surface quality of the product',
+          cameraAction: 'Static macro close-up framing starting at 0s-4s of Video 2'
         },
         {
           id: 4,
           phase: 'Closing',
           goal: 'Kêu gọi mua hàng giỏ hàng bằng giọng đời thường miền Nam',
           voiceOver: 'Đúng bài tiện nghi, mọi người bấm liền giỏ hàng góc trái săn deal ngay nghen!',
-          visualDescription: `Không gian phong cách sống cùng ${fallbackTitle}`,
-          techVFX: 'Đặt sản phẩm ngay ngắn trong không gian sống',
-          cameraAction: 'lia máy sang phải và toàn cảnh Cảnh 4 trong 4s-8s của Video 2'
+          visualDescription: 'Wide clean lifestyle shot showing the product neatly placed in a modern organized environment',
+          techVFX: 'The product standing cleanly on the tabletop with subtle hand placement, strictly no pointing gestures',
+          cameraAction: 'Clean-cut transition at 4s mark to wider lifestyle perspective'
         }
       ]
     },
@@ -716,7 +739,16 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
         const overlays = Array.isArray(parsed.panelOverlays) ? parsed.panelOverlays : [];
         const captions = overlays.map(p => p.headline || '');
 
-        console.log(`[TemplatePro] ✅ Product analyzed (attempt ${attempt}): "${pName}" (${cat})`);
+        let rawMapping = parsed.analysis?.panelRefMapping || parsed.panelRefMapping;
+        let panelRefMapping = [1, 2, 3, 4].map(idx => ((idx - 1) % imageCount) + 1);
+        if (Array.isArray(rawMapping) && rawMapping.length >= 4) {
+          panelRefMapping = [0, 1, 2, 3].map(i => {
+            const val = parseInt(rawMapping[i], 10);
+            return (!isNaN(val) && val >= 1 && val <= imageCount) ? val : (((i) % imageCount) + 1);
+          });
+        }
+
+        console.log(`[TemplatePro] ✅ Product analyzed (attempt ${attempt}): "${pName}" (${cat}), panelRefMapping: [${panelRefMapping.join(', ')}]`);
 
         return {
           analysis: {
@@ -731,6 +763,7 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
             highlights: parsed.analysis?.highlights || parsed.highlights || ['Thiết kế sang trọng', 'Tiện dụng'],
             targetAudience: parsed.analysis?.targetAudience || parsed.targetAudience || '',
             productShape: parsed.analysis?.productShape || parsed.productShape || '',
+            panelRefMapping,
             fourAnswers: parsed.analysis?.fourAnswers || parsed.fourAnswers || {},
             voicePersona: parsed.voicePersona || {
               gender: 'nu',
@@ -781,22 +814,21 @@ async function analyzeProductTemplatePro(geminiClient, filePayloads, options = {
  * - BỎ QUA HOÀN TOÀN KHUNG VIỀN TRẮNG (NO BORDER PADDING): video 9:16 thuần túy, không viền, không crop sau khi gen.
  */
 function buildTemplateProVideoPrompts(analysisData, options = {}) {
-  const prodName = analysisData?.productName || 'sản phẩm';
   const script = analysisData?.script || [];
-  const customInstruction = options.customInstruction ? ` YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${options.customInstruction}.` : '';
+  const customInstruction = options.customInstruction ? ` TOP PRIORITY REQUIREMENT: ${options.customInstruction}.` : '';
 
-  const realismCues = 'Cảnh quay tự nhiên 100% như quay bằng camera điện thoại cao cấp góc rộng, ánh sáng ban ngày tự nhiên từ cửa sổ, đổ bóng tiếp xúc chân thực, bề mặt sản phẩm lì có vân chất liệu, không hiệu ứng bokeh giả, không ánh sáng studio nhân tạo, không nhựa bóng kiểu AI, không hiệu ứng ảo CGI.';
-  const refRule = 'THAM CHIẾU HÌNH ẢNH VÀ ĐỘ CHÍNH XÁC SẢN PHẨM: Toàn bộ video phải đối chiếu và tham chiếu chặt chẽ với hình ảnh Master Storyboard và hình ảnh Panel chi tiết đã cung cấp để đảm bảo tính đúng đắn, nhất quán 100% về ngoại quan, kiểu dáng, cấu tạo, chất liệu, màu sắc và chi tiết sản phẩm.';
+  const realismCues = 'Natural scene, 100% realistic as captured on a high-end smartphone wide camera, natural window daylight, authentic ground contact shadows, matte textures with fine micro-surface details, no fake bokeh, no artificial studio glare, no plastic AI sheen, zero CGI artifacts.';
+  const refRule = 'IMAGE REFERENCE & PRODUCT FIDELITY: The provided Panel images and Master Storyboard are the SOLE reference for product appearance. The entire video must match and strictly adhere to the provided images to guarantee 100% consistency in appearance, design, geometry, material, color, and physical details; strictly do not add, alter, or morph any detail.';
 
-  const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
-  const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
-  const desc2 = script[1]?.visualDescription || 'Góc quay cận cảnh đặc tả công năng, cấu tạo và hoàn thiện tinh xảo';
-  const vfx2 = script[1]?.techVFX ? ` Thao tác thực tế: ${script[1].techVFX}.` : '';
-  const desc3 = script[2]?.visualDescription || 'Trải nghiệm sử dụng thực tế của người dùng với sản phẩm trong không gian';
-  const vfx3 = script[2]?.techVFX ? ` Thao tác thực tế: ${script[2].techVFX}.` : '';
-  const desc4 = sanitizeVisualActionPrompt(script[3]?.visualDescription) || 'Toàn cảnh sản phẩm trong không gian phong cách sống hiện đại';
+  const desc1 = script[0]?.visualDescription || 'Close-up shot of hands interacting with the product on a premium natural surface';
+  const vfx1 = script[0]?.techVFX ? ` Realistic action: ${script[0].techVFX}.` : '';
+  const desc2 = script[1]?.visualDescription || 'Tight close-up framing highlighting functional craftsmanship and refined engineering details';
+  const vfx2 = script[1]?.techVFX ? ` Realistic action: ${script[1].techVFX}.` : '';
+  const desc3 = script[2]?.visualDescription || 'Authentic user handling and lifestyle interaction with the product in a real-world setting';
+  const vfx3 = script[2]?.techVFX ? ` Realistic action: ${script[2].techVFX}.` : '';
+  const desc4 = sanitizeVisualActionPrompt(script[3]?.visualDescription) || 'Full lifestyle framing showcasing the product in an elegant modern setting';
   const cleanVfx4 = sanitizeVisualActionPrompt(script[3]?.techVFX);
-  const vfx4 = cleanVfx4 ? ` Thao tác thực tế: ${cleanVfx4}.` : '';
+  const vfx4 = cleanVfx4 ? ` Realistic action: ${cleanVfx4}.` : '';
 
   // Luôn sử dụng giọng nữ tự nhiên
   const defaultVoice = 'nữ miền Nam ngọt ngào, hoạt bát, giọng nói chuyện giao tiếp đời thường tự nhiên, gần gũi';
@@ -818,15 +850,15 @@ function buildTemplateProVideoPrompts(analysisData, options = {}) {
   const v1WordCount = video1Script.split(/\s+/).filter(Boolean).length;
   const v2WordCount = video2Script.split(/\s+/).filter(Boolean).length;
 
-  const voiceInstruction1 = `TỐC ĐỘ ĐỌC VÀ VOICE-OVER: Giọng đọc review: ${voiceDesc}, phong cách nói chuyện giao tiếp đời thường miền Nam cực kỳ tự nhiên, gần gũi, dùng từ ngữ hàng ngày (như bạn bè trò chuyện, xưng tui/mọi người/cả nhà/anh em, có trợ từ nè/nghen/luôn á, tuyệt đối không dùng văn phong formal sách vở), năng lượng cao dồn dập. Tốc độ đọc review CỰC KỲ NHANH, liên tục dồn dập không ngừng nghỉ để đọc HẾT trọn vẹn toàn bộ lời thoại (${v1WordCount} từ, tối đa 40 từ) trong đúng 8 giây, TUYỆT ĐỐI KHÔNG ĐƯỢC CUTOFF ngắt ngang khi video kết thúc. Lời thoại đọc liên tục trọn vẹn trong 8 giây: "${video1Script}".`;
-  const voiceInstruction2 = `TỐC ĐỘ ĐỌC VÀ VOICE-OVER: Giọng đọc review: ${voiceDesc}, phong cách nói chuyện giao tiếp đời thường miền Nam cực kỳ tự nhiên, gần gũi, dùng từ ngữ hàng ngày (như bạn bè trò chuyện, xưng tui/mọi người/cả nhà/anh em, có trợ từ nè/nghen/luôn á, tuyệt đối không dùng văn phong formal sách vở), năng lượng cao dồn dập. Tốc độ đọc review CỰC KỲ NHANH, liên tục dồn dập không ngừng nghỉ để đọc HẾT trọn vẹn toàn bộ lời thoại (${v2WordCount} từ, tối đa 40 từ) trong đúng 8 giây, TUYỆT ĐỐI KHÔNG ĐƯỢC CUTOFF ngắt ngang khi video kết thúc. Lời thoại đọc liên tục trọn vẹn trong 8 giây: "${video2Script}".`;
+  const voiceInstruction1 = `VOICE-OVER & PACING: Voice style: ${voiceDesc}, colloquial Southern Vietnamese conversational tone, highly natural, friendly everyday slang (speaking like close friends, high energy). Extremely fast and punchy review pacing to read the FULL dialogue (${v1WordCount} words, max 40 words) within exactly 8 seconds, STRICTLY NO CUTOFF at the end. Spoken dialogue: "${video1Script}".`;
+  const voiceInstruction2 = `VOICE-OVER & PACING: Voice style: ${voiceDesc}, colloquial Southern Vietnamese conversational tone, highly natural, friendly everyday slang (speaking like close friends, high energy). Extremely fast and punchy review pacing to read the FULL dialogue (${v2WordCount} words, max 40 words) within exactly 8 seconds, STRICTLY NO CUTOFF at the end. Spoken dialogue: "${video2Script}".`;
 
-  const actionLockdownRule = ' NGUYÊN TẮC BẢO TOÀN TRẠNG THÁI VẬT LÝ VÀ KHÓA CHẶT HÀNH ĐỘNG (UNIVERSAL PHYSICAL STATE INVARIANCE & ACTION LOCKDOWN — ZERO UNPROMPTED ACTIONS): Sản phẩm là trung tâm bất biến, giữ nguyên 100% hình học, kích thước, màu sắc và trạng thái cơ học vốn có trong ảnh tham chiếu từ giây 0 đến giây 8. TUYỆT ĐỐI CẤM TỰ Ý BỊA HÀNH ĐỘNG CƠ HỌC LÀM THAY ĐỔI CẤU TRÚC HAY BIẾN DẠNG SẢN PHẨM: Không tự ý mở/vặn/tháo rời bất kỳ bộ phận nào, không tự kéo dãn/gập bẻ, không làm phát sinh chất lỏng/khói bụi, và cấm hiện tượng biến hình co dãn (NO MORPHING, NO WARPING). NẾU SẢN PHẨM Ở TRẠNG THÁI ĐÓNG HOẶC NGUYÊN KHỐI TRONG ẢNH THÌ PHẢI GIỮ NGUYÊN VẸN ĐÓNG TRONG TOÀN BỘ VIDEO. Chuyển động duy nhất cho phép là chuyển động máy quay (pan/tilt/zoom nhẹ) và bàn tay người mẫu nâng/cầm giữ/xoay nhẹ sản phẩm để đổi góc nhìn.';
+  const actionLockdownRule = ' UNIVERSAL PHYSICAL STATE INVARIANCE & ACTION LOCKDOWN — ZERO UNPROMPTED ACTIONS: The product is an invariant physical center, preserving 100% of its geometry, dimensions, color, and mechanical state from the reference images throughout the entire 8 seconds. STRICTLY FORBIDDEN TO INVENT MECHANICAL ACTIONS THAT CHANGE STRUCTURE OR DEFORM THE PRODUCT: Do not open, twist, disassemble, stretch, bend, or emit fluids/smoke; NO MORPHING, NO WARPING. IF CLOSED OR MONOLITHIC IN THE IMAGE, IT MUST REMAIN CLOSED. Only subtle camera movements (gentle pan/tilt/zoom) and hand gestures holding/rotating the product to change viewing angles are allowed.';
 
   // BỎ QUA HOÀN TOÀN BORDER RULE (NO WHITE BORDER PADDING CHO TPRO)
   return [
-    `Tạo video review ${prodName} faceless dài đúng 8 giây từ 3 hình ảnh đã cung cấp (gồm Panel 1: Cảnh 1, Panel 2: Cảnh 2, và Master Storyboard toàn bộ 4 cảnh). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 1 (Cảnh 1: Hook), camera giữ góc quay cận cảnh ổn định bên trong khung hình Cảnh 1, bàn tay người thao tác thực tế${vfx1} ${desc1}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 2 (Cảnh 2: Solution), tiếp tục góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. ${voiceInstruction1} ${realismCues}`,
-    `Tạo video review ${prodName} faceless dài đúng 8 giây từ 3 hình ảnh đã cung cấp (gồm Panel 3: Cảnh 3, Panel 4: Cảnh 4, và Master Storyboard toàn bộ 4 cảnh). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG THEO THỜI GIAN VÀ CẢNH QUAY: 4 giây đầu (0s-4s) bắt đầu chính xác từ hình ảnh Panel 3 (Cảnh 3: Proof), camera giữ góc quay cận cảnh đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}; tại mốc 4 giây chuyển cảnh dứt khoát (clean cut transition) sang 4 giây sau (4s-8s) bắt đầu chính xác từ hình ảnh Panel 4 (Cảnh 4: Closing), mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}. ${refRule} GIỮ NGUYÊN TOÀN BỘ HÌNH ẢNH GỐC, BỐ CỤC, MÀU SẮC VÀ CÁC CHI TIẾT TRÊN ẢNH. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO, BIỂU TƯỢNG HOẶC OVERLAY NÀO MỚI (STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS). TUYỆT ĐỐI FACELESS: CHỈ CÓ GIỌNG NÓI VOICE-OVER, TUYỆT ĐỐI KHÔNG QUAY MẶT NGƯỜI. ${voiceInstruction2} ${realismCues}`
+    `Create an 8-second faceless product review video from 3 provided images (Panel 1: Scene 1, Panel 2: Scene 2, and the full 4-panel Master Storyboard). ${customInstruction}${actionLockdownRule} TIME-BASED MOTION & SHOTS: The first 4 seconds (0s-4s) start precisely from the Panel 1 image (Scene 1: Hook), camera holds a steady close-up within Scene 1 framing, hands physically interacting${vfx1} ${desc1}; at the 4-second mark, execute a clean cut transition to the second 4 seconds (4s-8s) starting precisely from the Panel 2 image (Scene 2: Solution), continuing tight framing on functionality and details inside Scene 2${vfx2} ${desc2}. ${refRule} PRESERVE ALL ORIGINAL IMAGERY, COMPOSITION, COLORS, AND DETAILS. STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS. STRICTLY FACELESS: VOICE-OVER ONLY, DO NOT SHOW HUMAN FACES. ${voiceInstruction1} ${realismCues}`,
+    `Create an 8-second faceless product review video from 3 provided images (Panel 3: Scene 3, Panel 4: Scene 4, and the full 4-panel Master Storyboard). ${customInstruction}${actionLockdownRule} TIME-BASED MOTION & SHOTS: The first 4 seconds (0s-4s) start precisely from the Panel 3 image (Scene 3: Proof), camera holds a steady close-up on material textures and refined build inside Scene 3 framing, hands physically testing${vfx3} ${desc3}; at the 4-second mark, execute a clean cut transition to the second 4 seconds (4s-8s) starting precisely from the Panel 4 image (Scene 4: Closing), widening to celebrate the product in a complete lifestyle setting inside Scene 4${vfx4} ${desc4}. ${refRule} PRESERVE ALL ORIGINAL IMAGERY, COMPOSITION, COLORS, AND DETAILS. STRICTLY NO NEW TEXT, NO CAPTIONS, NO OVERLAYS, NO CARTOON GRAPHICS. STRICTLY FACELESS: VOICE-OVER ONLY, DO NOT SHOW HUMAN FACES. ${voiceInstruction2} ${realismCues}`
   ];
 }
 
@@ -836,7 +868,6 @@ function buildTemplateProVideoPrompts(analysisData, options = {}) {
  * - Video 2 (8s): Lời thoại Cảnh 3 + Cảnh 4 (Proof + Closing)
  */
 function buildTemplateProVoiceVideoPrompts(analysisData) {
-  const prodName = analysisData?.productName || 'sản phẩm';
   const script = analysisData?.script || [];
 
   // Luôn sử dụng giọng nữ tự nhiên
@@ -858,8 +889,8 @@ function buildTemplateProVoiceVideoPrompts(analysisData) {
   const v1WordCount = video1Script.split(/\s+/).filter(Boolean).length;
   const v2WordCount = video2Script.split(/\s+/).filter(Boolean).length;
 
-  const p1 = `Tạo video review ${prodName} dài đúng 8 giây để thu âm giọng đọc voice-over. Giọng đọc review: ${voiceDesc}, phong cách giao tiếp đời thường miền Nam cực kỳ tự nhiên, gần gũi, dồn dập. Đọc đầy đủ trọn vẹn toàn bộ lời thoại (${v1WordCount} từ) trong đúng 8 giây không ngắt quãng: "${video1Script}".`;
-  const p2 = `Tạo video review ${prodName} dài đúng 8 giây để thu âm giọng đọc voice-over. Giọng đọc review: ${voiceDesc}, phong cách giao tiếp đời thường miền Nam cực kỳ tự nhiên, gần gũi, dồn dập. Đọc đầy đủ trọn vẹn toàn bộ lời thoại (${v2WordCount} từ) trong đúng 8 giây không ngắt quãng: "${video2Script}".`;
+  const p1 = `Create an 8-second product review video to record audio voice-over. Voice style: ${voiceDesc}, natural everyday conversational Vietnamese tone, punchy and fast-paced. Read the entire dialogue (${v1WordCount} words) continuously within 8 seconds without interruption: "${video1Script}".`;
+  const p2 = `Create an 8-second product review video to record audio voice-over. Voice style: ${voiceDesc}, natural everyday conversational Vietnamese tone, punchy and fast-paced. Read the entire dialogue (${v2WordCount} words) continuously within 8 seconds without interruption: "${video2Script}".`;
 
   return [p1, p2];
 }
@@ -872,32 +903,41 @@ function buildTemplateProVoiceVideoPrompts(analysisData) {
  * - Chuyển động máy quay mượt mà, thao tác thực tế với sản phẩm
  */
 function buildTemplatePro4sPanelPrompts(analysisData, options = {}) {
-  const prodName = analysisData?.productName || 'sản phẩm';
   const script = analysisData?.script || [];
-  const customInstruction = options.customInstruction ? ` YÊU CẦU ƯU TIÊN HÀNG ĐẦU: ${options.customInstruction}.` : '';
+  const customInstruction = options.customInstruction ? ` TOP PRIORITY INSTRUCTION: ${options.customInstruction}.` : '';
 
-  const realismCues = 'Cảnh quay tự nhiên 100% như quay bằng camera điện thoại cao cấp góc rộng, ánh sáng ban ngày tự nhiên từ cửa sổ, đổ bóng tiếp xúc chân thực, bề mặt sản phẩm lì có vân chất liệu, không hiệu ứng bokeh giả, không ánh sáng studio nhân tạo, không nhựa bóng kiểu AI, không hiệu ứng ảo CGI.';
-  const refRule = 'BẢO TOÀN HÌNH ẢNH: Toàn bộ video bắt đầu chính xác từ hình ảnh Panel đã cung cấp, giữ nguyên 100% kiểu dáng, cấu tạo, chất liệu, màu sắc và trạng thái của sản phẩm. TUYỆT ĐỐI KHÔNG TỰ TẠO THÊM BẤT KỲ CHỮ, TIÊU ĐỀ, PHỤ ĐỀ, LOGO (STRICTLY NO TEXT). Video hoàn toàn im lặng, không có voice-over, không lời thoại.';
+  const realismCues = 'Natural scene, 100% realistic as shot on a high-end smartphone wide camera, natural window daylight, authentic ground contact shadows, matte textures with fine micro-surface details, no fake bokeh, no artificial studio glare, no plastic AI sheen, zero CGI artifacts.';
+  const refRule = 'IMAGE PRESERVATION: The provided Panel image is the SOLE reference for the product appearance. The entire video starts exactly from the provided Panel image, maintaining 100% identical design, form factor, construction, materials, colors, and physical state; strictly do not add, alter, or morph any detail. STRICTLY NO TEXT, NO TITLES, NO SUBTITLES, NO LOGOS (STRICTLY NO TEXT). Completely silent video, no voice-over, no speech.';
 
-  const actionLockdownRule = ' NGUYÊN TẮC KHÓA CHẶT HÀNH ĐỘNG (ACTION LOCKDOWN): Sản phẩm là trung tâm bất biến, giữ nguyên 100% hình học từ giây 0 đến giây 4. Không tự ý mở/vặn/tháo rời bất kỳ bộ phận nào, không tự kéo dãn hay biến dạng (NO MORPHING).';
+  const actionLockdownRule = ' ACTION LOCKDOWN: The product remains an invariant physical anchor, strictly preserving 100% of its geometry and structure from second 0 to second 4. Never arbitrarily open, twist, detach, stretch, bend, or morph any components (NO MORPHING).';
 
-  const desc1 = script[0]?.visualDescription || 'Cận cảnh tay cầm sản phẩm trên bề mặt tự nhiên sang trọng';
-  const vfx1 = script[0]?.techVFX ? ` Thao tác thực tế: ${script[0].techVFX}.` : '';
-  const desc2 = script[1]?.visualDescription || 'Góc quay cận cảnh đặc tả công năng, cấu tạo và hoàn thiện tinh xảo';
-  const vfx2 = script[1]?.techVFX ? ` Thao tác thực tế: ${script[1].techVFX}.` : '';
-  const desc3 = script[2]?.visualDescription || 'Trải nghiệm sử dụng thực tế của người dùng với sản phẩm trong không gian';
-  const vfx3 = script[2]?.techVFX ? ` Thao tác thực tế: ${script[2].techVFX}.` : '';
-  const desc4 = sanitizeVisualActionPrompt(script[3]?.visualDescription) || 'Toàn cảnh sản phẩm trong không gian phong cách sống hiện đại';
+  const desc1 = script[0]?.visualDescription || 'Close-up shot of hands interacting with the product on a premium natural surface';
+  const vfx1 = script[0]?.techVFX ? ` Realistic action: ${script[0].techVFX}.` : '';
+  const desc2 = script[1]?.visualDescription || 'Tight close-up framing highlighting functional craftsmanship and refined engineering details';
+  const vfx2 = script[1]?.techVFX ? ` Realistic action: ${script[1].techVFX}.` : '';
+  const desc3 = script[2]?.visualDescription || 'Authentic user handling and lifestyle interaction with the product in a real-world setting';
+  const vfx3 = script[2]?.techVFX ? ` Realistic action: ${script[2].techVFX}.` : '';
+  const desc4 = sanitizeVisualActionPrompt(script[3]?.visualDescription) || 'Full lifestyle framing showcasing the product in an elegant modern setting';
   const cleanVfx4 = sanitizeVisualActionPrompt(script[3]?.techVFX);
-  const vfx4 = cleanVfx4 ? ` Thao tác thực tế: ${cleanVfx4}.` : '';
+  const vfx4 = cleanVfx4 ? ` Realistic action: ${cleanVfx4}.` : '';
 
-  const noCartPointingRule = ' TUYỆT ĐỐI KHÔNG CÓ HÀNH ĐỘNG CHỈ TAY HOẶC CHẠM VÀO GÓC MÀN HÌNH, TUYỆT ĐỐI KHÔNG CÓ ICON GIỎ HÀNG, KHÔNG CÓ BẤT KỲ GIAO DIỆN HOẶC BIỂU TƯỢNG NÀO (STRICTLY NO POINTING GESTURES, NO CART ICONS, NO UI OVERLAYS).';
+  const noCartPointingRule = ' STRICTLY NO POINTING GESTURES, NO TOUCHING SCREEN CORNERS, NO CART ICONS, ZERO UI OVERLAYS.';
+
+  let variationPrompt = '';
+  if (options.iteration && options.iteration > 0) {
+    const variations = [
+      ' Dynamic motion variation: refreshed close-up camera motion with subtle organic drift, natural refocusing, and newly adjusted angle of interaction.',
+      ' Dynamic motion variation: smooth subtle dolly movement, gentle tilt down to showcase product details with renewed realism, different authentic hand contact position.',
+      ' Dynamic motion variation: dynamic slow-panning perspective, newly refined camera framing emphasizing clean product ergonomics and authentic natural lighting.'
+    ];
+    variationPrompt = variations[(options.iteration - 1) % variations.length];
+  }
 
   const prompts = [
-    `Tạo video review ${prodName} faceless dài đúng 4 giây theo mode Start Frame, bắt đầu chính xác từ hình ảnh Cảnh 1 (Hook). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG VÀ CẢNH QUAY: Bắt đầu từ frame ảnh Cảnh 1, camera giữ góc quay cận cảnh ổn định bên trong khung hình, bàn tay người thao tác thực tế${vfx1} ${desc1}. ${refRule} ${realismCues}`,
-    `Tạo video review ${prodName} faceless dài đúng 4 giây theo mode Start Frame, bắt đầu chính xác từ hình ảnh Cảnh 2 (Solution). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG VÀ CẢNH QUAY: Bắt đầu từ frame ảnh Cảnh 2, camera giữ góc quay đặc tả công năng và chi tiết sản phẩm bên trong khung hình Cảnh 2${vfx2} ${desc2}. ${refRule} ${realismCues}`,
-    `Tạo video review ${prodName} faceless dài đúng 4 giây theo mode Start Frame, bắt đầu chính xác từ hình ảnh Cảnh 3 (Proof). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG VÀ CẢNH QUAY: Bắt đầu từ frame ảnh Cảnh 3, camera giữ góc quay đặc tả chất liệu, cấu tạo tinh xảo bên trong khung hình Cảnh 3, bàn tay người thao tác kiểm tra thực tế${vfx3} ${desc3}. ${refRule} ${realismCues}`,
-    `Tạo video review ${prodName} faceless dài đúng 4 giây theo mode Start Frame, bắt đầu chính xác từ hình ảnh Cảnh 4 (Closing). ${customInstruction}${actionLockdownRule} CHUYỂN ĐỘNG VÀ CẢNH QUAY: Bắt đầu từ frame ảnh Cảnh 4, mở rộng góc quay tôn vinh sản phẩm trong không gian phong cách sống hoàn thiện bên trong khung hình Cảnh 4${vfx4} ${desc4}.${noCartPointingRule} ${refRule} ${realismCues}`
+    `Create a high-fidelity 4-second faceless product review video in Start Frame mode, starting precisely from the Panel 1 (Hook) image. ${customInstruction}${actionLockdownRule}${variationPrompt} CAMERA & MOTION: Starting seamlessly from the Panel 1 image frame, camera holds a stable close-up within the frame, natural hand interaction${vfx1} ${desc1}. ${refRule} ${realismCues}`,
+    `Create a high-fidelity 4-second faceless product review video in Start Frame mode, starting precisely from the Panel 2 (Solution) image. ${customInstruction}${actionLockdownRule}${variationPrompt} CAMERA & MOTION: Starting seamlessly from the Panel 2 image frame, camera holds a tight macro/detail angle showcasing product functionality and details inside the Panel 2 frame${vfx2} ${desc2}. ${refRule} ${realismCues}`,
+    `Create a high-fidelity 4-second faceless product review video in Start Frame mode, starting precisely from the Panel 3 (Proof) image. ${customInstruction}${actionLockdownRule}${variationPrompt} CAMERA & MOTION: Starting seamlessly from the Panel 3 image frame, camera captures material textures and fine construction inside the Panel 3 frame, natural hand testing${vfx3} ${desc3}. ${refRule} ${realismCues}`,
+    `Create a high-fidelity 4-second faceless product review video in Start Frame mode, starting precisely from the Panel 4 (Closing) image. ${customInstruction}${actionLockdownRule}${variationPrompt} CAMERA & MOTION: Starting seamlessly from the Panel 4 image frame, camera slightly widens celebrating the product in an elevated lifestyle scene inside the Panel 4 frame${vfx4} ${desc4}.${noCartPointingRule} ${refRule} ${realismCues}`
   ];
 
   if (options.panelIndex && options.panelIndex >= 1 && options.panelIndex <= 4) {
@@ -1319,18 +1359,18 @@ function buildTemplateProMasterPrompt(analysisData, options = {}) {
       panel1: {
         id: 1,
         phase: "Hook",
-        marketingQuestion: "Hook gì để họ dừng lướt?",
-        marketingAnswer: fourAnswers.hook || script[0]?.goal || "Hook gây tò mò / nêu nỗi đau thực tế",
-        visualDescription: script[0]?.visualDescription || "Cận cảnh cầm sản phẩm trên bề mặt tự nhiên sang trọng",
-        handInteraction: script[0]?.techVFX || "Thao tác tay thực tế",
+        marketingQuestion: "What is the hook?",
+        marketingAnswer: fourAnswers.hook || script[0]?.goal || "Hook curiosity and address user need",
+        visualDescription: script[0]?.visualDescription || "Close-up 45-degree angle shot of hands holding the product on a sleek natural tabletop",
+        handInteraction: script[0]?.techVFX || "Hands naturally holding the product",
       },
       panel2: {
         id: 2,
         phase: "Solution",
-        marketingQuestion: "Sản phẩm là giải pháp gì?",
-        marketingAnswer: fourAnswers.solution || script[1]?.goal || "Giới thiệu sản phẩm và công năng giải pháp vượt trội",
-        visualDescription: script[1]?.visualDescription || "Đặc tả tính năng và chi tiết cấu tạo hoàn thiện",
-        handInteraction: script[1]?.techVFX || "Thao tác tay sử dụng công năng sản phẩm",
+        marketingQuestion: "What problem does it solve?",
+        marketingAnswer: fourAnswers.solution || script[1]?.goal || "Demonstrate core function and practical benefits",
+        visualDescription: script[1]?.visualDescription || "Close-up demonstration showing hands interacting with the product to display its key function",
+        handInteraction: script[1]?.techVFX || "Hands performing ergonomic interaction with the product",
       }
     },
     rightHalfComposition: {
@@ -1338,23 +1378,48 @@ function buildTemplateProMasterPrompt(analysisData, options = {}) {
       panel3: {
         id: 3,
         phase: "Proof",
-        marketingQuestion: "Bằng chứng nào khiến họ tin?",
-        marketingAnswer: fourAnswers.proof || script[2]?.goal || "Bằng chứng chất liệu cao cấp và kiểm tra thực tế",
-        visualDescription: script[2]?.visualDescription || "Cận cảnh chất liệu, vân bề mặt và độ hoàn thiện tinh xảo",
-        handInteraction: script[2]?.techVFX || "Thao tác tay kiểm tra độ bền, chất lượng thực tế",
+        marketingQuestion: "What is the proof of quality?",
+        marketingAnswer: fourAnswers.proof || script[2]?.goal || "Demonstrate durability and authentic material quality",
+        visualDescription: script[2]?.visualDescription || "Macro close-up shot highlighting the authentic texture, surface finish, and premium craftsmanship",
+        handInteraction: script[2]?.techVFX || "Fingers gently examining the surface quality",
       },
       panel4: {
         id: 4,
         phase: "Closing / CTA",
-        marketingQuestion: "Lý do gì để họ mua ngay?",
-        marketingAnswer: fourAnswers.closing || script[3]?.goal || "Lý do mua ngay và nâng tầm phong cách sống",
-        visualDescription: sanitizeVisualActionPrompt(script[3]?.visualDescription) || "Toàn cảnh sản phẩm hòa nhập không gian sống hiện đại",
-        handInteraction: sanitizeVisualActionPrompt(script[3]?.techVFX) || "Sản phẩm hoàn thiện trong không gian sống",
+        marketingQuestion: "Why buy now?",
+        marketingAnswer: fourAnswers.closing || script[3]?.goal || "Highlight lifestyle convenience and value",
+        visualDescription: sanitizeVisualActionPrompt(script[3]?.visualDescription) || "Wide clean lifestyle shot showing the product neatly placed in a modern organized environment",
+        handInteraction: sanitizeVisualActionPrompt(script[3]?.techVFX) || "The product standing cleanly on the tabletop with subtle hand placement, strictly no pointing gestures",
       }
     }
   };
 
+  // Số ảnh tham chiếu thực tế gửi kèm (mặc định 4 ảnh: ảnh K dành cho Panel K)
+  const refCount = Number.isInteger(options.panelRefCount) ? options.panelRefCount : 4;
+  const usePanelRefs = refCount === 4;
+  const panelPhases = ['Hook', 'Solution', 'Proof', 'Closing / CTA'];
+
+  const referenceBlock = usePanelRefs
+    ? [
+        `REFERENCE IMAGES — THE ONLY SOURCE OF TRUTH FOR THE PRODUCT (4 images attached, in this exact order):`,
+        ...panelPhases.map((ph, i) => `- Reference image ${i + 1} (ref_${i + 1}) → Panel ${i + 1} (${ph}).`),
+        `- Each panel MUST reproduce the product EXACTLY as it appears in its assigned reference image (same shape, proportions, color, material, print, logo, parts and their positions).`,
+        `- All 4 reference images show the SAME product. Keep the product identical across all 4 panels.`,
+        `- The text in this prompt intentionally does NOT describe the product. Never infer or alter the product's appearance from text — look ONLY at the reference images.`,
+        `- If any scene description below seems to conflict with a reference image, the reference image ALWAYS wins.`,
+      ]
+    : [
+        `REFERENCE IMAGES — THE ONLY SOURCE OF TRUTH FOR THE PRODUCT:`,
+        `- Reproduce the product EXACTLY as it appears in the attached reference image(s) (same shape, proportions, color, material, print, logo, parts and their positions).`,
+        `- The text in this prompt intentionally does NOT describe the product. Never infer or alter the product's appearance from text — look ONLY at the reference images.`,
+        `- If any scene description below seems to conflict with a reference image, the reference image ALWAYS wins.`,
+      ];
+
+  const refFor = (k) => (usePanelRefs ? ` Product reference: reference image ${k}.` : '');
+
   return [
+    ...referenceBlock,
+    ``,
     `LAYOUT — MANDATORY HORIZONTAL 16:9 MASTER STORYBOARD (4-PANEL SIDE-BY-SIDE COLLAGE):`,
     `The output image MUST BE a single horizontal 16:9 landscape still photograph containing exactly 4 equal-width vertical panels arranged side-by-side from left to right:`,
     `Column 1 (Panel 1: Hook) | Column 2 (Panel 2: Solution) | Column 3 (Panel 3: Proof) | Column 4 (Panel 4: Closing / CTA).`,
@@ -1362,43 +1427,36 @@ function buildTemplateProMasterPrompt(analysisData, options = {}) {
     `There are NO borders, NO dividers, NO gaps, NO black bars, NO frames, and NO split lines between panels. Each panel is a clean photographic scene.`,
     `DO NOT generate a single vertical portrait image. DO NOT generate only one panel. DO NOT arrange panels in a 2x2 grid. The output MUST be a complete 4-panel horizontal storyboard composite.`,
     ``,
-    `CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM & QUALITY FRAMEWORK (PRODUCT STORYBOARD EVALUATION FRAMEWORK v1.0):`,
+    `CRITICAL VISUAL DIRECTION — 100% SMARTPHONE REALISM & QUALITY FRAMEWORK:`,
     `You MUST strictly satisfy all 4 quality criteria in order of priority:`,
     ``,
-    `1. PRIORITY 1: PRODUCT FIDELITY (Tuyệt đối bảo toàn kiểu dáng sản phẩm gốc - ƯU TIÊN SỐ 1 CAO NHẤT):`,
-    `- ⚠️ ABSOLUTE PRODUCT SHAPE REQUIREMENT: The product is described as "${a.productShape || 'exact shape as shown in reference photo'}". Every panel MUST depict this exact physical shape. DO NOT generate a differently shaped variant (e.g. if the product is ROUND/CIRCULAR, never generate a rectangular version; if RECTANGULAR, never round it).`,
-    `- Silhouette & Main Body Shape: Strictly match the uploaded product reference photo. The product's overall geometry, structural silhouette, proportions, lid/body/base contours, and aspect ratio MUST EXACTLY replicate the real product. DO NOT transform or morph the product into another design, variant, or competitor's product.`,
-    `- Components & Structural Parts: Every major visible component (buttons, dials, handles, nozzles, ports, seams, lids, attachments) must be in the exact position shown in the reference image. NO missing essential parts, NO hallucinated or invented accessories.`,
-    `- Color, Material & Finish: Faithfully preserve the exact colors, dual-tone palettes, textures, and material finishes (matte plastic, brushed aluminum, glossy ceramic, woven fabric, transparent glass, etc.) from the reference photo.`,
-    `- Zero Hallucination / Zero Mutation: Strictly NO invented controls, NO extra decorative elements not in reference. The product must NOT morph or change shape/color between panels.`,
+    `1. PRIORITY 1: PRODUCT FIDELITY TO THE REFERENCE IMAGES:`,
+    `- Copy the product from its assigned reference image as-is. NO redesign, NO variant, NO competitor look.`,
+    `- NO missing parts, NO invented parts or accessories, NO extra decorations, NO changed colors or materials.`,
+    `- The product must NOT morph between panels.`,
     ``,
-    `2. PRIORITY 2: SCENE ACCURACY (Bối cảnh và thao tác sử dụng thực tế, chuẩn xác):`,
-    `- Correct Product Usage: Demonstrate realistic, ergonomic use cases that match real-world functionality and the product category.`,
+    `2. PRIORITY 2: SCENE ACCURACY:`,
+    `- Correct Product Usage: Demonstrate realistic, ergonomic use that matches what the product in the reference image is clearly made for.`,
     `- Realistic Environment: Place the product in ${loc} with natural perspective and contextually plausible surrounding objects.`,
-    `- Anatomically Accurate Hands & Model: Authentic Asian skin tone, natural skin pores, knuckle creases, neat nails. EXACTLY 5 anatomically correct fingers per hand with physically plausible grip. Hands must realistically wrap around handles or surfaces without clipping, merging, or floating. Strictly faceless (only hands, wrists, limbs, or body silhouette from behind/chest down; NO visible human faces).`,
+    `- Anatomically Accurate Hands & Model: Authentic Asian skin tone, natural skin pores, knuckle creases, neat nails. EXACTLY 5 anatomically correct fingers per hand with physically plausible grip. Hands must hold or touch the product realistically without clipping, merging, or floating. Strictly faceless (only hands, wrists, limbs, or body silhouette from behind/chest down; NO visible human faces).`,
     `- Physical Plausibility: Stable contact points on real surfaces with natural ambient occlusion and contact shadows. Product and objects MUST NOT float.`,
     ``,
-    `3. PRIORITY 3: COMMERCIAL COMPOSITION (Bố cục thương mại, làm nổi bật sản phẩm & công năng):`,
-    `- Product Prominence & Eye-Level Framing: Product must be clearly visible, in sharp focus, well-lit, occupying prominent frame area in each panel. Camera angles must showcase the product's premium aesthetic.`,
-    `- Clear Selling Point Visuals: Panel 1 highlights the curiosity/problem hook; Panel 2 clearly displays the core functional solution; Panel 3 gives a crisp close-up proof of material quality and finish; Panel 4 showcases the aspirational lifestyle integration.`,
-    `- STRICT NO-TEXT RULE (TUYỆT ĐỐI KHÔNG CHỮ / NO TEXT / NO LABELS):`,
-    `  * Every panel must be 100% pure clean photography.`,
-    `  * Absolutely NO typography, NO words, NO subtitles, NO badges, NO digital stickers, NO watermarks, NO glowing neon arrows, NO cartoon magnifying glasses, and NO fake fairy sparkles.`,
-    `- STRICT NO POINTING GESTURES & NO CART ICONS (TUYỆT ĐỐI KHÔNG CHỈ TAY, KHÔNG ICON GIỎ HÀNG):`,
-    `  * Strictly NO hands pointing at screen corners or pointing off-screen, NO touching fake cart buttons.`,
-    `  * Strictly NO shopping cart icons, NO cart buttons, NO pointer arrows, NO UI overlays in any panel (especially Panel 4).`,
-    `  * Panel 4 must be a pure, clean lifestyle shot of the product in its environment.`,
+    `3. PRIORITY 3: COMMERCIAL COMPOSITION:`,
+    `- Product Prominence: Product must be clearly visible, in sharp focus, well-lit, occupying prominent frame area in each panel.`,
+    `- Panel roles: Panel 1 = curiosity/problem hook; Panel 2 = core function in use; Panel 3 = close-up proof of quality; Panel 4 = lifestyle integration.`,
+    `- STRICT NO-TEXT RULE: Every panel must be 100% pure clean photography. Absolutely NO typography, NO words, NO subtitles, NO badges, NO digital stickers, NO watermarks, NO glowing arrows, NO cartoon effects, NO fake sparkles. (Prints/logos physically present on the product in the reference image are allowed exactly as shown.)`,
+    `- STRICT NO POINTING GESTURES & NO CART ICONS: NO hands pointing at screen corners or off-screen, NO shopping cart icons, NO cart buttons, NO pointer arrows, NO UI overlays in any panel. Panel 4 must be a pure, clean lifestyle shot.`,
     ``,
-    `4. PRIORITY 4: VISUAL CONSISTENCY (Đồng nhất xuyên suốt toàn bộ 4 panel):`,
-    `- Product Continuity: Identical product model, exact color, material, and component count across all 4 panels. Zero mutation.`,
-    `- Environment & Lighting Continuity: All 4 panels must share the same environment (${loc}) under consistent ${lighting}.`,
+    `4. PRIORITY 4: VISUAL CONSISTENCY:`,
+    `- Same product across all 4 panels (as in the reference images).`,
+    `- Environment & Lighting Continuity: All 4 panels share the same environment (${loc}) under consistent ${lighting}.`,
     `- Cohesive Photography Style: Coherent smartphone camera look (iPhone 15 Pro 24mm/26mm f/1.8 aesthetic, crisp focal plane, natural depth of field).`,
     ``,
-    `4 PANELS DETAILED SCENE PLAN (From Left to Right):`,
-    `- Panel 1 (Hook — Leftmost 25% column): ${sceneData.leftHalfComposition.panel1.visualDescription}. Hand action: ${sceneData.leftHalfComposition.panel1.handInteraction}.`,
-    `- Panel 2 (Solution — 2nd column): ${sceneData.leftHalfComposition.panel2.visualDescription}. Hand action: ${sceneData.leftHalfComposition.panel2.handInteraction}.`,
-    `- Panel 3 (Proof — 3rd column): ${sceneData.rightHalfComposition.panel3.visualDescription}. Hand action: ${sceneData.rightHalfComposition.panel3.handInteraction}.`,
-    `- Panel 4 (Closing / CTA — Rightmost 25% column): ${sceneData.rightHalfComposition.panel4.visualDescription}. Lifestyle/context: ${sceneData.rightHalfComposition.panel4.handInteraction}.`,
+    `4 PANELS SCENE PLAN (From Left to Right — setting, hand action and camera only):`,
+    `- Panel 1 (Hook — Leftmost 25% column):${refFor(1)} Scene: ${sceneData.leftHalfComposition.panel1.visualDescription}. Hand action: ${sceneData.leftHalfComposition.panel1.handInteraction}.`,
+    `- Panel 2 (Solution — 2nd column):${refFor(2)} Scene: ${sceneData.leftHalfComposition.panel2.visualDescription}. Hand action: ${sceneData.leftHalfComposition.panel2.handInteraction}.`,
+    `- Panel 3 (Proof — 3rd column):${refFor(3)} Scene: ${sceneData.rightHalfComposition.panel3.visualDescription}. Hand action: ${sceneData.rightHalfComposition.panel3.handInteraction}.`,
+    `- Panel 4 (Closing / CTA — Rightmost 25% column):${refFor(4)} Scene: ${sceneData.rightHalfComposition.panel4.visualDescription}. Lifestyle/context: ${sceneData.rightHalfComposition.panel4.handInteraction}.`,
     ``,
     `Generate one single horizontal 16:9 still photograph showing all 4 vertical panels side-by-side now.`
   ].join('\n');
@@ -1461,11 +1519,11 @@ function buildProVideoInlineKeyboard(runId) {
  * Xây dựng prompt Remake All cho toàn bộ 4 cảnh
  */
 function buildTemplateProRemakeAllPrompt(analysis, iteration, baseMasterPrompt = null) {
-  const basePrompt = baseMasterPrompt || buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro' });
+  const basePrompt = baseMasterPrompt || buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro', panelRefCount: 4 });
   return `${basePrompt}
 
 CRITICAL VARIATION INSTRUCTION — REMAKE ALL 4 PANELS (ITERATION ${iteration}):
-- You are provided with the original physical product photos as the ground-truth reference for product appearance, color, design, and finish.
+- You are provided with 4 reference images (ref_1..ref_4) as the sole ground-truth reference for product appearance, color, design, and finish without hallucinating alternative shapes or parts.
 - TASK: Generate a completely FRESH, HIGHLY DYNAMIC, and CREATIVE alternative 4-panel storyboard collage (16:9).
 - Remake ALL 4 panels simultaneously with brand-new perspectives:
   * Panel 1 (Hook): Fresh dynamic angle & compelling problem/curiosity hook.
@@ -1488,36 +1546,36 @@ function getPanelContext(analysis, panelIndex) {
   if (panelIndex === 1) {
     return {
       phase: 'Hook',
-      marketingQuestion: left.panel1?.marketingQuestion || 'Hook thu hút khách hàng',
+      marketingQuestion: left.panel1?.marketingQuestion || 'What is the hook?',
       marketingAnswer: left.panel1?.marketingAnswer || 'Nêu bật vấn đề hoặc nỗi đau thường gặp',
-      visualDescription: left.panel1?.visualDescription || 'Cận cảnh cầm sản phẩm trên bề mặt tự nhiên sang trọng',
-      handInteraction: left.panel1?.handInteraction || 'Thao tác tay thực tế tương tác sản phẩm'
+      visualDescription: left.panel1?.visualDescription || 'Close-up 45-degree angle shot of hands holding the product on a sleek natural tabletop',
+      handInteraction: left.panel1?.handInteraction || 'Hands naturally holding the product'
     };
   }
   if (panelIndex === 2) {
     return {
       phase: 'Solution',
-      marketingQuestion: left.panel2?.marketingQuestion || 'Sản phẩm giải quyết vấn đề gì?',
+      marketingQuestion: left.panel2?.marketingQuestion || 'What problem does it solve?',
       marketingAnswer: left.panel2?.marketingAnswer || 'Công năng đặc biệt của sản phẩm',
-      visualDescription: left.panel2?.visualDescription || 'Đặc tả tính năng và chi tiết cấu tạo hoàn thiện',
-      handInteraction: left.panel2?.handInteraction || 'Thao tác tay sử dụng công năng sản phẩm'
+      visualDescription: left.panel2?.visualDescription || 'Close-up demonstration showing hands interacting with the product to display its key function',
+      handInteraction: left.panel2?.handInteraction || 'Hands performing ergonomic interaction with the product'
     };
   }
   if (panelIndex === 3) {
     return {
       phase: 'Proof',
-      marketingQuestion: right.panel3?.marketingQuestion || 'Bằng chứng chất lượng?',
+      marketingQuestion: right.panel3?.marketingQuestion || 'What is the proof of quality?',
       marketingAnswer: right.panel3?.marketingAnswer || 'Độ bền, chi tiết chất liệu cao cấp',
-      visualDescription: right.panel3?.visualDescription || 'Cận cảnh chất liệu, vân bề mặt và độ hoàn thiện tinh xảo',
-      handInteraction: right.panel3?.handInteraction || 'Thao tác tay kiểm tra độ bền, chất lượng thực tế'
+      visualDescription: right.panel3?.visualDescription || 'Macro close-up shot highlighting the authentic texture, surface finish, and premium craftsmanship',
+      handInteraction: right.panel3?.handInteraction || 'Fingers gently examining the surface quality'
     };
   }
   return {
     phase: 'Closing / CTA',
-    marketingQuestion: right.panel4?.marketingQuestion || 'Lý do mua ngay?',
+    marketingQuestion: right.panel4?.marketingQuestion || 'Why buy now?',
     marketingAnswer: right.panel4?.marketingAnswer || 'Ứng dụng hoàn hảo trong không gian sống',
-    visualDescription: sanitizeVisualActionPrompt(right.panel4?.visualDescription) || 'Toàn cảnh sản phẩm hòa nhập không gian sống hiện đại',
-    handInteraction: sanitizeVisualActionPrompt(right.panel4?.handInteraction) || 'Sản phẩm hoàn thiện trong không gian sống'
+    visualDescription: sanitizeVisualActionPrompt(right.panel4?.visualDescription) || 'Wide clean lifestyle shot showing the product neatly placed in a modern organized environment',
+    handInteraction: sanitizeVisualActionPrompt(right.panel4?.handInteraction) || 'The product standing cleanly on the tabletop with subtle hand placement, strictly no pointing gestures'
   };
 }
 
@@ -1528,16 +1586,16 @@ function getPanelContext(analysis, panelIndex) {
  * giữ nguyên 3 panel còn lại để đồng bộ bố cục và không gian.
  */
 function buildTemplateProRemakePrompt(analysis, panelIndex, iteration, baseMasterPrompt = null) {
-  const basePrompt = baseMasterPrompt || buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro' });
+  const basePrompt = baseMasterPrompt || buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro', panelRefCount: 4 });
   const panelInfo = getPanelContext(analysis, panelIndex);
-  const location = analysis?.sceneContext?.location || 'không gian sống hiện đại, tự nhiên';
-  const lighting = analysis?.sceneContext?.lighting || 'ánh sáng tự nhiên dịu nhẹ ban ngày kết hợp đèn ấm';
+  const location = analysis?.sceneContext?.location || 'a bright modern lifestyle setting';
+  const lighting = analysis?.sceneContext?.lighting || 'soft natural daylight with realistic contact shadows';
 
   return `${basePrompt}
 
 CRITICAL EDIT & REMAKE INSTRUCTION — REMAKE AND RE-INVENT ONLY PANEL ${panelIndex} (ITERATION ${iteration}):
 - Reference Images Provided:
-  1. Original physical product photos: Ground-truth reference for exact product identity, color, design, and finish.
+  1. 4 reference images (ref_1..ref_4): Sole ground-truth reference for exact product identity, appearance, and details without hallucinating new parts.
   2. Current 4-panel storyboard image (current_storyboard.png): Reference for overall environment, tone, and existing scene compositions.
 - TASK:
   * You must REMAKE and RE-IMAGINE ONLY Panel ${panelIndex} (Scene ${panelIndex}, counting 1 to 4 from left to right).
@@ -1563,27 +1621,52 @@ Generate the newly updated still storyboard image now.`;
  * 3. Commercial Composition (20đ, min 14đ)
  * 4. Visual Consistency (15đ, min 10đ)
  */
-function buildTemplateProVerificationPrompt(analysis, attempt = 1) {
-  const productName = analysis?.productName || 'sản phẩm';
+function buildTemplateProVerificationPrompt(analysis, attempt = 1, hasPanelRefs = false) {
+  const productName = analysis?.productName || 'product';
   const category = analysis?.category || 'general';
-  const location = analysis?.sceneContext?.location || 'Không gian sống hiện đại sáng sủa, nội thất tối giản tinh tế';
-  const lighting = analysis?.sceneContext?.lighting || 'Ánh sáng tự nhiên dịu nhẹ ban ngày kết hợp đèn ấm';
+  const location = analysis?.sceneContext?.location || 'A bright modern lifestyle living space with tasteful minimalist decor';
+  const lighting = analysis?.sceneContext?.lighting || 'Soft natural daylight combined with gentle ambient fill light';
+
+  const refSection = hasPanelRefs
+    ? `1. 4 Authentic Product Reference Photos (ref_1 to ref_4) representing the ground-truth product appearance assigned to each panel:
+   - ref_1: Reference image for Panel 1 (Hook)
+   - ref_2: Reference image for Panel 2 (Solution / Feature)
+   - ref_3: Reference image for Panel 3 (Proof / Material / Close-up)
+   - ref_4: Reference image for Panel 4 (Closing / Lifestyle)
+   (Note: All 4 images show the SAME real product from different perspectives/features).`
+    : `1. Reference Product Input Photo ("input.png" or reference photos): Ground truth reference combining authentic product photos (exact product appearance, physical shape, silhouette, proportions, lid/handle/base geometry, color, materials, logos/prints, and finish).`;
+
+  const comparisonRule = hasPanelRefs
+    ? `PANEL-BY-PANEL REFERENCE COMPARISON (CRITICAL):
+- Panel 1 must match the product in ref_1.
+- Panel 2 must match the product in ref_2.
+- Panel 3 must match the product in ref_3.
+- Panel 4 must match the product in ref_4.
+The product in each panel must be 100% faithful to its assigned reference photo.`
+    : `The product in each panel must be 100% faithful to the reference photo.`;
 
   return `You are a strict, objective Quality Assurance (QA) Vision Inspector for an e-commerce 4-panel product review storyboard (still photo collage, 16:9).
+
+🚨 MANDATORY RULE: ZERO SELF-INTERPRETATION (TUYỆT ĐỐI SO SÁNH VỚI ẢNH REF, KHÔNG TỰ BIÊN DIỄN):
+1. The reference photos are the ONLY GROUND TRUTH for how the product physically looks.
+2. DO NOT imagine, interpret, or assume what the product "should" look like based on category expectations or general knowledge. Look ONLY at what is physically shown in the reference photos!
+3. DO NOT BE DECEIVED BY PRINTED BRAND TEXT OR LOGOS: AI image generators frequently hallucinate a completely fake/generic item and stamp clean readable text onto it. Having readable text like brand names is IRRELEVANT if the physical object does not match the reference photos!
+4. Any panel that modifies, invents, or omits visible physical parts (e.g. wrong button shape/color/count, wrong lid contours, wrong seams, wrong collar, wrong cap, wrong pump) MUST BE HARD REJECTED with product_fidelity.score < 32 pts and Decision "FAIL"!
 
 EVALUATION FRAMEWORK: Product Storyboard Evaluation Framework v1.0 (Total Score: 100)
 
 You are provided with:
-1. Reference Product Input Photo ("input.png" or reference photos): Ground truth reference combining authentic product photos (exact product appearance, physical shape, silhouette, proportions, lid/handle/base geometry, color, materials, logos/prints, and finish).
+${refSection}
 2. Generated Master Storyboard Image (storyboard_qa.png): A horizontal 16:9 collage consisting of 4 vertical 9:16 panels side-by-side:
    - Panel 1 (Scene 1): Hook
    - Panel 2 (Scene 2): Solution / Key Feature
    - Panel 3 (Scene 3): Proof / Demonstration / Material Quality
    - Panel 4 (Scene 4): Closing / Lifestyle / Call to Action
 
-Product being reviewed: "${productName}" (Category: ${category})
 Expected Setting: ${location}
 Expected Lighting: ${lighting}
+
+${comparisonRule}
 
 CRITERIA & PRIORITY ORDER:
 1. PRODUCT FIDELITY (Priority 1, Max 40 pts, Weight 40%, Hard Gate: min 32 pts):
@@ -1713,7 +1796,7 @@ Return ONLY a valid RFC 8259 JSON object starting with { and ending with }:
  * Thực hiện xác thực chất lượng Storyboard qua Gemini Vision API
  * Áp dụng Product Storyboard Evaluation Framework v1.0 (100 điểm, ngưỡng pass >= 85)
  */
-async function verifyStoryboardWithGeminiVision(geminiClient, storyboardBuffer, savedInputs, analysis, attempt = 1) {
+async function verifyStoryboardWithGeminiVision(geminiClient, storyboardBuffer, savedInputs, analysis, attempt = 1, panelRefs = null) {
   if (!geminiClient || !storyboardBuffer) {
     console.warn('[TemplatePro] ⚠️ Gemini client or storyboard buffer unavailable, bypassing QA');
     return {
@@ -1755,25 +1838,27 @@ async function verifyStoryboardWithGeminiVision(geminiClient, storyboardBuffer, 
       { url: sbUrl, filename: sbFilename, mimeType: 'image/png' }
     ];
 
-    // Ưu tiên gửi ảnh input.png (đã gộp các góc chụp sản phẩm vào 1 khung lưới)
-    let collageInput = null;
-    if (Array.isArray(savedInputs)) {
-      collageInput = savedInputs.find(f => f.name === 'input.png' || (f.path && path.basename(f.path) === 'input.png'));
-    }
-
-    if (collageInput) {
-      const refBuf = collageInput.buffer || (collageInput.path && fs.existsSync(collageInput.path) ? fs.readFileSync(collageInput.path) : null);
-      if (refBuf) {
-        const refUrl = await geminiClient.uploadFile(refBuf, 'input.png', 'image/png');
-        fileData.push({ url: refUrl, filename: 'input.png', mimeType: 'image/png' });
+    const hasPanelRefs = Array.isArray(panelRefs) && panelRefs.length === 4;
+    if (hasPanelRefs) {
+      console.log(`[TemplatePro] 🖼️ [QA Attempt ${attempt}] Uploading 4 panel reference photos (ref_1..ref_4) as panel-specific ground truth for QA evaluation.`);
+      for (let i = 0; i < panelRefs.length; i++) {
+        const pr = panelRefs[i];
+        const refBuf = pr.buffer || (pr.path && fs.existsSync(pr.path) ? fs.readFileSync(pr.path) : null);
+        if (refBuf) {
+          const mime = pr.mimeType || 'image/png';
+          const refName = pr.name || `ref_${i + 1}.png`;
+          const refUrl = await geminiClient.uploadFile(refBuf, refName, mime);
+          fileData.push({ url: refUrl, filename: refName, mimeType: mime });
+        }
       }
     } else {
-      const inputRefs = (savedInputs || []).slice(0, 3);
+      // Fallback: Gửi các ảnh gốc của sản phẩm làm ảnh đối chiếu (không dùng collage)
+      const inputRefs = (savedInputs || []).filter(f => f.name !== 'input.png').slice(0, 4);
       for (let i = 0; i < inputRefs.length; i++) {
         const ref = inputRefs[i];
         const refBuf = ref.buffer || (ref.path && fs.existsSync(ref.path) ? fs.readFileSync(ref.path) : null);
         if (refBuf) {
-          const refName = ref.name || `input_ref_${i + 1}.png`;
+          const refName = ref.name || `ref_${i + 1}.png`;
           const mime = ref.mimeType || (refName.endsWith('.jpg') || refName.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
           const refUrl = await geminiClient.uploadFile(refBuf, refName, mime);
           fileData.push({ url: refUrl, filename: refName, mimeType: mime });
@@ -1781,7 +1866,7 @@ async function verifyStoryboardWithGeminiVision(geminiClient, storyboardBuffer, 
       }
     }
 
-    const qaPrompt = buildTemplateProVerificationPrompt(analysis, attempt);
+    const qaPrompt = buildTemplateProVerificationPrompt(analysis, attempt, hasPanelRefs);
     console.log(`[TemplatePro] 🔎 [QA Attempt ${attempt}] Evaluating Storyboard via Gemini Vision (Product Storyboard Framework v1.0, threshold >= 85)...`);
 
     const res = await geminiClient.generateContent({
@@ -1957,125 +2042,74 @@ function formatQAVerificationMarkdown(qaHistory, selectedCandidate) {
 }
 
 /**
- * Xây dựng prompt đánh giá đồng thời 4 Master Storyboard candidates bằng Gemini Vision
- * Áp dụng Product Storyboard Evaluation Framework v1.0
+ * Xây dựng prompt đánh giá đồng thời nhiều Master Storyboard candidates bằng Gemini Vision
+ * So sánh trực tiếp 1-1 với 4 ảnh reference thực tế (Universal Zero-Interpretation Direct Comparison)
  */
-function buildTemplateProMultiStoryboardPrompt(analysis, candidateCount = 4) {
-  const productName = analysis?.productName || 'sản phẩm';
-  const category = analysis?.category || 'general';
-  const location = analysis?.sceneContext?.location || 'Không gian sống hiện đại sáng sủa, nội thất tối giản tinh tế';
-  const lighting = analysis?.sceneContext?.lighting || 'Ánh sáng tự nhiên dịu nhẹ ban ngày kết hợp đèn ấm';
+function buildTemplateProMultiStoryboardPrompt(analysis, candidateCount = 4, hasPanelRefs = false) {
+  const refSection = hasPanelRefs
+    ? `1. 4 Authentic Product Reference Photos:
+   - ref_1: Ground-truth visual reference for Panel 1 (Hook / Hand-held)
+   - ref_2: Ground-truth visual reference for Panel 2 (Feature in action / Worn / Applied)
+   - ref_3: Ground-truth visual reference for Panel 3 (Proof / Close-up texture / Key details)
+   - ref_4: Ground-truth visual reference for Panel 4 (Lifestyle integration / Full context)
+   (Note: All 4 images show the SAME real product from different perspectives/features).`
+    : `1. Authentic Product Reference Photos ("input.png" or reference photos): Ground-truth reference showing the real product appearance, physical shape, silhouette, proportions, and details.`;
 
-  return `You are a strict, objective Quality Assurance (QA) Vision Inspector for an e-commerce 4-panel product review storyboard (still photo collage, 16:9).
+  return `You are an objective Visual QA Inspector. Your sole task is a STRICT 1-to-1 VISUAL COMPARISON between candidate storyboards and the 4 provided reference photos.
 
-EVALUATION FRAMEWORK: Product Storyboard Evaluation Framework v1.0 (Total Score: 100)
+🚨 MANDATORY RULE: ZERO SELF-INTERPRETATION (TUYỆT ĐỐI SO SÁNH VỚI ẢNH REF, KHÔNG TỰ BIÊN DIỄN):
+1. The 4 reference photos (ref_1 to ref_4) are the ONLY GROUND TRUTH for how the product looks.
+2. DO NOT imagine or assume what the product "should" look like based on product names or general knowledge. Look ONLY at what is physically shown in the reference photos!
+3. DO NOT BE DECEIVED BY PRINTED BRAND TEXT OR LOGOS: AI image generators frequently hallucinate a completely fake/generic item and stamp clean readable text onto it. Having readable text like brand names is IRRELEVANT if the physical object does not match the reference photos!
+4. Any candidate that modifies, invents, or omits visible physical parts (e.g. wrong button shape/color/count, wrong lid contours, wrong collar, wrong seams, wrong cap) MUST BE HARD REJECTED with a score < 70!
 
-You are provided with:
-1. Reference Product Input Photo ("input.png"): Ground truth reference collage combining all authentic multi-angle product photos (silhouette, shape, body structure, proportions, components, lid/handle/base geometry, color, materials, surface finish, logos/prints).
-2. Exactly ${candidateCount} Generated Master Storyboards (named storyboard_cand_1.png to storyboard_cand_${candidateCount}.png), where each image is a horizontal 16:9 collage consisting of 4 vertical 9:16 panels side-by-side:
-   - Panel 1 (Scene 1): Hook
-   - Panel 2 (Scene 2): Solution / Key Feature
-   - Panel 3 (Scene 3): Proof / Demonstration / Material Quality
-   - Panel 4 (Scene 4): Closing / Lifestyle / Call to Action
+INPUTS PROVIDED:
+${refSection}
+2. Exactly ${candidateCount} Generated Master Storyboard Candidates (storyboard_cand_1.png to storyboard_cand_${candidateCount}.png), where each image is a horizontal 16:9 collage consisting of 4 vertical 9:16 panels side-by-side from left to right (Panel 1 to 4).
 
-Product being reviewed: "${productName}" (Category: ${category})
-Expected Setting: ${location}
-Expected Lighting: ${lighting}
+YOUR STRICT 1-TO-1 VISUAL AUDIT:
+Audit each candidate panel-by-panel against the exact reference image:
+- Panel 1 must physically match the item in ref_1
+- Panel 2 must physically match the item in ref_2
+- Panel 3 must physically match the item in ref_3
+- Panel 4 must physically match the item in ref_4
 
-CRITERIA & PRIORITY ORDER:
-1. PRODUCT FIDELITY (Priority 1, Max 40 pts, Weight 40%, Hard Gate: min 32 pts):
-   - Overall Shape & Structure (Max 10 pts, Severity if wrong: CRITICAL): Silhouette matches reference, main body shape matches, structural layout matches, major sections positioned correctly, structural relationships between parts preserved. Product is NOT transformed into another model, variant, or design.
-   - Components & Features (Max 10 pts, Severity if wrong: CRITICAL): All major visible components exist, correct number of important components, no required major component missing, functional parts appear in correct positions, feature design matches reference, functionality not changed, accessories preserved.
-   - Proportions & Dimensions (Max 6 pts, Severity if wrong: MAJOR): Width-to-height ratio consistent with reference, relative component sizes match, spacing between components correct, product thickness visually consistent, relative scale between major parts preserved, scale relative to hands/furniture/environment plausible.
-   - Color, Material & Surface (Max 5 pts, Severity if wrong: MAJOR): Primary color matches reference, secondary colors match, material type matches, surface finish matches (matte, glossy, metallic, fabric, wood, plastic, glass), transparency/translucency preserved where applicable, reflection behavior plausible.
-   - Details & Identity Markers (Max 5 pts, Severity if wrong: MODERATE): Logo correct when clearly visible in references, text/typography not fabricated, buttons match placement and shape, slots/holes/grooves match, patterns and decorative details preserved, seams/joints/connectors consistent. (Do NOT penalize details genuinely hidden by camera angle or occlusion).
-   - No Hallucination / Mutation (Max 4 pts, Severity if wrong: CRITICAL): No invented components, no invented functionality, no unsupported buttons/screens/LEDs/controls, no fabricated branding/logo, no unauthorized accessories, no component count mutation, no shape mutation across panels, no color/material mutation across panels.
-   CRITICAL PRODUCT FIDELITY ERRORS:
-   * Product becomes a different model or SKU
-   * Major product component is missing
-   * Major unsupported component is added
-   * Core functionality is changed
-   * Product structure contradicts reference images
-   * Important feature is hallucinated
-   * Product mutates significantly between panels
-   CRITICAL ERROR OVERRIDE: If ANY critical Product Fidelity error exists, decision MUST BE "FAIL" and product_fidelity.score MUST be < 32.
+CORE EVALUATION PRINCIPLES (UNIVERSAL FOR ALL PRODUCTS):
 
-2. SCENE ACCURACY (Priority 2, Max 25 pts, Weight 25%, min pass score: 18 pts):
-   - Correct Product Usage (Max 8 pts, Severity if wrong: CRITICAL): Human uses product correctly, functional interaction matches real behavior, product orientation during usage correct, demonstrated feature matches actual feature, no impossible/incorrect usage, logical sequence.
-   - Correct Environment (Max 6 pts, Severity if wrong: MAJOR): Environment matches product category, product placement realistic, supporting objects contextually relevant, background supports intended use, scene does not contradict expected product usage.
-   - Human Interaction Accuracy (Max 5 pts, Severity if wrong: MAJOR): Hand position natural, grip physically plausible, finger placement realistic, fingers do not intersect or merge with product, interaction direction correct, human scale relative to product plausible.
-   - Physical Plausibility (Max 4 pts, Severity if wrong: MAJOR): Product does not float, mounting or support plausible, realistic contact points, gravity direction correct, no impossible geometry, no penetration between solid objects.
-   - Storyboard Intent Match (Max 2 pts, Severity if wrong: MODERATE): Hook panel communicates intended problem/curiosity, solution panel communicates solution, demo panel clearly demonstrates feature, result panel communicates final benefit.
-   Major Errors: Product used incorrectly, scene context conflicts with use, human interaction physically impossible, product placement unrealistic, panel does not match intended role.
+1. REAL PRODUCT FIDELITY (MOST IMPORTANT):
+   - Does the product in each panel actually look like the REAL product in the reference photos?
+   - Check key category signatures:
+     * Controls & Hardware: Button shape, color, position, and count (e.g. 1 black oval button vs 2 small buttons, dials, switches, zippers, buckles, caps, pumps, nozzles).
+     * Body Silhouette & Contours: The exact outline, edge bevels, lid/compartment seams, collar cut, sole profile.
+     * Functional Parts & Textures: Grilles, vents, ports, straps, pockets, fabric texture, material finish.
+   - HARD REJECT (< 70 pts): If a candidate replaces the real product with a generic/stock model (e.g. changing 1 button into 2 buttons, changing a lid shape, changing a collar, altering a bottle cap, or omitting signature features).
 
-3. COMMERCIAL COMPOSITION (Priority 3, Max 20 pts, Weight 20%, min pass score: 14 pts):
-   - Product Visibility & Recognition (Max 6 pts, Severity if wrong: MAJOR): Product clearly visible, important parts not unnecessarily obstructed, occupies sufficient visual area, camera angle helps identify product, background does not overpower product, recognizable at mobile viewing size.
-   - Selling Point Clarity (Max 5 pts, Severity if wrong: MAJOR): Main selling point visually understandable, feature demonstration easy to read, benefit visually communicated, important feature not hidden.
-   - Hook / Demo Effectiveness (Max 4 pts, Severity if wrong: MODERATE): Hook creates immediate visual interest, problem recognizable, demo action visually clear, communicates value quickly.
-   - Framing & Visual Hierarchy (Max 3 pts, Severity if wrong: MODERATE): Visual hierarchy prioritizes product and key action, framing balanced, important content inside safe area, foreground and background clearly separated.
-   - Commercial Cleanliness (Max 2 pts, Severity if wrong: MINOR): No distracting unnecessary objects, no irrelevant visual clutter, no accidental competing brand elements, STRICTLY NO digital text banners, subtitles, neon arrows, watermarks, or cartoon stickers.
-   Major Errors: Product too small or hidden, main selling point visually unclear, demo does not communicate function, composition distracts attention away from product.
+2. NO TEXT / PERSPECTIVE BIAS:
+   - Text, logos, or patterns on the product may naturally appear rotated, angled, inverted, or partially occluded depending on camera perspective and how the reference was photographed.
+   - DO NOT penalize angled, rotated, or partially covered text if it naturally matches the reference image or 3D camera angle!
+   - NEVER prefer a fake or generic product just because its printed text looks straight!
 
-4. VISUAL CONSISTENCY (Priority 4, Max 15 pts, Weight 15%, min pass score: 10 pts):
-   - Product Continuity (Max 4 pts, Severity if wrong: CRITICAL): Same product model across panels, same color, same material, same component count, same structural details. No mutation between panels.
-   - Environment Continuity (Max 4 pts, Severity if wrong: MAJOR): Same room identity, same wall/floor/furniture language, background landmarks consistent, spatial coherence.
-   - Lighting & Color Continuity (Max 3 pts, Severity if wrong: MODERATE): Light direction consistent, color temperature consistent, exposure reasonably consistent.
-   - Human / Hand Continuity (Max 2 pts, Severity if wrong: MODERATE): Same apparent person when continuity required, skin tone visually stable, clothing consistent, hand appearance does not radically change.
-   - Camera Language Continuity (Max 2 pts, Severity if wrong: MINOR): Lens perspective coherent, camera height coherent, framing style feels like same shoot.
-   Major Errors: Product visibly changes between panels, environment changes unintentionally, lighting style changes abruptly, human identity changes unexpectedly, camera language feels like unrelated shoots.
+3. REALISTIC COMMERCE COMPOSITION:
+   - Faceless presentation: natural human interaction (hands, wrists, or body from chest down; NO visible human faces).
+   - Clean photography: pure smartphone photo, NO digital text banners, NO stickers, NO artificial discount tags.
 
-DECISION RULES & SCORE BANDS:
-- Critical Error Override: If any critical Product Fidelity error exists, decision MUST BE "FAIL". A candidate with a critical error CANNOT be chosen as bestCandidateIndex if any candidate without critical error is available!
-- product_fidelity.score < 32 -> "FAIL"
-- total_score < 75 -> "FAIL"
-- 75 <= total_score < 85 -> "REGENERATE_OR_FIX"
-- 85 <= total_score < 93 -> "PASS"
-- total_score >= 93 -> "EXCELLENT"
+4. PANEL REPLACEMENT (CROSS-STORYBOARD STITCHING):
+   - Pick the single best overall candidate as "bestCandidateIndex" (1 to ${candidateCount}).
+   - If ANY panel in the best candidate has a minor flaw or another candidate has that specific panel visibly more faithful to the reference photo, recommend replacing that panel in "replacements".
 
-SELECTION & PANEL REPLACEMENT TASK:
-1. Evaluate each of the ${candidateCount} candidates across all 4 criteria. Score each of the 4 panels (1, 2, 3, 4) on a 100-point scale.
-2. Select "bestCandidateIndex" (1 to ${candidateCount}):
-   - STRICTLY filter out candidates with critical Product Fidelity errors (e.g. deformed shape, wrong SKU, missing parts).
-   - Pick the candidate with the highest valid score, highest product fidelity, and best visual coherence.
-3. PANEL REPLACEMENT (CROSS-STORYBOARD STITCHING):
-   - Check the selected best candidate. Does ANY panel have flaws, lower score (< 85), or product fidelity discrepancies?
-   - Look across other candidates for that same panel index (1, 2, 3, or 4).
-   - If another candidate has that panel with significantly higher score and strictly correct product fidelity (matching the reference photo):
-     Recommend replacing that panel!
-     "replacements": [{ "panelIndex": 1..4, "sourceCandidateIndex": 1..${candidateCount}, "reason": "Lý do chi tiết bằng tiếng Việt tại sao panel này tốt hơn" }]
-   - If all 4 panels of the best candidate are excellent, set "replacements": [].
-
-OUTPUT FORMAT:
-Return ONLY a valid RFC 8259 JSON object starting with { and ending with }:
+OUTPUT RFC 8259 JSON ONLY (no markdown fences, no text before or after):
 {
   "candidates": [
     {
       "candidateIndex": 1,
-      "total_score": 88,
-      "score": 88,
-      "decision": "PASS",
-      "criteria_results": {
-        "product_fidelity": { "score": 36, "max_score": 40, "passed": true, "critical_error": false },
-        "scene_accuracy": { "score": 22, "max_score": 25, "passed": true },
-        "commercial_composition": { "score": 17, "max_score": 20, "passed": true },
-        "visual_consistency": { "score": 13, "max_score": 15, "passed": true }
-      },
-      "critical_errors": [],
-      "major_errors": [],
+      "score": 92,
       "panels": [
-        { "panelIndex": 1, "score": 90, "flaws": [] },
-        { "panelIndex": 2, "score": 88, "flaws": [] },
-        { "panelIndex": 3, "score": 85, "flaws": [] },
-        { "panelIndex": 4, "score": 89, "flaws": [] }
+        { "panelIndex": 1, "score": 90 },
+        { "panelIndex": 2, "score": 92 },
+        { "panelIndex": 3, "score": 94 },
+        { "panelIndex": 4, "score": 92 }
       ],
-      "discrepancies": [],
-      "critique": "Tổng quan tốt, đúng kiểu dáng sản phẩm trong ảnh input.png",
-      "regeneration_recommendation": {
-        "required": false,
-        "scope": "none",
-        "panels": [],
-        "reasons": []
-      }
+      "critique": "Detailed visual comparison notes against ref_1..ref_4"
     }
   ],
   "bestCandidateIndex": 1,
@@ -2083,10 +2117,10 @@ Return ONLY a valid RFC 8259 JSON object starting with { and ending with }:
     {
       "panelIndex": 3,
       "sourceCandidateIndex": 2,
-      "reason": "Panel 3 ở Candidate 2 đạt 92 điểm, chuẩn kiểu dáng và chi tiết nắp sắc nét hơn so với Candidate 1."
+      "reason": "Lý do nếu có panel nào từ candidate khác giống ảnh ref hơn"
     }
   ],
-  "finalSummary": "Đã chọn Candidate 1 (88đ) và thay thế Panel 3 từ Candidate 2 (92đ) để tạo Storyboard tối ưu nhất."
+  "finalSummary": "Giải thích ngắn gọn lựa chọn"
 }`;
 }
 
@@ -2094,7 +2128,7 @@ Return ONLY a valid RFC 8259 JSON object starting with { and ending with }:
  * Thực hiện kiểm định đồng thời nhiều ứng viên Storyboard qua Gemini Vision API
  * Áp dụng Product Storyboard Evaluation Framework v1.0
  */
-async function verifyMultiStoryboardWithGeminiVision(geminiClient, candidateBuffers, savedInputs, analysis) {
+async function verifyMultiStoryboardWithGeminiVision(geminiClient, candidateBuffers, savedInputs, analysis, panelRefs = null) {
   if (!geminiClient || !Array.isArray(candidateBuffers) || candidateBuffers.length === 0) {
     console.warn('[TemplatePro] ⚠️ Gemini client or candidate buffers unavailable, using fallback selection');
     return {
@@ -2136,38 +2170,28 @@ async function verifyMultiStoryboardWithGeminiVision(geminiClient, candidateBuff
   try {
     const fileData = [];
 
-    // 1. Upload ảnh sản phẩm tham chiếu: Ưu tiên ảnh ghép tổng hợp input.png (đã gộp tất cả ảnh gốc vào 1 lưới)
-    let collageInput = null;
-    if (Array.isArray(savedInputs)) {
-      collageInput = savedInputs.find(f => f.name === 'input.png' || (f.path && path.basename(f.path) === 'input.png'));
-      if (!collageInput && savedInputs.length > 0 && savedInputs[0]?.path) {
-        const potentialPath = path.join(path.dirname(savedInputs[0].path), 'input.png');
-        if (fs.existsSync(potentialPath)) {
-          collageInput = {
-            name: 'input.png',
-            path: potentialPath,
-            buffer: fs.readFileSync(potentialPath),
-            mimeType: 'image/png'
-          };
+    // 1. Upload ảnh sản phẩm tham chiếu: Ưu tiên 4 ảnh panelRefs chuẩn nếu có
+    const hasPanelRefs = Array.isArray(panelRefs) && panelRefs.length === 4;
+    if (hasPanelRefs) {
+      console.log('[TemplatePro] 🖼️ Uploading 4 panel reference photos (ref_1..ref_4) as panel-specific ground truth for QA evaluation.');
+      for (let i = 0; i < panelRefs.length; i++) {
+        const pr = panelRefs[i];
+        const refBuf = pr.buffer || (pr.path && fs.existsSync(pr.path) ? fs.readFileSync(pr.path) : null);
+        if (refBuf) {
+          const mime = pr.mimeType || 'image/png';
+          const refName = pr.name || `ref_${i + 1}.png`;
+          const refUrl = await geminiClient.uploadFile(refBuf, refName, mime);
+          fileData.push({ url: refUrl, filename: refName, mimeType: mime });
         }
       }
-    }
-
-    if (collageInput) {
-      const refBuf = collageInput.buffer || (collageInput.path && fs.existsSync(collageInput.path) ? fs.readFileSync(collageInput.path) : null);
-      if (refBuf) {
-        const refUrl = await geminiClient.uploadFile(refBuf, 'input.png', 'image/png');
-        fileData.push({ url: refUrl, filename: 'input.png', mimeType: 'image/png' });
-        console.log('[TemplatePro] 🖼️ Uploaded merged input.png collage as the sole reference photo for QA evaluation.');
-      }
     } else {
-      // Fallback nếu không có file input.png
-      const inputRefs = (savedInputs || []).slice(0, 3);
+      // Fallback: Gửi các ảnh gốc làm ảnh đối chiếu trực tiếp (không dùng collage)
+      const inputRefs = (savedInputs || []).filter(f => f.name !== 'input.png').slice(0, 4);
       for (let i = 0; i < inputRefs.length; i++) {
         const ref = inputRefs[i];
         const refBuf = ref.buffer || (ref.path && fs.existsSync(ref.path) ? fs.readFileSync(ref.path) : null);
         if (refBuf) {
-          const refName = ref.name || `input_ref_${i + 1}.png`;
+          const refName = ref.name || `ref_${i + 1}.png`;
           const mime = ref.mimeType || (refName.endsWith('.jpg') || refName.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
           const refUrl = await geminiClient.uploadFile(refBuf, refName, mime);
           fileData.push({ url: refUrl, filename: refName, mimeType: mime });
@@ -2184,8 +2208,8 @@ async function verifyMultiStoryboardWithGeminiVision(geminiClient, candidateBuff
     const uploadedCands = await Promise.all(candUploads);
     uploadedCands.forEach(uc => fileData.push({ url: uc.url, filename: uc.filename, mimeType: uc.mimeType }));
 
-    const prompt = buildTemplateProMultiStoryboardPrompt(analysis, count);
-    console.log(`[TemplatePro] 🔎 Evaluating all ${count} Storyboards simultaneously via Gemini Vision...`);
+    const prompt = buildTemplateProMultiStoryboardPrompt(analysis, count, hasPanelRefs);
+    console.log(`[TemplatePro] 🔎 Evaluating all ${count} Storyboards simultaneously via Gemini Vision (hasPanelRefs: ${hasPanelRefs})...`);
 
     const res = await geminiClient.generateContent({
       prompt,
@@ -2451,9 +2475,9 @@ function extractVideoKeyframes(videoPath, runDir, videoIndex) {
  * Áp dụng tiêu chuẩn phổ quát (Universal Template) độc lập ngành hàng.
  */
 function buildTemplateProVideoVerificationPrompt(videoIndex, analysis, attempt = 1) {
-  const productName = analysis?.productName || 'sản phẩm';
+  const productName = analysis?.productName || 'product';
   const category = analysis?.category || 'general';
-  const location = analysis?.sceneContext?.location || 'Không gian sống hiện đại sáng sủa';
+  const location = analysis?.sceneContext?.location || 'A bright modern lifestyle living space';
   const sceneRange = videoIndex === 1 ? 'Panel 1 (Hook) -> Panel 2 (Solution)' : 'Panel 3 (Proof) -> Panel 4 (Closing / CTA)';
 
   return `You are a strict, objective Quality Assurance (QA) Vision Inspector evaluating a generated 8-second e-commerce product video clip (Video ${videoIndex}, covering ${sceneRange}).
@@ -2478,25 +2502,25 @@ TASK:
 Perform a comprehensive visual inspection across all 8 keyframes against the reference product photos and panel images.
 Evaluate and score the video on a strict 100-POINT SCALE across the following 4 UNIVERSAL CRITERIA:
 
-1. UNIVERSAL PHYSICAL STATE INVARIANCE & PRODUCT INTEGRITY (Tối đa 45 điểm - ƯU TIÊN SỐ 1 CAO NHẤT):
+1. UNIVERSAL PHYSICAL STATE INVARIANCE & PRODUCT INTEGRITY (Max 45 pts - HIGHEST PRIORITY 1):
    - The product must remain strictly faithful in shape, color, branding/text, and mechanical structure to the reference photos across all 8 keyframes.
    - ZERO unprompted mechanical transformations: NO unauthorized opening/closing of caps/lids/doors/drawers, NO twisting/detaching/swapping of parts (e.g. handle mysteriously jumping from right to left, lid disappearing), NO morphing of geometry, NO incorrect colors, NO hallucinated internal mechanisms.
    - Product MUST NOT mutate, stretch, bend, or melt as hands touch or hold it.
    - Deduct heavily (15-30 pts) if the product spontaneously mutates, changes parts, or undergoes unauthorized mechanical changes not shown in reference images.
 
-2. STORYBOARD SCENE FIDELITY & ACTION FLOW (Tối đa 25 điểm):
+2. STORYBOARD SCENE FIDELITY & ACTION FLOW (Max 25 pts):
    - Keyframes 1-4 (0s-4s) must naturally correspond to the Start Panel visual anchor and Scene 1 action.
    - Keyframes 5-8 (4s-8s) must naturally correspond to the Target Panel visual anchor and Scene 2 action.
    - The narrative progression from 1.0s to 8.0s must be logical and smooth.
    - Deduct (5-15 pts) only if keyframes deviate completely from both storyboard panels. Remember: changing tabletop/background between 4.0s and 5.0s is INTENDED and MUST NOT be penalized.
 
-3. HAND ERGONOMICS & STRICT 100% FACELESS POLICY (Tối đa 20 điểm):
+3. HAND ERGONOMICS & STRICT 100% FACELESS POLICY (Max 20 pts):
    - Realistic Asian hand model holding/touching the product: correct anatomy (5 fingers, natural fingernails, authentic skin tone, genuine contact grip).
    - STRICTLY FACELESS: Absolutely NO human faces visible across all keyframes.
    - Deduct 20 pts (AUTOMATIC HARD FAIL) if any human face appears in any keyframe.
    - Deduct (5-15 pts) for unnatural hand warping, rubbery fingers, floating phantom hands, or impossible wrist angles.
 
-4. SMARTPHONE REALISM & ARTIFACT-FREE CLEANLINESS (Tối đa 10 điểm):
+4. SMARTPHONE REALISM & ARTIFACT-FREE CLEANLINESS (Max 10 pts):
    - Authentic smartphone camera aesthetic (organic handheld motion, natural depth of field, real daylight/warm light, genuine contact shadows).
    - Clean video: zero digital text overlays, zero floating icons, zero watermarks, zero subtitles.
    - No severe AI video artifacts (melting edges, liquid blurring, floating debris, flickering lines).
@@ -2702,6 +2726,64 @@ function formatVideoQAMarkdown(videoQAResults) {
 }
 
 /**
+ * Lựa chọn 4 ảnh tham chiếu chuẩn từ ảnh gốc đầu vào cho 4 panel của Storyboard.
+ * Sử dụng kết quả phân tích 'panelRefMapping' của Gemini (nếu có) để map chính xác ảnh gốc vào từng panel.
+ * - Ảnh gốc được lấy từ rawInputs (loại trừ input.png collage).
+ * - Lưu và trả về mảng đúng 4 phần tử ref_1 .. ref_4.
+ *
+ * @param {Array<{name: string, path: string, buffer?: Buffer, base64?: string, mimeType?: string}>} savedInputs
+ * @param {Object} analysis
+ * @param {string} runDir
+ * @returns {Array<{name: string, path: string, buffer: Buffer, mimeType: string, sourceName: string, sourceIndex: number}>}
+ */
+function resolvePanelReferenceImages(savedInputs, analysis, runDir) {
+  if (!Array.isArray(savedInputs) || savedInputs.length === 0) return [];
+  // Lấy các ảnh gốc (bỏ file input.png collage nếu có)
+  const rawInputs = savedInputs.filter(f => f.name !== 'input.png' && (!f.path || path.basename(f.path) !== 'input.png'));
+  const pool = rawInputs.length > 0 ? rawInputs : savedInputs;
+  const count = pool.length;
+
+  let mapping = Array.isArray(analysis?.panelRefMapping) ? analysis.panelRefMapping : null;
+  if (!mapping || mapping.length !== 4) {
+    mapping = [1, 2, 3, 4].map(idx => ((idx - 1) % count) + 1);
+  }
+
+  const refsDir = path.join(runDir, 'inputs', 'panel-refs');
+  ensureDir(refsDir);
+
+  const panelRefs = [];
+  for (let panelIdx = 1; panelIdx <= 4; panelIdx++) {
+    let sourceIdx = parseInt(mapping[panelIdx - 1], 10);
+    if (isNaN(sourceIdx) || sourceIdx < 1 || sourceIdx > count) {
+      sourceIdx = ((panelIdx - 1) % count) + 1;
+    }
+    const chosenInput = pool[sourceIdx - 1];
+    const buf = Buffer.isBuffer(chosenInput.buffer)
+      ? chosenInput.buffer
+      : (chosenInput.base64 ? Buffer.from(chosenInput.base64, 'base64') : (chosenInput.path && fs.existsSync(chosenInput.path) ? fs.readFileSync(chosenInput.path) : null));
+
+    const isPng = (chosenInput.mimeType && chosenInput.mimeType.includes('png')) || (chosenInput.name && chosenInput.name.endsWith('.png'));
+    const ext = isPng ? '.png' : '.jpg';
+    const refFileName = `ref_${panelIdx}${ext}`;
+    const refFilePath = path.join(refsDir, refFileName);
+    if (buf) {
+      try { fs.writeFileSync(refFilePath, buf); } catch (_) { }
+    }
+
+    panelRefs.push({
+      name: refFileName,
+      path: refFilePath,
+      buffer: buf,
+      mimeType: isPng ? 'image/png' : 'image/jpeg',
+      sourceName: chosenInput.name || path.basename(chosenInput.path || ''),
+      sourceIndex: sourceIdx
+    });
+  }
+
+  return panelRefs;
+}
+
+/**
  * Tạo ảnh collage tổng hợp từ tất cả ảnh sản phẩm đầu vào thành 1 ảnh lưới input.png cho Template Pro.
  * Dùng làm ảnh tham chiếu xác thực ngoại quan, chất liệu và chi tiết thực tế của sản phẩm cho Gemini Vision.
  * Tự động khử trùng lặp (MD5 hash deduplication) và hỗ trợ lưới linh hoạt từ 1 đến 8 ảnh độc nhất.
@@ -2842,19 +2924,13 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
     }
   });
 
-  // Tạo ảnh collage ghép từ các ảnh input gốc để gửi kèm đối chiếu
+  // Lưu ảnh collage ghép (chỉ lưu vào inputs/input.png để người dùng kiểm tra nếu cần, KHÔNG đưa vào savedInputs để tránh làm sai lệch 4 panelRefs)
   const inputCollagePath = path.join(inputsDir, 'input.png');
   let inputCollageBuf = null;
   try {
     inputCollageBuf = createInputCollageImagePro(savedInputs);
     if (inputCollageBuf) {
       fs.writeFileSync(inputCollagePath, inputCollageBuf);
-      savedInputs.unshift({
-        name: 'input.png',
-        path: inputCollagePath,
-        buffer: inputCollageBuf,
-        mimeType: 'image/png'
-      });
     }
   } catch (err) {
     console.warn(`[TemplatePro] Failed to create input collage: ${err.message}`);
@@ -2920,22 +2996,15 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       message: 'Đang tạo đồng thời 4 Master Storyboards trên Google Flow...',
     });
 
-    const masterPrompt = buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro' });
-    const collageItem = savedInputs.find(fp => fp.name === 'input.png' || (fp.path && path.basename(fp.path) === 'input.png'));
-    const validPayloads = collageItem
-      ? [{
-          name: 'input.png',
-          buffer: collageItem.buffer || (collageItem.path && fs.existsSync(collageItem.path) ? fs.readFileSync(collageItem.path) : null),
-          path: collageItem.path,
-          mimeType: 'image/png'
-        }]
-      : savedInputs.map(fp => ({
-          name: fp.name,
-          buffer: fp.buffer,
-          path: fp.path,
-          mimeType: fp.mimeType
-        }));
-    console.log(`[TemplatePro] 🖼️ Sending ${validPayloads.length} reference payload(s) to Google Flow (${validPayloads.map(p => p.name).join(', ')})`);
+    const panelRefs = resolvePanelReferenceImages(savedInputs, analysis, runDir);
+    const validPayloads = panelRefs.map(pr => ({
+      name: pr.name,
+      buffer: pr.buffer,
+      path: pr.path,
+      mimeType: pr.mimeType
+    }));
+    const masterPrompt = buildTemplateProMasterPrompt(analysis, { noText: true, template: 'template_pro', panelRefCount: validPayloads.length });
+    console.log(`[TemplatePro] 🖼️ Sending ${validPayloads.length} panel reference images to Google Flow: ${panelRefs.map(p => `${p.name} (<- ${p.sourceName})`).join(', ')}`);
 
     let candidateBuffers = [];
     let flowPage = null;
@@ -2949,6 +3018,8 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
           await new Promise(r => setTimeout(r, isUnusual ? 15000 : 4000));
         }
         flowPage = await createFlowPage(effectiveBaseDir);
+        const proOptions = buildTemplateOptions('template_pro');
+        const resolvedUseProxy = options.useProxy !== undefined ? options.useProxy : proOptions.useProxy;
         const prepared = await prepareGeneration(
           flowPage,
           masterPrompt,
@@ -2957,6 +3028,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
             imageModel: 'nano-banana-pro',
             aspectRatio: '16:9',
             outputCount: 4,
+            useProxy: resolvedUseProxy,
           },
           effectiveBaseDir
         );
@@ -3003,7 +3075,8 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       geminiClient,
       candidateBuffers,
       savedInputs,
-      analysis
+      analysis,
+      panelRefs
     );
 
     const bestIndex = (multiQAResult.bestCandidateIndex >= 1 && multiQAResult.bestCandidateIndex <= candidateBuffers.length)
@@ -3118,8 +3191,10 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       `- **Generated Candidates**: ${candidateBuffers.length} parallel storyboards`,
       `- **Final Selected Base Storyboard**: Candidate #${bestIndex} (QA Score: **${bestScore}/100**)`,
       `- **Panel Replacements**: ${replacementsApplied.length > 0 ? replacementsApplied.map(r => `Panel ${r.panelIndex} replaced from Candidate #${r.sourceCandidateIndex}`).join(', ') : 'None (Base Storyboard passed with high consistency)'}`,
-      '- **Input References**:',
+      '- **Input References (Analysis & Backup QA)**:',
       ...savedInputs.map(si => `  * \`${si.name}\` (${(fs.statSync(si.path).size / 1024).toFixed(1)} KB)`),
+      '- **4 Panel Reference Images (Image-as-Sole-Reference for Google Flow)**:',
+      ...panelRefs.map(pr => `  * **Panel ${pr.name.replace(/\D/g, '')}**: \`${pr.name}\` (<- \`${pr.sourceName}\`)`),
       '',
       '### Master Storyboard Prompt Used',
       '```text',
@@ -3161,6 +3236,7 @@ async function generateStoryboard(baseDir, filePayloads, options = {}) {
       rawResponse,
       panels: panels.map(p => ({ index: p.index, imagePath: p.imagePath })),
       savedInputs: savedInputs.map(si => ({ name: si.name, path: si.path })),
+      panelRefs: panelRefs.map(pr => ({ name: pr.name, path: pr.path, sourceName: pr.sourceName, sourceIndex: pr.sourceIndex })),
       telegramMessageId: null,
       stepTrackerMessageId: options.stepTracker?.messageId || null,
       productTitle: options.productContext?.productTitle || options.productTitle || analysis?.productName || 'Sản phẩm review',
@@ -3326,31 +3402,24 @@ async function executeProRemakePanel(chatId, baseDir, runId, targetPanelIndex, o
   const nextIteration = (session.iteration || 1) + 1;
   const panelInfo = getPanelContext(session.analysis, pIdx);
 
-  // 1. Chuẩn bị ảnh sản phẩm gốc từ savedInputs (ưu tiên ảnh ghép input.png)
-  const validPayloads = [];
-  const collageItem = session.savedInputs?.find(f => f.name === 'input.png' || (f.path && path.basename(f.path) === 'input.png'));
-  if (collageItem && (collageItem.buffer || (collageItem.path && fs.existsSync(collageItem.path)))) {
-    validPayloads.push({
-      name: 'input.png',
-      path: collageItem.path,
-      buffer: collageItem.buffer || fs.readFileSync(collageItem.path),
-      mimeType: 'image/png'
-    });
-  } else if (Array.isArray(session.savedInputs)) {
-    for (const item of session.savedInputs) {
-      if (item.path && fs.existsSync(item.path)) {
-        validPayloads.push({
-          name: item.name || path.basename(item.path),
-          path: item.path,
-          buffer: item.buffer || fs.readFileSync(item.path),
-          mimeType: 'image/png'
-        });
-      }
-    }
+  // 1. Chuẩn bị 4 ảnh tham chiếu chuẩn cho 4 panel từ session.panelRefs (hoặc resolve nếu chưa có)
+  let panelRefs = Array.isArray(session.panelRefs) && session.panelRefs.length === 4
+    ? session.panelRefs
+    : resolvePanelReferenceImages(session.savedInputs, session.analysis, session.runDir);
+
+  if (!session.panelRefs && panelRefs.length === 4) {
+    session.panelRefs = panelRefs;
   }
 
-  // 2. Sử dụng Master Prompt chuẩn (chứa 4 tiêu chí đánh giá) để sinh 4 candidates song song
-  const masterPrompt = session.masterPrompt || buildTemplateProMasterPrompt(session.analysis, { noText: true, template: 'template_pro' });
+  const validPayloads = panelRefs.map(pr => ({
+    name: pr.name,
+    buffer: pr.buffer || (pr.path && fs.existsSync(pr.path) ? fs.readFileSync(pr.path) : null),
+    path: pr.path,
+    mimeType: pr.mimeType || 'image/png'
+  }));
+
+  // 2. Sử dụng Master Prompt chuẩn để sinh 4 candidates song song
+  const masterPrompt = session.masterPrompt || buildTemplateProMasterPrompt(session.analysis, { noText: true, template: 'template_pro', panelRefCount: validPayloads.length });
 
   console.log(`[TemplatePro] Step 2 (Remake Panel ${pIdx}): Generating 4 fresh Master Storyboard candidates in parallel...`);
   let candidateBuffers = [];
@@ -3364,6 +3433,8 @@ async function executeProRemakePanel(chatId, baseDir, runId, targetPanelIndex, o
         await new Promise(r => setTimeout(r, 4000));
       }
       flowPage = await createFlowPage(baseDir);
+      const proOptions = buildTemplateOptions('template_pro');
+      const resolvedUseProxy = opts.useProxy !== undefined ? opts.useProxy : proOptions.useProxy;
       const prepared = await prepareGeneration(
         flowPage,
         masterPrompt,
@@ -3372,6 +3443,7 @@ async function executeProRemakePanel(chatId, baseDir, runId, targetPanelIndex, o
           imageModel: 'nano-banana-pro',
           aspectRatio: '16:9',
           outputCount: 4,
+          useProxy: resolvedUseProxy,
         },
         baseDir
       );
@@ -3424,7 +3496,8 @@ async function executeProRemakePanel(chatId, baseDir, runId, targetPanelIndex, o
       geminiClient,
       candidateBuffers,
       session.savedInputs,
-      session.analysis
+      session.analysis,
+      panelRefs
     );
   } catch (qaErr) {
     console.warn(`[TemplatePro] QA evaluation failed for Remake Panel ${pIdx}: ${qaErr.message}`);
@@ -3522,6 +3595,9 @@ async function executeProRemakePanel(chatId, baseDir, runId, targetPanelIndex, o
   // 8. Cập nhật session state
   session.iteration = nextIteration;
   session.panels = panelsToCompose.map(p => ({ index: p.index, imagePath: p.imagePath }));
+  if (session.panelMediaIds) {
+    delete session.panelMediaIds[pIdx];
+  }
 
   // 9. Cập nhật / Thay thế hình ảnh Storyboard trên Telegram (in-place)
   const keyboard = buildProInlineKeyboard(runId);
@@ -3590,31 +3666,24 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
 
   const nextIteration = (session.iteration || 1) + 1;
 
-  // 1. Chuẩn bị ảnh sản phẩm gốc từ savedInputs (ưu tiên ảnh ghép input.png)
-  const referencePayloads = [];
-  const collageItem = session.savedInputs?.find(f => f.name === 'input.png' || (f.path && path.basename(f.path) === 'input.png'));
-  if (collageItem && fs.existsSync(collageItem.path)) {
-    referencePayloads.push({
-      name: 'input.png',
-      path: collageItem.path,
-      buffer: fs.readFileSync(collageItem.path),
-      mimeType: 'image/png'
-    });
-  } else if (Array.isArray(session.savedInputs)) {
-    for (const item of session.savedInputs) {
-      if (fs.existsSync(item.path)) {
-        referencePayloads.push({
-          name: item.name || path.basename(item.path),
-          path: item.path,
-          buffer: fs.readFileSync(item.path),
-          mimeType: 'image/png'
-        });
-      }
-    }
+  // 1. Chuẩn bị 4 ảnh tham chiếu chuẩn cho 4 panel từ session.panelRefs (hoặc resolve nếu chưa có)
+  let panelRefs = Array.isArray(session.panelRefs) && session.panelRefs.length === 4
+    ? session.panelRefs
+    : resolvePanelReferenceImages(session.savedInputs, session.analysis, session.runDir);
+
+  if (!session.panelRefs && panelRefs.length === 4) {
+    session.panelRefs = panelRefs;
   }
 
+  const referencePayloads = panelRefs.map(pr => ({
+    name: pr.name,
+    buffer: pr.buffer || (pr.path && fs.existsSync(pr.path) ? fs.readFileSync(pr.path) : null),
+    path: pr.path,
+    mimeType: pr.mimeType || 'image/png'
+  }));
+
   // 2. Sử dụng Prompt Master Storyboard chuẩn để sinh lại toàn bộ 4 candidate
-  const masterPrompt = session.masterPrompt || buildTemplateProMasterPrompt(session.analysis, { noText: true, template: 'template_pro' });
+  const masterPrompt = session.masterPrompt || buildTemplateProMasterPrompt(session.analysis, { noText: true, template: 'template_pro', panelRefCount: referencePayloads.length });
 
   // 3. Gọi Google Flow sinh 4 Storyboard song song (outputCount: 4, 16:9, nano-banana-pro)
   let flowPage = null;
@@ -3628,6 +3697,8 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
         await new Promise(r => setTimeout(r, 4000));
       }
       flowPage = await createFlowPage(baseDir);
+      const proOptions = buildTemplateOptions('template_pro');
+      const resolvedUseProxy = opts.useProxy !== undefined ? opts.useProxy : proOptions.useProxy;
       const prepared = await prepareGeneration(
         flowPage,
         masterPrompt,
@@ -3636,14 +3707,17 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
           imageModel: 'nano-banana-pro',
           aspectRatio: '16:9',
           outputCount: 4,
+          useProxy: resolvedUseProxy,
         },
         baseDir
       );
       const genResult = await executeGeneration(prepared);
-      if (Array.isArray(genResult.candidates) && genResult.candidates.length > 0) {
-        candidateBuffers = genResult.candidates.map(c => Buffer.from(c.base64, 'base64'));
-      } else if (genResult && genResult.base64) {
-        candidateBuffers = [Buffer.from(genResult.base64, 'base64')];
+      if (genResult && Array.isArray(genResult.allResults) && genResult.allResults.length > 0) {
+        candidateBuffers = genResult.allResults.map(r => r.buffer || Buffer.from(r.base64, 'base64')).filter(Boolean);
+      } else if (Array.isArray(genResult?.candidates) && genResult.candidates.length > 0) {
+        candidateBuffers = genResult.candidates.map(c => c.buffer || Buffer.from(c.base64, 'base64')).filter(Boolean);
+      } else if (genResult && (genResult.buffer || genResult.base64)) {
+        candidateBuffers = [genResult.buffer || Buffer.from(genResult.base64, 'base64')];
       }
       if (candidateBuffers.length > 0) break;
     } catch (err) {
@@ -3684,7 +3758,8 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
       geminiClient,
       candidateBuffers,
       session.savedInputs || referencePayloads,
-      session.analysis
+      session.analysis,
+      panelRefs
     );
   } catch (qaErr) {
     console.warn(`[TemplatePro] QA evaluation failed for Remake All: ${qaErr.message}`);
@@ -3798,6 +3873,7 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
   // 7. Cập nhật session state
   session.iteration = nextIteration;
   session.panels = newPanels.map(p => ({ index: p.index, imagePath: p.imagePath }));
+  session.panelMediaIds = {};
 
   // 8. Cập nhật / Thay thế hình ảnh Storyboard trên Telegram (replace in-place qua editMessageMedia)
   const keyboard = buildProInlineKeyboard(runId);
@@ -3863,7 +3939,8 @@ async function executeProRemakeAll(chatId, baseDir, runId, opts = {}) {
  * 3. Bước 3: Ghép 4 video 4s (16s) + lồng ghép voice review 16s thành video hoàn chỉnh 9:16 (1080x1920)
  * 4. Bước 4: Gửi video về Telegram kèm 4 nút Remake Cảnh (1, 2, 3, 4) và nút Upload TikTok
  */
-async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, opts = {}) {
+async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, options = {}) {
+  const opts = options || {};
   const session = getProSession(runId, baseDir);
   if (!session) {
     await sendTelegramMessage(chatId, `⚠️ Không tìm thấy phiên làm việc của Run ID <code>${runId}</code>. Hãy bắt đầu lại bằng cách gửi ảnh mới!`, { parse_mode: 'HTML' });
@@ -3935,6 +4012,8 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
 
   let panelVideos = [];
   try {
+    const proOptions = buildTemplateOptions('template_pro');
+    const resolvedUseProxy = options.useProxy !== undefined ? options.useProxy : proOptions.useProxy;
     panelVideos = await generateVideosFromPanelsDirect(baseDir, panelJobs, {
       aspectRatio: '9:16',
       videoModelKey: 'abra_r2v_4s',
@@ -3944,6 +4023,8 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
       preserveBorder: true,
       outputCount: 1,
       runId: path.basename(runDir),
+      template: 'template_pro',
+      useProxy: resolvedUseProxy,
     });
   } catch (err) {
     console.error(`[TemplatePro] Panel video generation failed:`, err.message);
@@ -3958,10 +4039,14 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
   session.ttsResult = ttsRes;
 
   // Lưu các video panel thành công vào thư mục videos/
+  session.panelMediaIds = session.panelMediaIds || {};
   const savedPanelVideoPaths = [];
   const failedPanelIndices = [];
   for (let i = 1; i <= 4; i++) {
     const v = panelVideos.find(pv => pv.panelIndex === i);
+    if (v?.mediaId) {
+      session.panelMediaIds[i] = v.mediaId;
+    }
     const targetPath = path.join(videosDir, `panel-${i}.mp4`);
     if (v?.videoPath && fs.existsSync(v.videoPath) && fs.statSync(v.videoPath).size > 1000) {
       try {
@@ -4054,6 +4139,9 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
   }
 
   // ── GIAI ĐOẠN 4: Gửi video hoàn chỉnh về Telegram ──
+  const isAuto = !!opts.isAuto;
+  const videoKeyboard = isAuto ? null : buildProVideoInlineKeyboard(runId);
+
   if (isMerged) {
     const totalDurationSec = (savedPanelVideoPaths.length * 4.0).toFixed(1);
     const clipDesc = failedPanelIndices.length > 0
@@ -4064,9 +4152,10 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
       `✨ <i>${clipDesc} lồng ghép giọng đọc review tiếng Việt tự nhiên 100%.</i>`
     ].join('\n');
 
-    // Gửi video (không kèm reply_markup để tránh bị trùng lặp nút bấm với status message ở dưới)
+    // Gửi video kèm reply_markup để các nút action xuất hiện ngay dưới video
     await sendMergedVideoToTelegram(chatId, mergedVideoPath, caption, {
       parse_mode: 'HTML',
+      ...(videoKeyboard ? { reply_markup: videoKeyboard } : {}),
     });
   } else {
     await sendTelegramMessage(chatId, `⚠️ <b>[Template Pro] Không thể tạo video final:</b> Toàn bộ các cảnh video đều gặp sự cố khi tạo trên server Flow Google. Vui lòng bấm Remake cảnh để thử lại.`, {
@@ -4090,8 +4179,6 @@ async function finalizeProStoryboardAndGenerateVideos(chatId, baseDir, runId, op
   const hashtags = normalizeHashtags(session.analysis?.hashtags, defaultTags).slice(0, 5);
   await sendTelegramMessage(chatId, `${title}\n\n${hashtags.join(' ')}`);
 
-  const isAuto = !!opts.isAuto;
-  const videoKeyboard = isAuto ? null : buildProVideoInlineKeyboard(runId);
   const totalDurationDisplay = (savedPanelVideoPaths.length * 4.0).toFixed(1);
   const finalStatusLines = [
     `🎉 <b>TẠO VIDEO REVIEW HOÀN TẤT (${totalDurationDisplay} GIÂY)!</b>\n`,
@@ -4206,6 +4293,7 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
     return;
   }
 
+  const panelInfo = getPanelContext(session.analysis, pIdx);
   const customInstruction = opts.customInstruction || '';
   const panelsDir = path.join(session.runDir, 'panels');
   const panelPath = path.join(panelsDir, `panel-${pIdx}.png`);
@@ -4214,19 +4302,25 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
     return;
   }
 
-  const prompt = buildTemplatePro4sPanelPrompts(session.analysis, { panelIndex: pIdx, customInstruction });
+  const vIt = (session.videoRemakeCount || 0) + 1;
+  session.videoRemakeCount = vIt;
+  const prompt = buildTemplatePro4sPanelPrompts(session.analysis, { panelIndex: pIdx, customInstruction, iteration: vIt });
+  const existingMediaId = session.panelMediaIds?.[pIdx] || null;
   const job = [{
     index: pIdx,
     panelIndex: pIdx,
     prompt,
     imagePath: panelPath,
     buffer: fs.readFileSync(panelPath),
+    mediaId: existingMediaId,
     videoModelKey: 'abra_r2v_4s',
   }];
 
-  console.log(`[TemplatePro] Remaking Video Cảnh ${pIdx} (4s, Start Frame mode)...`);
+  console.log(`[TemplatePro] Remaking Video Cảnh ${pIdx} (${panelInfo.phase}, 4s, Start Frame mode, mediaId: ${existingMediaId || 'new'})...`);
   let resVideos = [];
   try {
+    const proOptions = buildTemplateOptions('template_pro');
+    const resolvedUseProxy = opts.useProxy !== undefined ? opts.useProxy : proOptions.useProxy;
     resVideos = await generateVideosFromPanelsDirect(baseDir, job, {
       aspectRatio: '9:16',
       videoModelKey: 'abra_r2v_4s',
@@ -4236,7 +4330,13 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
       preserveBorder: true,
       outputCount: 1,
       runId: path.basename(session.runDir),
+      template: 'template_pro',
+      useProxy: resolvedUseProxy,
     });
+    if (resVideos[0]?.mediaId) {
+      session.panelMediaIds = session.panelMediaIds || {};
+      session.panelMediaIds[pIdx] = resVideos[0].mediaId;
+    }
   } catch (err) {
     console.error(`[TemplatePro] Remake video scene ${pIdx} failed:`, err.message);
     await sendTelegramMessage(chatId, `❌ Lỗi tạo lại video Cảnh ${pIdx}: ${err.message}`);
@@ -4246,13 +4346,18 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
   const videosDir = path.join(session.runDir, 'videos');
   ensureDir(videosDir);
   const targetPath = path.join(videosDir, `panel-${pIdx}.mp4`);
-  const vIt = (session.videoRemakeCount || 0) + 1;
-  session.videoRemakeCount = vIt;
 
   if (resVideos[0]?.videoPath && fs.existsSync(resVideos[0].videoPath)) {
     try {
-      // Lưu backup phiên bản remake
+      // 1. Sao lưu video ban đầu trước lần remake đầu tiên thành panel-${pIdx}-v0.mp4
+      const origBackupPath = path.join(videosDir, `panel-${pIdx}-v0.mp4`);
+      if (fs.existsSync(targetPath) && !fs.existsSync(origBackupPath)) {
+        fs.copyFileSync(targetPath, origBackupPath);
+        console.log(`[TemplatePro] 📦 Đã sao lưu video Cảnh ${pIdx} ban đầu thành panel-${pIdx}-v0.mp4`);
+      }
+      // 2. Lưu phiên bản remake mới: panel-${pIdx}-v${vIt}.mp4
       fs.copyFileSync(resVideos[0].videoPath, path.join(videosDir, `panel-${pIdx}-v${vIt}.mp4`));
+      // 3. Cập nhật panel-${pIdx}.mp4 thành video mới nhất
       fs.copyFileSync(resVideos[0].videoPath, targetPath);
     } catch (_) { }
   }
@@ -4312,15 +4417,17 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
   ].join('\n');
   appendMarkdownLog(session.runDir, remakeLog);
 
-  // Gửi video mới về Telegram (không kèm reply_markup để tránh trùng lặp nút bấm với status message ở dưới)
+  // Gửi video mới về Telegram kèm reply_markup để các nút action xuất hiện ngay dưới video
   const keyboard = buildProVideoInlineKeyboard(runId);
   const caption = [
     `✨ <b>[Template Pro] Đã cập nhật xong Video Cảnh ${pIdx}!</b> (Lần remake video #${vIt})\n`,
-    `🎬 <i>Video 16 giây hoàn chỉnh đã được ghép lại với Cảnh ${pIdx} mới và giữ nguyên giọng đọc review.</i>`
+    `🎬 <i>Video 16 giây hoàn chỉnh đã được ghép lại với Cảnh ${pIdx} mới và giữ nguyên giọng đọc review.</i>\n`,
+    `👉 <i>Bấm nút bên dưới nếu bạn muốn Remake tiếp cảnh khác, hoặc bấm Đăng lên TikTok:</i>`
   ].join('\n');
 
   await sendMergedVideoToTelegram(chatId, mergedVideoPath, caption, {
     parse_mode: 'HTML',
+    reply_markup: keyboard,
   });
 
   // Xóa status message tiến trình cũ (nếu có)
@@ -4338,13 +4445,14 @@ async function executeProRemakeSingleVideo(chatId, baseDir, runId, targetPanelIn
 
   // Gửi status message mới kèm options remake video hoặc upload TikTok
   const title = session.analysis?.productName || session.productTitle || 'Sản phẩm review';
+  const phaseName = panelInfo?.phase || `Cảnh ${pIdx}`;
   const updatedStatusText = [
     `🎉 <b>ĐÃ CẬP NHẬT XONG VIDEO CẢNH ${pIdx}!</b> (Lần remake #${vIt})\n`,
     `📦 <b>Sản phẩm:</b> <b>${title}</b>\n`,
     `1. ✅ Tải thông tin & hình ảnh sản phẩm`,
     `2. ✅ Phân tích sản phẩm & lên kịch bản review`,
     `3. ✅ Tạo Master Storyboard & chia 4 panel (16:9)`,
-    `4. ✅ Tạo lại Video Cảnh ${pIdx} (${panelInfo.phase})`,
+    `4. ✅ Tạo lại Video Cảnh ${pIdx} (${phaseName})`,
     `5. ✅ Ghép lại video 16s và giữ nguyên giọng đọc review\n`,
     `👉 <i>Bấm nút bên dưới nếu bạn muốn Remake tiếp cảnh khác, hoặc bấm Đăng lên TikTok:</i>`
   ].join('\n');
@@ -4442,6 +4550,7 @@ module.exports = {
   sliceMasterStoryboardPro,
   composeMasterStoryboardPro,
   createInputCollageImagePro,
+  resolvePanelReferenceImages,
   buildTemplateProVoiceVideoPrompts,
   buildTemplatePro4sPanelPrompts,
   extractAudioFromVideo,

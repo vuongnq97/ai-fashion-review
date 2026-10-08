@@ -100,54 +100,107 @@ function parseOgiZ0bResponse(rawText) {
 // Switch between Image and Video mode via settings popup
 // ═══════════════════════════════════════════════════════════════
 async function switchToMode(page, targetMode = 'image') {
-  // Click the settings trigger button at the bottom bar
-  // Find the container that holds the submit button
-  const submitBtn = page.locator('button:has(i:text("arrow_forward"))').last();
-  await submitBtn.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
+  console.log(`[Mode] 🔄 Requesting mode switch to: "${targetMode}"...`);
 
-  const container = page.locator('div').filter({ has: submitBtn }).last();
-  const triggerBtn = container.locator('button[aria-haspopup="menu"]').first();
-
-  if (!(await triggerBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-    console.log(`[Mode] ⚠️ Settings trigger button not found, skipping mode switch`);
-    return;
+  // Direct trigger button locator (strictly targets settings button, never more_vert 3-dots menu)
+  let triggerBtn = page.locator('button[aria-label="Điều kiện kích hoạt cài đặt"], button[aria-label="Settings trigger"], button:has-text("Nano Banana"), button:has-text("Video ·"), button:has-text("Hình ảnh")').first();
+  if (!(await triggerBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
+    // Fallback: Find container holding submit button
+    const submitBtn = page.locator('button:has(i:text("arrow_forward")), button:has(mat-icon:has-text("arrow_forward")), button[aria-label*="tạo" i], button[aria-label*="generate" i]').last();
+    await submitBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const container = page.locator('div').filter({ has: submitBtn }).last();
+    triggerBtn = container.locator('button[aria-haspopup="menu"]').first();
   }
 
-  // Click trigger button and ensure popup opens
-  for (let i = 0; i < 3; i++) {
-    await triggerBtn.click({ force: true });
-    await page.waitForTimeout(1000);
-    const anyTab = page.locator('button[role="tab"]').first();
-    if (await anyTab.isVisible().catch(() => false)) {
+  if (!(await triggerBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+    console.warn(`[Mode] ⚠️ Settings trigger button not found, skipping mode switch`);
+    return false;
+  }
+
+  // Click trigger button and ensure popup opens (up to 3 tries)
+  let popupOpen = false;
+  for (let i = 1; i <= 3; i++) {
+    const isAlreadyOpen = await page.evaluate(() => {
+      const pane = document.querySelector('.cdk-overlay-pane:not([style*="display: none"]), mat-dialog-container, [role="dialog"], [role="menu"]');
+      return !!(pane && pane.querySelectorAll('button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button').length > 0);
+    }).catch(() => false);
+
+    if (isAlreadyOpen) {
+      popupOpen = true;
       break;
     }
-    console.log(`[Mode] ⚠️ Popup not open yet, retrying click...`);
+
+    await triggerBtn.click({ force: true }).catch(() => {});
+    popupOpen = await page.waitForSelector('.cdk-overlay-pane button[role="tab"], button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle', { timeout: 2000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (popupOpen) {
+      await page.waitForTimeout(400);
+      break;
+    }
+    console.log(`[Mode] ⚠️ Popup not open yet on attempt ${i}, retrying click...`);
+    await page.waitForTimeout(500);
   }
 
-  // Click the correct tab in the popup
+  if (!popupOpen) {
+    console.warn(`[Mode] ⚠️ Could not open settings popup after 3 attempts`);
+    return false;
+  }
+
+  let switched = false;
   if (targetMode === 'image') {
-    const imageTab = page.locator('button[role="tab"]', { hasText: /Hình ảnh/i }).first();
-    if (await imageTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await imageTab.click();
-      console.log(`[Mode] ✅ Switched to Image mode`);
-      await page.waitForTimeout(800);
+    const imageTab = page.locator('.cdk-overlay-pane button[role="tab"], button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button', { hasText: /Hình ảnh|Image/i }).first();
+    if (await imageTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await imageTab.click({ force: true });
+      console.log(`[Mode] ✅ Switched to Image mode via locator`);
+      switched = true;
     } else {
-      console.log(`[Mode] Image tab not found (may already be in image mode)`);
+      switched = await page.evaluate(() => {
+        const tabs = document.querySelectorAll('.cdk-overlay-pane button[role="tab"], button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button');
+        for (const t of tabs) {
+          const txt = (t.textContent || '').trim().toLowerCase();
+          if (txt.includes('hình ảnh') || txt.includes('image')) {
+            const btn = t.querySelector('button') || t;
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      }).catch(() => false);
+      if (switched) console.log(`[Mode] ✅ Switched to Image mode via DOM eval`);
     }
   } else {
-    const videoTab = page.locator('button[role="tab"]', { hasText: /Video/i }).first();
-    if (await videoTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await videoTab.click();
-      console.log(`[Mode] ✅ Switched to Video mode`);
-      await page.waitForTimeout(800);
+    const videoTab = page.locator('.cdk-overlay-pane button[role="tab"], button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button', { hasText: /Video/i }).first();
+    if (await videoTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await videoTab.click({ force: true });
+      console.log(`[Mode] ✅ Switched to Video mode via locator`);
+      switched = true;
     } else {
-      console.log(`[Mode] Video tab not found (may already be in video mode)`);
+      switched = await page.evaluate(() => {
+        const tabs = document.querySelectorAll('.cdk-overlay-pane button[role="tab"], button[role="tab"], [role="tab"], .mat-mdc-tab, mat-button-toggle, button');
+        for (const t of tabs) {
+          const txt = (t.textContent || '').trim().toLowerCase();
+          if (txt === 'video' || txt.startsWith('video') || txt.includes('video')) {
+            const btn = t.querySelector('button') || t;
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      }).catch(() => false);
+      if (switched) console.log(`[Mode] ✅ Switched to Video mode via DOM eval`);
     }
   }
 
-  // Close the popup
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(600);
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(400);
+
+  // Quick check of resulting button text
+  const currentBtnText = await triggerBtn.textContent().catch(() => '');
+  console.log(`[Mode] 🔍 Button text after mode switch: "${(currentBtnText || '').trim().substring(0, 35)}"`);
+  return switched;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -598,7 +651,7 @@ async function prepareGeneration(page, prompt, filePayloads, config, baseDir) {
   // Dùng UI path để có reCAPTCHA score tốt (chống UNUSUAL_ACTIVITY).
   // ogiZ0b route interceptor sẽ inject đúng imageInputUUIDs vào payload trước khi gửi lên Flow backend.
   // KHÔNG skip UI path dù có imageInputUUIDs — reCAPTCHA từ UI submission mới đáng tin cậy.
-  return { context, bearerToken, recaptchaToken, recaptchaTokens, imageInputUUIDs, prompt, aspectRatio, imageModel, outputCount: reqCount, projectId: targetProjectId, wiz, page, filePayloads };
+  return { context, bearerToken, recaptchaToken, recaptchaTokens, imageInputUUIDs, prompt, aspectRatio, imageModel, outputCount: reqCount, projectId: targetProjectId, wiz, page, filePayloads, useProxy: config.useProxy };
 }
 
 function cleanFlowImageUrl(rawUrl) {
@@ -613,8 +666,11 @@ function cleanFlowImageUrl(rawUrl) {
 // ═══════════════════════════════════════════════════════════════
 // Direct Network Stream Generation (100% human trust, zero UI click / tamper)
 // ═══════════════════════════════════════════════════════════════
-async function generateImagesViaUI({ page, context, prompt, outputCount = 1, aspectRatio = '16:9', imageInputUUIDs = [], filePayloads = [] }) {
+async function generateImagesViaUI({ page, context, prompt, outputCount = 1, aspectRatio = '16:9', imageInputUUIDs = [], filePayloads = [], useProxy = true }) {
   if (!page || page.isClosed()) return null;
+
+  const { applyProxyPolicy } = require('./proxy-bridge');
+  applyProxyPolicy(useProxy !== false, 'ImageGen - Flow');
 
   const count = Number(outputCount) > 1 ? Number(outputCount) : 1;
   const { generateStoryboardsViaNativeNetworkStream } = require('./playwright-direct/direct-flow-engine');
@@ -666,8 +722,11 @@ async function generateImagesViaUI({ page, context, prompt, outputCount = 1, asp
         try {
           const { rotateProxy } = require('./proxy-bridge');
           const nextP = rotateProxy();
-          console.log(`[Gen-DirectNetwork] 🔄 Auto-switched to proxy #${nextP.index + 1}/${nextP.total} (${nextP.host}:${nextP.port})`);
-        } catch (_) {}
+          const targetLog = nextP.isDirect ? 'DIRECT (Mặc định)' : `proxy #${nextP.index + 1}/${nextP.proxyCount || nextP.total} (${nextP.host}:${nextP.port})`;
+          console.log(`[Gen-DirectNetwork] 🔄 Chuyển sang kết nối: ${targetLog}`);
+        } catch (rotErr) {
+          console.warn('[Gen-DirectNetwork] ⚠️ Proxy rotation error:', rotErr.message);
+        }
 
         console.log('[Gen-DirectNetwork] ⏳ Cooldown 3s và tải lại Flow page để áp dụng proxy/session mới...');
         await new Promise(r => setTimeout(r, 3000));
@@ -706,6 +765,7 @@ async function executeGeneration({
   page = null,
   filePayloads = [],
   skipUi = false,  // When true: skip UI button-click path but keep page for page.evaluate() fetch
+  useProxy = true,
 }) {
   const targetProjectId = projectId || wiz?.projectId || PROJECT_ID;
   const count = Number(outputCount) > 1 ? Number(outputCount) : 1;
@@ -722,7 +782,8 @@ async function executeGeneration({
         outputCount: count,
         aspectRatio,
         imageInputUUIDs,
-        filePayloads
+        filePayloads,
+        useProxy,
       });
       if (uiResult && uiResult.allResults && uiResult.allResults.length > 0) {
         console.log(`[Gen] ✅ Direct network stream generation successful! Generated ${uiResult.allResults.length} image(s).`);

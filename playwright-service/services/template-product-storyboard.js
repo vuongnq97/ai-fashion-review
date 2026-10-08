@@ -36,6 +36,7 @@ const { prepareGeneration, executeGeneration } = require('./image');
 const { registerExternalCompletedJob, getJob } = require('./generation-job');
 const { FlowStepTracker } = require('./flow-step-tracker');
 const { getConfig, getChannelProfile } = require('../utils/config-manager');
+const { buildTemplateOptions } = require('./template-options');
 
 // Cache in-memory cho các phiên /tproduct: runId -> sessionData
 const productSessions = new Map();
@@ -3760,6 +3761,7 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
 
   let videoResults = [];
   try {
+    const prodOpts = buildTemplateOptions('template_product');
     videoResults = await generateVideosFromPanelsDirect(effectiveBaseDir, panelJobs, {
       aspectRatio: '9:16',
       videoModelKey: 'abra_i2v_8s',
@@ -3769,6 +3771,8 @@ async function finalizeProductStoryboardAndGenerateVideos(chatId, baseDir, runId
       cropPercent: 0,
       preserveBorder: true,
       runId: `prod-${runId}`,
+      template: 'template_product',
+      useProxy: prodOpts.useProxy,
     });
   } catch (genErr) {
     console.warn(`[TemplateProduct] ⚠️ Remote Veo generation error: ${genErr.message}`);
@@ -4044,6 +4048,7 @@ async function executeProductRemakeSingleVideo(chatId, baseDir, runId, targetPan
 
   let newVideos = [];
   try {
+    const prodOpts = buildTemplateOptions('template_product');
     newVideos = await generateVideosFromPanelsDirect(effectiveBaseDir, singleJob, {
       aspectRatio: '9:16',
       videoModelKey: 'abra_r2v_8s',
@@ -4053,6 +4058,8 @@ async function executeProductRemakeSingleVideo(chatId, baseDir, runId, targetPan
       cropPercent: 0,
       preserveBorder: true,
       runId: `prod-${runId}-remake-${pIdx}`,
+      template: 'template_product',
+      useProxy: prodOpts.useProxy,
     });
   } catch (genErr) {
     console.warn(`[TemplateProduct] ⚠️ Remote Veo remake error for scene ${pIdx}: ${genErr.message}`);

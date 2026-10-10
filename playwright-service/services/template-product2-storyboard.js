@@ -56,7 +56,7 @@ try {
   }
 }
 
-// Bộ 14 người mẫu riêng của /tproduct2 (docs/tproduct2/model.png .. model13.png)
+// Bộ 10 người mẫu riêng của /tproduct2 (docs/tproduct2/model.png .. model9.png)
 const CANONICAL_MODEL_FILENAMES = [
   'model.png',
   'model1.png',
@@ -68,10 +68,6 @@ const CANONICAL_MODEL_FILENAMES = [
   'model7.png',
   'model8.png',
   'model9.png',
-  'model10.png',
-  'model11.png',
-  'model12.png',
-  'model13.png',
 ];
 
 const CANONICAL_MODEL_DIRS = [
@@ -80,7 +76,7 @@ const CANONICAL_MODEL_DIRS = [
 
 /**
  * Lấy ảnh người mẫu chuẩn làm reference cho storyboard và video.
- * Hỗ trợ chọn ngẫu nhiên 1 trong 13 ảnh người mẫu (model.png .. model12.png)
+ * Hỗ trợ chọn ngẫu nhiên 1 trong 10 ảnh người mẫu (model.png .. model9.png)
  * hoặc giữ nguyên model đã chọn trong session cho các thao tác remake.
  *
  * @param {Object} [options]
@@ -138,7 +134,7 @@ function getCanonicalPresenterBuffer(options = {}) {
     }
   }
 
-  // 3. Tìm toàn bộ các file model hợp lệ trong danh sách 14 models
+  // 3. Tìm toàn bộ các file model hợp lệ trong danh sách 10 models
   const availableModels = [];
   for (const filename of CANONICAL_MODEL_FILENAMES) {
     for (const dir of CANONICAL_MODEL_DIRS) {
@@ -155,7 +151,7 @@ function getCanonicalPresenterBuffer(options = {}) {
     }
   }
 
-  // 4. Random 1 model trong danh sách 14 models khả dụng
+  // 4. Random 1 model trong danh sách 10 models khả dụng
   if (availableModels.length > 0) {
     const chosen = availableModels[Math.floor(Math.random() * availableModels.length)];
     try {
@@ -2899,7 +2895,7 @@ async function generateStoryboard(baseDir, filePayloads = [], options = {}) {
 
   console.log(`[TemplateProduct] 🎬 Starting Live-Commerce Presenter 40s Native-Voice Pipeline (Run: ${runId}, Job: ${originalJobId}, Gender: ${channelProfile.gender || 'female'}, Audience: ${channelProfile.audienceAddress || 'chị em'})...`);
 
-  // Nạp ngẫu nhiên 1 trong 14 ảnh người mẫu riêng của /tproduct2.
+  // Nạp ngẫu nhiên 1 trong 10 ảnh người mẫu riêng của /tproduct2.
   const presenterAsset = getCanonicalPresenterBuffer(effectiveOptions);
   if (!presenterAsset) {
     throw new Error('ERR_MISSING_PRESENTER_REFERENCE: Không tìm thấy ảnh người mẫu chuẩn trong docs/tproduct2/');

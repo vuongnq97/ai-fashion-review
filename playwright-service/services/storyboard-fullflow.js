@@ -154,6 +154,7 @@ async function runStoryboardFullFlow(chatId, filePayloads, baseDir, options = {}
       template === 'template_mom' || template === 'templatemom' || template === 'tmom' ||
       template === 'template_food' || template === 'templatefood' || template === 'tfood' ||
       template === 'template_product' || template === 'templateproduct' || template === 'tproduct' || template === 'tpro40nv' ||
+      template === 'template_product2' || template === 'templateproduct2' || template === 'tproduct2' ||
       !!result.isInteractiveStoryboard;
 
     if (videos.length === 0 && !isAtomicShot && !isInteractiveStoryboard) {

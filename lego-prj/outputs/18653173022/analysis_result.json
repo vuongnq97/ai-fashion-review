@@ -1,0 +1,150 @@
+{
+  "product": {
+    "itemId": "18653173022",
+    "name": "LEGO Disney Stitch & Scrump - Building Toy for Girls & Boys, Ages 9+ - Posable Stitch Toy for Bedroom or Shelf Decor - Disney Gift for Fans - 43296",
+    "brand": "LEGO",
+    "price": {
+      "price": 56,
+      "priceString": "$56.00",
+      "variantPriceString": "$56.00",
+      "currencyUnit": "USD",
+      "bestValue": null,
+      "supportText": null,
+      "priceDisplay": "Now $56.00"
+    },
+    "shortDescription": "Kids can build an adorable pair of friends with the LEGO Disney Stitch & Scrump (43296) building toy for girls and boys ages 9 years old and up. This LEGO Disney building toy features a posable, brick-built Stitch figure and a smaller buildable Scrump in a plushie style, both packed with authentic details from the movies. Builders can pose Stitch in fun positions by tilting his head, adjusting his ears up and down or moving his arms and hands. Fun accessories, such as a ukulele that fits in Stitch's hands and a grass skirt that attaches around his waist, are included so fans can recreate his iconic island style. Between playtimes, kids can display both characters on a bookshelf, nightstand or desk, or pair them with other LEGO Disney building toys (sold separately) to expand their collection. Makes a great birthday gift idea for girls and boys who love Lilo & Stitch and LEGO Disney building toys. With the Build Together mode in the LEGO Builder app, friends and family can team up to build the set together, with each person creating part of it using their own device. Contains 713 pieces.",
+    "images": [
+      {
+        "id": "5CF8E157AE5043E59FD094B177F75D17",
+        "url": "https://i5.walmartimages.com/seo/LEGO-Disney-Classic-43296_0eb452cb-fda3-474d-8617-458b82122229.2c573a8b2e69780434b2db4213660c26.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "17F2CEF1C9444A0A87BB97D3521D0E8F",
+        "url": "https://i5.walmartimages.com/asr/71965069-7d4c-4ac0-b9f8-8dd7b2d6e89a.a40df3bcef768f9e195e0cd76533b0b6.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "C4F360F52B2842C9A1D533FCC6D64C1A",
+        "url": "https://i5.walmartimages.com/asr/8cc3b2ca-54f3-4c20-982f-c4c905d8f78e.553f27b1602616bbeddbb37456cc89c9.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "3BBB08325CAF4517AE59593BD948C722",
+        "url": "https://i5.walmartimages.com/asr/55e7a47f-ac80-484e-99f9-dfd9e0ec976f.f89f9877de602e27833053a4e23b15c8.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "38E6518ACD3A4FB08075C9F9032DA312",
+        "url": "https://i5.walmartimages.com/asr/51b810b9-5056-4e8c-a476-98840862c1ff.ef1bc592b7253634aa869800dd5f1e87.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "2757BD1863F2429EA768FB664B2DE448",
+        "url": "https://i5.walmartimages.com/asr/0864ec4b-5c0d-4eff-96ee-d759d80f0f0e.e3355dd5eb9e88c88d593fb9e909db0e.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "23F450870D914BEF82880BA227742BDF",
+        "url": "https://i5.walmartimages.com/asr/d5eb68d2-752b-47ef-a28c-244ef6db946d.b40f5b7c41851e1a825b22a524b6b653.jpeg",
+        "zoomable": true
+      }
+    ]
+  },
+  "analysis": {
+    "analyzedImages": [
+      {
+        "filename": "1_5CF8E157AE5043E59FD094B177F75D17.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh mặt trước hộp đi kèm mô hình hoàn thiện Stitch và Scrump ở góc phải."
+      },
+      {
+        "filename": "2_17F2CEF1C9444A0A87BB97D3521D0E8F.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh bao bì mặt trước hộp LEGO Stitch & Scrump 43296."
+      },
+      {
+        "filename": "3_C4F360F52B2842C9A1D533FCC6D64C1A.jpeg",
+        "category": "lifestyle_human",
+        "angle": "front",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Trẻ em đang chơi và lắp ráp mô hình Stitch, có tay người cầm chỉnh tai."
+      },
+      {
+        "filename": "4_3BBB08325CAF4517AE59593BD948C722.jpeg",
+        "category": "feature_detail",
+        "angle": "front",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Cận cảnh mô hình Stitch với các mũi tên mô tả khả năng xoay đầu và cử động linh hoạt."
+      },
+      {
+        "filename": "5_38E6518ACD3A4FB08075C9F9032DA312.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Hai đứa trẻ đang vui đùa cùng mô hình hoàn thiện trên giường ngủ."
+      },
+      {
+        "filename": "6_2757BD1863F2429EA768FB664B2DE448.jpeg",
+        "category": "feature_detail",
+        "angle": "front",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh cận cảnh mô hình Stitch cầm đàn ukulele đứng cạnh búp bê Scrump."
+      },
+      {
+        "filename": "7_23F450870D914BEF82880BA227742BDF.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": false,
+        "hasHumansOrHands": true,
+        "description": "Ảnh trẻ em đang lắp ráp dở các mảnh ghép LEGO kèm ứng dụng Builder."
+      }
+    ],
+    "selectedAngles": {
+      "heroAngle": {
+        "filename": "6_2757BD1863F2429EA768FB664B2DE448.jpeg",
+        "reason": "Góc nhìn chính diện sắc nét nhất, thể hiện đầy đủ nhân vật Stitch cầm đàn ukulele và Scrump bên cạnh, không bị che khuất.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/18653173022/6_2757BD1863F2429EA768FB664B2DE448.jpeg",
+        "relativePath": "downloads/18653173022/6_2757BD1863F2429EA768FB664B2DE448.jpeg"
+      },
+      "altAngle": {
+        "filename": "1_5CF8E157AE5043E59FD094B177F75D17.jpeg",
+        "reason": "Cung cấp thêm một góc nhìn chi tiết toàn bộ mô hình và bao bì rõ ràng để đối chiếu màu sắc và các thành phần.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/18653173022/1_5CF8E157AE5043E59FD094B177F75D17.jpeg",
+        "relativePath": "downloads/18653173022/1_5CF8E157AE5043E59FD094B177F75D17.jpeg"
+      },
+      "featureAngle": {
+        "filename": "4_3BBB08325CAF4517AE59593BD948C722.jpeg",
+        "reason": "Làm nổi bật các tính năng khớp nối linh hoạt, khả năng xoay đầu và điều chỉnh tai, thân của mô hình Stitch.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/18653173022/4_3BBB08325CAF4517AE59593BD948C722.jpeg",
+        "relativePath": "downloads/18653173022/4_3BBB08325CAF4517AE59593BD948C722.jpeg"
+      }
+    },
+    "legoVisualProfile": {
+      "mainSubject": "LEGO Disney Stitch & Scrump",
+      "primaryColors": [
+        "blue",
+        "pink",
+        "green",
+        "brown"
+      ],
+      "keyStructuralFeatures": [
+        "large ears with pink inner panels",
+        "open mouth showing teeth",
+        "detachable green leaf grass skirt",
+        "buildable ukulele accessory",
+        "accompanying Scrump figure"
+      ]
+    }
+  }
+}

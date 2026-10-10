@@ -1,0 +1,161 @@
+{
+  "product": {
+    "itemId": "7277168939",
+    "name": "LEGO Disney Moana 2 Heihei - Building Toy for Kids, Girls & Boys, Ages 9+ - Gift for Birthdays - Moana & Disney Toy for Fans - 43272",
+    "brand": "LEGO",
+    "price": {
+      "price": 25,
+      "priceString": "$25.00",
+      "variantPriceString": "$25.00",
+      "currencyUnit": "USD",
+      "bestValue": null,
+      "supportText": null,
+      "priceDisplay": "Now $25.00"
+    },
+    "shortDescription": "Bring the fantasy and fun of Disney’s Moana and Moana 2 into the real world with this posable Heihei (43272) LEGO Disney Moana 2 building kit toy. Animal fans, movie lovers and kids aged 9 and up will enjoy creating the colorful chicken companion buildable model, with a rotating head, posable wings and tail feathers, then standing him on his feet or placing him on the stand, complete with decorative flowers and a nameplate. This Disney building set for girls, boys and fans will make a cool buildable fantasy toy that everyone talks about, while offering older kids and adult Disney fans a more intricate build. It’s great for gift-giving, makes a cool display item and works with other LEGO ǀ Disney building sets (sold separately) in the range. Builders also get an intuitive building experience with the LEGO Builder app, where they can zoom in and rotate models in 3D, save sets and track progress. Contains 566 pieces.",
+    "dimensionsText": "DIMENSIONS – This 566-piece buildable LEGO Disney set stands over 10.5 in. (27 cm) tall when fully assembled",
+    "images": [
+      {
+        "id": "D2A76D21030C4A5D93561872F8D2EE83",
+        "url": "https://i5.walmartimages.com/seo/LEGO-Disney-Princess-43272_d25a0a83-8027-4f56-b908-d577900aae38.01e1e5f8d39bb41590ae741964c54b7e.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "20503D73DCC64845B12884616E8C631E",
+        "url": "https://i5.walmartimages.com/asr/2072070f-337f-42e5-b89c-d154c4ace5c8.19cb01ce3e7a7406647b7b751f0c2928.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "BD4E26CF11674F049DB00739FC96D80C",
+        "url": "https://i5.walmartimages.com/asr/72546545-672d-498f-9b2a-c8618830166a.d78df7658d9f3a57fe3a8d121146d801.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "05746CD28E95484885588959A4C2CB4A",
+        "url": "https://i5.walmartimages.com/asr/5f4ad9b4-16ce-450d-b0bb-e85e5f5a25eb.2687ee5b9b695ee877d95a832c7ee018.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "A0243068A5984A23B2E57118AA9D51E0",
+        "url": "https://i5.walmartimages.com/asr/dc76f3b2-5b2e-4c07-8ba3-c82d3ae25231.93acf41965505681984f1fedbbe63efd.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "554F7279A3184AFFB5D862499465CE3C",
+        "url": "https://i5.walmartimages.com/asr/b96c8691-b0e6-4f6a-998e-2501e3be8b61.37783612eda19b308dda8d131f6abacc.jpeg",
+        "zoomable": true
+      },
+      {
+        "id": "3999296DA9424F108E39ACA447EFDCA2",
+        "url": "https://i5.walmartimages.com/asr/3f8f1a77-9513-40e7-89a1-cec4f4f4d059.0a6265bf709949185dc076486a17a572.jpeg",
+        "zoomable": true
+      }
+    ]
+  },
+  "analysis": {
+    "dimensions": {
+      "height_cm": 27,
+      "height_inch": 10.5,
+      "width_cm": null,
+      "width_inch": null,
+      "length_cm": null,
+      "length_inch": null,
+      "formatted": "Cao: 27 cm (10.5 in)",
+      "rawText": "DIMENSIONS – This 566-piece buildable LEGO Disney set stands over 10.5 in. (27 cm) tall when fully assembled"
+    },
+    "analyzedImages": [
+      {
+        "filename": "1_D2A76D21030C4A5D93561872F8D2EE83.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh hộp sản phẩm LEGO Disney Moana 2 Heihei đi kèm mô hình hoàn thiện bên cạnh."
+      },
+      {
+        "filename": "2_20503D73DCC64845B12884616E8C631E.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh cận cảnh mặt trước hộp sản phẩm."
+      },
+      {
+        "filename": "3_BD4E26CF11674F049DB00739FC96D80C.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Bé gái đang chơi và tương tác với mô hình Heihei hoàn thiện."
+      },
+      {
+        "filename": "4_05746CD28E95484885588959A4C2CB4A.jpeg",
+        "category": "hero_build",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh góc 3/4 hoàn thiện chi tiết của mô hình Heihei trên nền trắng."
+      },
+      {
+        "filename": "5_A0243068A5984A23B2E57118AA9D51E0.jpeg",
+        "category": "feature_detail",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh làm nổi bật các tính năng đầu xoay, cánh và lông đuôi có thể cử động."
+      },
+      {
+        "filename": "6_554F7279A3184AFFB5D862499465CE3C.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Hình ảnh minh họa khả năng tháo rời Heihei khỏi bệ trưng bày."
+      },
+      {
+        "filename": "7_3999296DA9424F108E39ACA447EFDCA2.jpeg",
+        "category": "feature_detail",
+        "angle": "three_quarters",
+        "showsCompleteModel": false,
+        "hasHumansOrHands": false,
+        "description": "Ảnh chi tiết phần bệ trưng bày có hoa và bảng tên HEIHEI."
+      }
+    ],
+    "selectedAngles": {
+      "heroAngle": {
+        "filename": "4_05746CD28E95484885588959A4C2CB4A.jpeg",
+        "reason": "Góc nhìn 3/4 rõ nét, không bị che khuất, thể hiện đầy đủ toàn bộ mô hình Heihei trên nền trắng tinh khiết.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/7277168939/4_05746CD28E95484885588959A4C2CB4A.jpeg",
+        "relativePath": "downloads/7277168939/4_05746CD28E95484885588959A4C2CB4A.jpeg"
+      },
+      "altAngle": {
+        "filename": "1_D2A76D21030C4A5D93561872F8D2EE83.jpeg",
+        "reason": "Hiển thị rõ phần thân bên và đuôi xanh lá cây đặc trưng của mô hình.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/7277168939/1_D2A76D21030C4A5D93561872F8D2EE83.jpeg",
+        "relativePath": "downloads/7277168939/1_D2A76D21030C4A5D93561872F8D2EE83.jpeg"
+      },
+      "featureAngle": {
+        "filename": "5_A0243068A5984A23B2E57118AA9D51E0.jpeg",
+        "reason": "Minh họa chi tiết các khớp động linh hoạt như đầu xoay và cánh poseable.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/downloads/7277168939/5_A0243068A5984A23B2E57118AA9D51E0.jpeg",
+        "relativePath": "downloads/7277168939/5_A0243068A5984A23B2E57118AA9D51E0.jpeg"
+      }
+    },
+    "legoVisualProfile": {
+      "mainSubject": "Heihei từ Moana 2",
+      "primaryColors": [
+        "Đỏ",
+        "Vàng",
+        "Cam",
+        "Xanh dương",
+        "Xanh lá"
+      ],
+      "keyStructuralFeatures": [
+        "Đầu to với mắt lồi ngộ nghĩnh",
+        "Cổ dài xếp lớp màu sắc rực rỡ",
+        "Cánh và lông đuôi có thể cử động linh hoạt",
+        "Bệ trưng bày trang trí hoa và bảng tên HEIHEI"
+      ]
+    }
+  }
+}

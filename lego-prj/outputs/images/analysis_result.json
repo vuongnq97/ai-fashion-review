@@ -1,0 +1,114 @@
+{
+  "product": {
+    "itemId": "images",
+    "name": "LEGO Disney Moana 2 Heihei (43272)",
+    "brand": "LEGO",
+    "dimensionsText": "DIMENSIONS – This 566-piece buildable LEGO Disney set stands over 10.5 in. (27 cm) tall when fully assembled"
+  },
+  "analysis": {
+    "dimensions": {
+      "height_cm": 27,
+      "height_inch": 10.5,
+      "width_cm": null,
+      "width_inch": null,
+      "length_cm": null,
+      "length_inch": null,
+      "formatted": "Cao: 27 cm (10.5 in)",
+      "rawText": "DIMENSIONS – This 566-piece buildable LEGO Disney set stands over 10.5 in. (27 cm) tall when fully assembled"
+    },
+    "analyzedImages": [
+      {
+        "filename": "1_box_front.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Hộp sản phẩm LEGO Disney Moana 2 Heihei mặt trước kèm hình mô hình hoàn thiện"
+      },
+      {
+        "filename": "2_heihei_box_back.jpeg",
+        "category": "box_front",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Ảnh hộp sản phẩm góc tương tự"
+      },
+      {
+        "filename": "3_girl_playing.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Bé gái đang chơi với mô hình LEGO Heihei"
+      },
+      {
+        "filename": "4_poseable_stand.jpeg",
+        "category": "hero_build",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": false,
+        "description": "Mô hình Heihei hoàn chỉnh đứng trên bệ trưng bày nền trắng"
+      },
+      {
+        "filename": "5_rotating_head.jpeg",
+        "category": "feature_detail",
+        "angle": "close_up",
+        "showsCompleteModel": false,
+        "hasHumansOrHands": false,
+        "description": "Cận cảnh phần đầu và lông đuôi có thể xoay, cử động"
+      },
+      {
+        "filename": "6_detail_view_1.jpeg",
+        "category": "lifestyle_human",
+        "angle": "three_quarters",
+        "showsCompleteModel": true,
+        "hasHumansOrHands": true,
+        "description": "Bé gái nhấc mô hình Heihei ra khỏi bệ trưng bày"
+      },
+      {
+        "filename": "7_detail_view_2.jpeg",
+        "category": "feature_detail",
+        "angle": "close_up",
+        "showsCompleteModel": false,
+        "hasHumansOrHands": false,
+        "description": "Cận cảnh chi tiết bệ trưng bày có hoa và bảng tên Heihei"
+      }
+    ],
+    "selectedAngles": {
+      "heroAngle": {
+        "filename": "4_poseable_stand.jpeg",
+        "reason": "Góc nhìn chính diện 3/4 rõ nét, hiển thị toàn bộ mô hình Heihei trên bệ trưng bày trên nền trắng.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/images/4_poseable_stand.jpeg",
+        "relativePath": "images/4_poseable_stand.jpeg"
+      },
+      "altAngle": {
+        "filename": "1_box_front.jpeg",
+        "reason": "Góc nhìn toàn cảnh kết hợp bao bì, thể hiện tổng thể mô hình từ góc độ khác.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/images/1_box_front.jpeg",
+        "relativePath": "images/1_box_front.jpeg"
+      },
+      "featureAngle": {
+        "filename": "7_detail_view_2.jpeg",
+        "reason": "Góc nhìn chi tiết bệ trưng bày với hoa lá và bảng tên.",
+        "fullPath": "/Users/macbook_196/Workspace/ai-fashion-review/lego-prj/images/7_detail_view_2.jpeg",
+        "relativePath": "images/7_detail_view_2.jpeg"
+      }
+    },
+    "legoVisualProfile": {
+      "mainSubject": "LEGO Disney Heihei",
+      "primaryColors": [
+        "red",
+        "orange",
+        "yellow",
+        "blue",
+        "green"
+      ],
+      "keyStructuralFeatures": [
+        "rotating head",
+        "posable wings",
+        "posable tail feathers",
+        "display stand with flowers and nameplate"
+      ]
+    }
+  }
+}

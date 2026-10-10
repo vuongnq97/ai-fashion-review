@@ -445,7 +445,8 @@ async function executeJob(job) {
         const isTesting = job.template === 'testing' || job.template === 'template_testing' || job.template === 'ttest';
         const isMom = job.template === 'template_mom' || job.template === 'templatemom' || job.template === 'tmom';
         const isFood = job.template === 'template_food' || job.template === 'templatefood' || job.template === 'tfood';
-        const isProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv';
+        const isProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv' ||
+          job.template === 'template_product2' || job.template === 'templateproduct2' || job.template === 'tproduct2';
         const prefix = isTesting ? 'ttest' : (isProduct ? 'tproduct' : (isFood ? 'tfood' : (isMom ? 'tmom' : 'tpro')));
         console.log(`[Job ${job.jobId}] 🤖 Auto mode enabled: skipping user review, proceeding directly to video generation and TikTok upload (runId: ${effectiveRunId})!`);
         const { lastRunByChat, handleUploadDirectCommand } = require('./telegram-bot');
@@ -721,7 +722,8 @@ function restoreJobFromRunDir(runDir, baseDir = path.resolve(__dirname, '..')) {
 
     const runId = session.runId || path.basename(runDir).split('-').pop();
     const isTesting = session.template === 'testing' || session.template === 'template_testing' || session.template === 'ttest';
-    const isProd = session.template === 'template_product' || session.template === 'templateproduct' || session.template === 'tproduct' || session.template === 'tpro40nv';
+    const isProd = session.template === 'template_product' || session.template === 'templateproduct' || session.template === 'tproduct' || session.template === 'tpro40nv' ||
+      session.template === 'template_product2' || session.template === 'templateproduct2' || session.template === 'tproduct2';
     const templatePrefix = isTesting ? 'ttest' : (isProd ? 'tproduct' : (session.template === 'template_food' ? 'tfood' : (session.template === 'template_mom' ? 'tmom' : 'tpro')));
     const jobId = `${templatePrefix}-${runId}`;
     const panelsDir = path.join(runDir, 'panels');
@@ -1102,7 +1104,8 @@ async function remakeJobPanels(jobId, panelIndices = [], customInstruction = '')
   const isTemplatePro = job.template === 'template_pro' || job.template === 'templatepro' || job.template === 'tpro';
   const isTemplateMom = job.template === 'template_mom' || job.template === 'templatemom' || job.template === 'tmom';
   const isTemplateFood = job.template === 'template_food' || job.template === 'templatefood' || job.template === 'tfood';
-  const isTemplateProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv';
+  const isTemplateProduct = job.template === 'template_product' || job.template === 'templateproduct' || job.template === 'tproduct' || job.template === 'tpro40nv' ||
+    job.template === 'template_product2' || job.template === 'templateproduct2' || job.template === 'tproduct2';
   const isInteractive = isTemplatePro || isTemplateMom || isTemplateFood || isTemplateProduct;
   const effectiveNumbers = (isTemplatePro || isTemplateMom)
     ? numbers.map(n => (n === 3 || n === 4 ? 2 : n))

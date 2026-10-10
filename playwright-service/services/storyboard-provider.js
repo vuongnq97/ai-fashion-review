@@ -88,6 +88,21 @@ function getStoryboardProvider(baseDir = path.resolve(__dirname, '..'), options 
     };
   }
 
+  if (template === 'template_product2') {
+    return {
+      name: 'template_product2',
+      generateStoryboard: (baseDir, filePayloads, opts = {}) => {
+        try { delete require.cache[require.resolve('./template-product2-storyboard')]; } catch (_) {}
+        const templateProduct2 = require('./template-product2-storyboard');
+        return templateProduct2.generateStoryboard(baseDir, filePayloads, {
+          ...opts,
+          template: 'template_product2',
+          storyboardBackgroundPreset: 'wholesale_showroom_warehouse',
+        });
+      },
+    };
+  }
+
   if (template === 'template5' || template === 'template5_1' || template === 'template5.1' || template === 'template51' ||
       template === 'template5_2' || template === 'template5.2' || template === 'template52' ||
       template === 'template5_3' || template === 'template5.3' || template === 'template53') {

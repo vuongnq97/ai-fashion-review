@@ -1,0 +1,23 @@
+{
+  "name": "lego-prj",
+  "version": "1.0.0",
+  "description": "Standalone LEGO 360 Video Generator from Walmart",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test:scraper": "node test-scraper.js",
+    "test:analyzer": "node test-analyzer.js"
+  },
+  "keywords": [
+    "lego",
+    "walmart",
+    "360-video",
+    "omni",
+    "nano-banana-pro"
+  ],
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "https-proxy-agent": "^7.0.6"
+  }
+}

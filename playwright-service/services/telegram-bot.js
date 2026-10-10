@@ -90,6 +90,7 @@ const RESERVED_COMMANDS = new Set([
   'template_mom', 'templatemom', 'tmom',
   'template_food', 'templatefood', 'tfood',
   'template_product', 'templateproduct', 'tproduct', 'tpro40nv',
+  'template_product2', 'templateproduct2', 'tproduct2',
   'status', 'remake', 'remake_1', 'remake_2', 'remake_3', 'remake_4', 'remake_all',
   'again', 'redo',
   'tq', 'cancel', 'login',
@@ -101,7 +102,7 @@ function classifyTelegramCommand(text = '') {
   if (/^\/remake(?:[_@\s]|$)/i.test(value)) return 'remake';
   if (/^\/register(?:@\w+)?(?:\s|$)/i.test(value)) return 'register';
   if (/^\/login(?:@\w+)?(?:\s|$)/i.test(value)) return 'login';
-  if (/^\/(?:template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product|templateproduct|tproduct|tpro40nv)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
+  if (/^\/(?:template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product2|templateproduct2|tproduct2|template_product|templateproduct|tproduct|tpro40nv)(?:@\w+)?(?:\s|$)/i.test(value)) return 'template';
   if (/^\/(start|help|menu)(?:@\w+)?(?:\s|$)/i.test(value)) return 'start';
   if (/^\/status(?:@\w+)?(?:\s|$)/i.test(value)) return 'status';
   if (/^\/dailyvlog(?:@\w+)?(?:\s|$)/i.test(value)) return 'dailyvlog';
@@ -364,6 +365,19 @@ async function handleTemplateProductCommand(botToken, chatId) {
   await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/tproduct', 'Live-Commerce Presenter 40s (5 video × 8s, MC cố định nói native giọng Việt, chốt đơn live-stream).'));
 }
 
+async function handleTemplateProduct2Command(botToken, chatId) {
+  const activeBatch = botBatches.get(chatId);
+  if (activeBatch) {
+    activeBatch.template = 'template_product2';
+    await sendTelegramMessage(botToken, chatId,
+      '✅ Đã áp dụng /tproduct2: giữ nguyên pipeline /tproduct, đổi storyboard sang showroom-kho hàng bán buôn.');
+    return;
+  }
+
+  pendingTemplateByChat.set(chatId, 'template_product2');
+  await sendTelegramMessage(botToken, chatId, buildTemplateReadyMessage('/tproduct2', 'Pipeline /tproduct với bối cảnh storyboard showroom-kho hàng bán buôn, kệ cao, bàn trưng bày và nhân viên kho phía sau.'));
+}
+
 // Import from shared module to keep single source of truth (also used by generation-job.js)
 const { buildTemplateOptions } = require('./template-options');
 
@@ -380,6 +394,24 @@ function getLatestRunDirectory(baseDir) {
     .sort((a, b) => b.mtime - a.mtime);
 
   return entries.length > 0 ? entries[0].path : null;
+}
+
+function getProductStoryboardModule(baseDir, runId = '', templateHint = '') {
+  const hint = String(templateHint || '').toLowerCase();
+  let isProduct2 = hint === 'template_product2' || hint === 'templateproduct2' || hint === 'tproduct2';
+  if (!isProduct2 && runId) {
+    const runsDir = path.join(baseDir || path.resolve(__dirname, '..'), 'storyboard-review-runs');
+    try {
+      isProduct2 = fs.readdirSync(runsDir, { withFileTypes: true }).some(entry =>
+        entry.isDirectory() &&
+        entry.name.includes('template_product2') &&
+        entry.name.includes(String(runId))
+      );
+    } catch (_) { }
+  }
+  return isProduct2
+    ? require('./template-product2-storyboard')
+    : require('./template-product-storyboard');
 }
 
 function getLastRunForChat(chatId, baseDir) {
@@ -507,7 +539,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
       customInstruction,
     });
   } else if (isTemplateProduct) {
-    const { buildTemplateProduct8sVideoPrompts } = require('./template-product-storyboard');
+    const { buildTemplateProduct8sVideoPrompts } = getProductStoryboardModule(baseDir, path.basename(runInfo.runDir || ''), runInfo.template);
     panelPrompts = buildTemplateProduct8sVideoPrompts(runInfo.analysis, {
       customInstruction,
     });
@@ -583,7 +615,7 @@ async function handleRemakeCommand(botToken, chatId, text, baseDir) {
     return;
   } else if (isTemplateProduct) {
     const runId = path.basename(runInfo.runDir);
-    const { executeProductRemakeSingleVideo } = require('./template-product-storyboard');
+    const { executeProductRemakeSingleVideo } = getProductStoryboardModule(baseDir, runId, runInfo.template);
     const validIndices = numbers.filter(n => n >= 1 && n <= 5);
     if (validIndices.length === 0) {
       await sendTelegramMessage(botToken, chatId,
@@ -1173,7 +1205,7 @@ async function handleDownloadPanelsCallback(botToken, chatId, queryId, templateK
     session = typeof getFoodSession === 'function' ? getFoodSession(runId, baseDir) : null;
     templateLabel = 'Template Food';
   } else if (templateKey === 'tprod') {
-    const { getProductSession } = require('./template-product-storyboard');
+    const { getProductSession } = getProductStoryboardModule(baseDir, runId);
     session = typeof getProductSession === 'function' ? getProductSession(runId, baseDir) : null;
     templateLabel = 'Template Product';
   }
@@ -2018,7 +2050,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const runId = parts[2];
     await answerCallbackQuery(botToken, queryId, `⏳ Đang remake Cảnh ${pIdx}...`);
 
-    const { executeProductRemakePanel, getProductSession, saveProductSession } = require('./template-product-storyboard');
+    const { executeProductRemakePanel, getProductSession, saveProductSession } = getProductStoryboardModule(baseDir, runId);
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
     const session = typeof getProductSession === 'function' ? getProductSession(runId, baseDir) : null;
@@ -2058,7 +2090,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const runId = parts[1];
     await answerCallbackQuery(botToken, queryId, '⏳ Đang tạo lại toàn bộ 5 cảnh Storyboard...');
 
-    const { executeProductRemakeAll, getProductSession, saveProductSession } = require('./template-product-storyboard');
+    const { executeProductRemakeAll, getProductSession, saveProductSession } = getProductStoryboardModule(baseDir, runId);
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
     const session = typeof getProductSession === 'function' ? getProductSession(runId, baseDir) : null;
@@ -2098,7 +2130,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const runId = parts[1];
     await answerCallbackQuery(botToken, queryId, '✅ Đã duyệt Storyboard! Đang tiến hành tạo video 5x8s Native Voice...');
 
-    const { finalizeProductStoryboardAndGenerateVideos, getProductSession, saveProductSession } = require('./template-product-storyboard');
+    const { finalizeProductStoryboardAndGenerateVideos, getProductSession, saveProductSession } = getProductStoryboardModule(baseDir, runId);
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
     const session = typeof getProductSession === 'function' ? getProductSession(runId, baseDir) : null;
@@ -2141,7 +2173,7 @@ async function handleCallbackQuery(botToken, callbackQuery) {
     const runId = parts[2];
     await answerCallbackQuery(botToken, queryId, `⏳ Đang tạo lại Video Cảnh ${target}...`);
 
-    const { executeProductRemakeSingleVideo, getProductSession, saveProductSession } = require('./template-product-storyboard');
+    const { executeProductRemakeSingleVideo, getProductSession, saveProductSession } = getProductStoryboardModule(baseDir, runId);
     const { FlowStepTracker } = require('./flow-step-tracker');
     const { deleteTelegramMessage } = require('./telegram-send');
     const session = typeof getProductSession === 'function' ? getProductSession(runId, baseDir) : null;
@@ -2708,7 +2740,7 @@ async function handleUpdate(botToken, update) {
     if (urlMatch || isUploadCmd) {
       console.log(`[Telegram Bot] Received TikTok / Upload command from chat ${chatId}: ${text}`);
       let template = getChatTemplate(chatId);
-      const templateMatch = text.match(/\/(template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product|templateproduct|tproduct|tpro40nv)/i);
+      const templateMatch = text.match(/\/(template[0-9_.]+|t[0-9_.]+|template_pro|templatepro|tpro|testing|template_testing|ttest|template_mom|templatemom|tmom|template_food|templatefood|tfood|template_product2|templateproduct2|tproduct2|template_product|templateproduct|tproduct|tpro40nv)/i);
       if (templateMatch) {
         template = normalizeTemplateName(templateMatch[1]);
         saveChatTemplate(chatId, template);
@@ -2743,6 +2775,7 @@ async function handleUpdate(botToken, update) {
             '⚠️ <b>Bạn chưa chọn template để tạo video!</b>\n\n' +
             'Vui lòng bấm chọn 1 template mong muốn trước khi gửi link TikTok Shop:\n\n' +
             '• <code>/tproduct</code> — Live-Commerce Presenter 40s (5x 8s Veo, Native Voice, MC cố định)\n' +
+            '• <code>/tproduct2</code> — Cùng pipeline /tproduct, bối cảnh showroom-kho bán buôn\n' +
             '• <code>/tfood</code> — Kênh Review Đồ Ăn 24s (4x 6s, miền Tây, Hero Interaction)\n' +
             '• <code>/tmom</code> — Kênh Mẹ & Bé tương tác (mẹ bỉm sữa chia sẻ đồ mẹ & bé)\n' +
             '• <code>/tpro</code> — Review Pro tương tác (duyệt Storyboard & remake từng cảnh) <i>[Khuyên dùng]</i>\n' +
@@ -2792,7 +2825,8 @@ async function handleUpdate(botToken, update) {
         '• /tpro (hoặc /template_pro) — Review Pro tương tác storyboard (remake từng panel trước khi chốt)\n' +
         '• /tmom (hoặc /template_mom) — Kênh Mẹ & Bé tương tác storyboard (mẹ bỉm sữa, không faceless)\n' +
         '• /tfood (hoặc /template_food) — Kênh Review Đồ Ăn 24s (4x 6s, Hero Interaction, miền Tây)\n' +
-        '• /tproduct (hoặc /template_product) — Live-Commerce Presenter 40s (5x 8s Veo, Native Voice, MC cố định)\n\n' +
+        '• /tproduct (hoặc /template_product) — Live-Commerce Presenter 40s (5x 8s Veo, Native Voice, MC cố định)\n' +
+        '• /tproduct2 — Cùng pipeline /tproduct, bối cảnh showroom-kho bán buôn\n\n' +
         '⚡ <b>CÁC LỆNH ĐIỀU KHIỂN & HỖ TRỢ:</b>\n' +
         '• /register [Tên Shop] — Đăng ký TikTok Shop\n' +
         '• /login — Đăng nhập / làm mới phiên TikTok bằng QR (cập nhật credential cũ nếu cùng tài khoản)\n' +
@@ -2912,6 +2946,12 @@ async function handleUpdate(botToken, update) {
     }
 
     // ── Template Product command (Live-Commerce 40s Presenter Interactive Storyboard) ─
+    if (/^\/(template_product2|templateproduct2|tproduct2)(?:@\w+)?(?:\s|$)/i.test(text)) {
+      console.log(`[Telegram Bot] Received Template Product 2 command (${text}) from chat ${chatId}`);
+      await handleTemplateProduct2Command(botToken, chatId);
+      return;
+    }
+
     if (/^\/(template_product|templateproduct|tproduct|tpro40nv)(?:@\w+)?(?:\s|$)/i.test(text)) {
       console.log(`[Telegram Bot] Received Template Product command (${text}) from chat ${chatId}`);
       await handleTemplateProductCommand(botToken, chatId);
@@ -3058,6 +3098,8 @@ async function handleUpdate(botToken, update) {
         templateMessage = ' theo /tfood Kênh Review Đồ Ăn 24s (4x 6s, miền Tây)';
       } else if (batch.template === 'template_product' || batch.template === 'templateproduct' || batch.template === 'tproduct' || batch.template === 'tpro40nv') {
         templateMessage = ' theo /tproduct Live-Commerce Presenter 40s (5x 8s, Native Voice)';
+      } else if (batch.template === 'template_product2' || batch.template === 'templateproduct2' || batch.template === 'tproduct2') {
+        templateMessage = ' theo /tproduct2 Live-Commerce Presenter 40s, storyboard showroom-kho hàng bán buôn';
       }
 
       const tracker = new FlowStepTracker(chatId, { title: 'Tạo video từ ảnh tải lên' });
@@ -3095,7 +3137,7 @@ async function handleUpdate(botToken, update) {
 
           await tracker.completeAll();
 
-          if (!res?.isInteractiveStoryboard && batch.template !== 'template_pro' && batch.template !== 'tpro' && batch.template !== 'testing' && batch.template !== 'template_testing' && batch.template !== 'ttest' && batch.template !== 'template_mom' && batch.template !== 'tmom' && batch.template !== 'template_food' && batch.template !== 'tfood' && batch.template !== 'template_product' && batch.template !== 'tproduct' && batch.template !== 'tpro40nv') {
+          if (!res?.isInteractiveStoryboard && batch.template !== 'template_pro' && batch.template !== 'tpro' && batch.template !== 'testing' && batch.template !== 'template_testing' && batch.template !== 'ttest' && batch.template !== 'template_mom' && batch.template !== 'tmom' && batch.template !== 'template_food' && batch.template !== 'tfood' && batch.template !== 'template_product' && batch.template !== 'tproduct' && batch.template !== 'tpro40nv' && batch.template !== 'template_product2' && batch.template !== 'tproduct2') {
             // 1. Gửi tin nhắn CHỈ CHỨA TITLE VÀ HASHTAG (để user dễ dàng copy thủ công nếu muốn tự đăng tay)
             const analyzedTitle = res.analysis?.productName || res.analysis?.product_name || 'Sản phẩm review';
             const defaultTags = ['#review', '#sanphamchinhhang', '#trending', '#xuhuong', '#tiktokshop'];
@@ -3158,6 +3200,7 @@ function buildTelegramCommands() {
     { command: 'tmom', description: '👶 Kênh Mẹ & Bé tương tác storyboard (mẹ bỉm sữa)' },
     { command: 'tfood', description: '🍱 Review Đồ Ăn 24s (4x 6s, miền Tây, Hero Interaction)' },
     { command: 'tproduct', description: '🎙️ Live-Commerce 40s (5x 8s Veo, Native Voice, MC cố định)' },
+    { command: 'tproduct2', description: '🏬 Live-Commerce 40s, bối cảnh showroom-kho bán buôn' },
     { command: 't6', description: '🛒 Review siêu thị POV 2 cảnh 8s' },
     { command: 't1', description: '👟 Review faceless 2 cảnh' },
     { command: 't2', description: '🥿 Review 8 cảnh 4s' },

@@ -29,6 +29,8 @@ function normalizeTemplateName(name) {
   if (s === 'tfood' || s === 'template_food' || s === 'templatefood') return 'template_food';
   // Template Product — Live-Commerce Presenter Template Pro 40s Native-Voice (5x 8s)
   if (s === 'tproduct' || s === 'template_product' || s === 'templateproduct' || s === 'tpro40nv') return 'template_product';
+  // Template Product 2 — same pipeline, wholesale showroom/warehouse storyboard background
+  if (s === 'tproduct2' || s === 'template_product2' || s === 'templateproduct2') return 'template_product2';
   return s;
 }
 
@@ -203,6 +205,26 @@ function buildTemplateOptions(rawTemplate) {
       cropPercent: 0,
       preserveBorder: true,
       useProxy: resolveUseProxyForTemplate('template_product', false),
+    };
+  }
+
+  // Template Product 2 — intentionally identical to Template Product except for
+  // the master-storyboard background prompt selected inside template-product-storyboard.js.
+  if (template === 'template_product2') {
+    return {
+      template: 'template_product2',
+      panelCount: 5,
+      noText: true,
+      hasVoice: false,
+      nativeVoice: true,
+      clipCount: 5,
+      clipDuration: 8.0,
+      totalTargetDuration: 40.0,
+      videoModelKey: 'veo_3_1_i2v_s_lite_8s_low_priority',
+      interactiveStoryboard: true,
+      cropPercent: 0,
+      preserveBorder: true,
+      useProxy: resolveUseProxyForTemplate('template_product2', false),
     };
   }
 
